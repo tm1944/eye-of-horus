@@ -2,7 +2,7 @@
 
 A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
 
-This repository is project setup. Implementation is the four teammates, in parallel, on the issues. Start at [#21](https://github.com/tm1944/hypothesis-globe/issues/21).
+The Next.js frontend foundation is in `apps/web`. Start locally with `cd apps/web`, `npm ci`, and `npm run dev`, then open http://localhost:3000. It uses shared fixtures by default. See [frontend setup and FastAPI connection](apps/web/README.md) to connect the local backend. Implementation is split across four teammates; the runbook is [#21](https://github.com/tm1944/hypothesis-globe/issues/21).
 
 Issues are ordered most critical to least critical. Labels mark `critical` / `high` / `medium` / `low` plus `UI`, `backend`, `data`, `ml`, `demo`, `docs`, `contract`, and `parallel`.
 
@@ -20,10 +20,10 @@ Do not make a commercial news API the core of the demo. NewsAPI and GDELT Cloud 
 
 Google Maps, Gemini, and Snowflake stay. Cost is out of scope.
 
-- Vite 8.3.2 + React 19.3
-- Google Maps JS vector basemap via `@vis.gl/react-google-maps` 1.10.1
-- deck.gl 9.4 heatmap, scatterplot, and arcs through `GoogleMapsOverlay`
-- FastAPI 0.142.2 as the only browser-facing API
+- Next.js App Router + React + TypeScript (installed versions in `apps/web/package.json`)
+- Main screen: `react-globe.gl` + Three.js with spinning Earth, click coordinates, and fixture markers
+- Google Maps + deck.gl remains the original regional-map proposal; heatmaps and arcs are not implemented yet
+- FastAPI for backend data, reached through the Next.js `/api` proxy
 - Snowflake XSMALL. RAW VARIANT plus MART.EVENT plus MART.EVENT_LINK
 - Fixture JSON until the warehouse answers
 - Gemini `gemini-3.5-flash-lite` extract, `gemini-3.8-flash` links
