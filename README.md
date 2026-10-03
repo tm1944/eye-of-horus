@@ -2,6 +2,8 @@
 
 A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
 
+This repository is project setup. Implementation is the four teammates, in parallel, on the issues. Start at [#21](https://github.com/tm1944/hypothesis-globe/issues/21).
+
 Issues are ordered most critical to least critical. Labels mark `critical` / `high` / `medium` / `low` plus `UI`, `backend`, `data`, `ml`, `demo`, `docs`, `contract`, and `parallel`.
 
 Repo: https://github.com/tm1944/hypothesis-globe
@@ -40,10 +42,11 @@ Share schema and fixtures first. Then these tracks do not wait on each other.
 | D | Gemini and geocode | #11 #12 #14 |
 | Anyone free | Keys, demo, polish | #17 #15 #16 |
 
-Everyone also owns #1.
+Everyone also owns #1. Setup and runbook live on #21.
 
 ## Issues, most critical first
 
+- P0 [#21](https://github.com/tm1944/hypothesis-globe/issues/21) Repo setup and four-track runbook
 - P0 [#17](https://github.com/tm1944/hypothesis-globe/issues/17) Enable Google APIs, map ID, and FIRMS key on Friday
 - P0 [#1](https://github.com/tm1944/hypothesis-globe/issues/1) Shared Event schema and weekend fixtures
 - P0 [#2](https://github.com/tm1944/hypothesis-globe/issues/2) FastAPI GET /events from fixtures
