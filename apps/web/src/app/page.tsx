@@ -1,8 +1,11 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getEvents, type EventsResponse } from "@/lib/api";
 import type { Selection } from "@/components/event-globe";
+import LayerControls from "@/components/layer-controls";
+import { useLayerFilters } from "@/lib/use-layer-filters";
+import { deriveVisuals } from "@/lib/layers";
 import GlobeBoundary from "@/components/globe-boundary";
 
 const EventGlobe = dynamic(() => import("@/components/event-globe"), { ssr: false, loading: () => <div className="earth-loading" role="status">Loading Earth…</div> });
@@ -21,8 +24,11 @@ export default function Home() {
     });
     return () => controller.abort();
   }, [attempt]);
+  const { filters, update } = useLayerFilters();
+  const visuals = useMemo(() => deriveVisuals(result?.data.events ?? emptyEvents, filters), [result, filters]);
   return <main className="earth-page" aria-label="Hypothesis Globe">
-    <GlobeBoundary><EventGlobe events={result?.data.events ?? emptyEvents} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary>
+    <LayerControls filters={filters} onChange={update} count={visuals.visible.length} onInteract={() => setRotating(false)} />
+    <GlobeBoundary><EventGlobe events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary>
     {error && <div className="data-error" role="alert">Event data unavailable. The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
 }
