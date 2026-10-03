@@ -1,0 +1,159 @@
+:root {
+  color: #e8eef7;
+  background: #071018;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #1d2c3a;
+}
+
+.kicker {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: #8fb4d4;
+}
+
+h1,
+h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+}
+
+.meta {
+  margin: 0;
+  align-self: center;
+  color: #9eb3c7;
+}
+
+.banner {
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  background: #14324a;
+  color: #d7ecff;
+}
+
+.banner.error {
+  background: #4a1a1a;
+  color: #ffd4d4;
+}
+
+.banner code {
+  color: #fff;
+}
+
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  min-height: 0;
+}
+
+.map-root {
+  position: relative;
+  min-height: 60vh;
+  background: #0b1620;
+}
+
+.fallback-map {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, #163044 0%, #071018 70%),
+    #071018;
+}
+
+.dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px rgb(255 210 80 / 20%);
+}
+
+.dot.earthquake {
+  background: #ffd250;
+}
+
+.dot.wildfire {
+  background: #ff6b3d;
+}
+
+.dot.news {
+  background: #6ec8ff;
+}
+
+.panel {
+  border-left: 1px solid #1d2c3a;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+}
+
+.panel li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #1d2c3a;
+}
+
+.layer {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fb4d4;
+}
+
+.title {
+  margin: 0.2rem 0;
+}
+
+.coords,
+.empty {
+  margin: 0;
+  color: #9eb3c7;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 800px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    border-left: 0;
+    border-top: 1px solid #1d2c3a;
+  }
+
+  .bar {
+    flex-direction: column;
+  }
+}
