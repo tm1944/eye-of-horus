@@ -1,0 +1,11 @@
+[
+  {
+    "id": "link:usgs:us7000example:gdelt:123",
+    "sourceId": "usgs:us7000example",
+    "targetId": "gdelt:123",
+    "relation": "reported_together",
+    "confidence": 0.74,
+    "rationale": "Same province and 6 hour window.",
+    "model": "gemini-3.8-flash"
+  }
+]
