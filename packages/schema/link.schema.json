@@ -24,6 +24,11 @@
     },
     "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
     "rationale": { "type": "string" },
+    "citations": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "description": "Source URLs justifying this link, for user further reading."
+    },
     "model": { "type": "string" }
   }
 }
