@@ -148,5 +148,6 @@ budget and downsample before serving map data; no FIRMS requests were made here.
 Issue #7 currently names `data/fixtures/events.json`; the API writes last-good
 warehouse reads to `data/snapshots/`. Both paths are supported, but fixture mode
 labels fixture data accordingly. Track D must supply actual EventLink rows in
-MART or matching local JSON. Track A must handle pagination, degraded health,
-and `unknown` source status. Live services still need an integration run.
+MART or matching local JSON. The merged frontend follows pagination, retries one changed dataset, and preserves
+Sample labels for backend fixtures. Source status remains available for future
+UI controls. Live services still need an integration run.

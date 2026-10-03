@@ -10,8 +10,8 @@ before changing API contracts, data flow, or map behavior. Read
 - `packages/schema/` holds the shared Event and EventLink JSON schemas.
 - `data/fixtures/` contains bundled events and links. `data/snapshots/` holds
   generated fallback data; runtime JSON files are ignored by Git.
-- `apps/web/`, `jobs/ingest/`, `jobs/llm/`, `sql/`, and `eval/` remain planned
-  locations for the other tracks. Dedicated UI assets are not present yet.
+- `apps/web/` contains the Next.js globe and same-origin API proxy.
+- `jobs/ingest/`, `jobs/llm/`, `sql/`, and `eval/` remain planned.
 
 Follow the track assignments in issue #21. Track C owns #2 and #9; coordinate
 loader, warehouse, and generated-link handoffs with their owners.
@@ -31,7 +31,8 @@ python -m unittest discover -s tests -v
 These commands create the environment, install dependencies, run the API, and
 execute tests. Leave `DATABASE_URL` unset for fixtures. Read
 `apps/api/README.md` for environment variables and current integration limits.
-Run `git diff --check` before submitting changes. No frontend build exists yet.
+From `apps/web`, use `npm ci`, `npm test`, `npm run lint`, and `npm run build`.
+Run `git diff --check` before submitting changes.
 
 ## Coding style and naming conventions
 

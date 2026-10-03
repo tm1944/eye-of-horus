@@ -23,6 +23,6 @@ export default function Home() {
   }, [attempt]);
   return <main className="earth-page" aria-label="Hypothesis Globe">
     <GlobeBoundary><EventGlobe events={result?.data.events ?? emptyEvents} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary>
-    {error && <div className="data-error" role="alert">Event data unavailable. The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
+    {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
 }
