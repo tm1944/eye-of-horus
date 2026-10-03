@@ -1,0 +1,62 @@
+[
+  {
+    "id": "usgs:us7000example",
+    "source": "usgs",
+    "sourceUrl": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000example",
+    "layerId": "earthquake",
+    "title": "M 6.2 - 15 km SW of Napa, California",
+    "summary": "USGS native point. Public-domain catalog fixture for the weekend map.",
+    "occurredAt": "2026-10-03T12:04:11Z",
+    "updatedAt": "2026-10-03T12:10:00Z",
+    "lng": -122.4,
+    "lat": 37.8,
+    "altM": -10000,
+    "geoPrecision": "point",
+    "geoSource": "native",
+    "weight": 6.2,
+    "significance": 80,
+    "entities": [{ "type": "place", "text": "Napa", "confidence": 0.9 }],
+    "rawRef": "RAW.INGEST_BATCH:usgs-fixture-001"
+  },
+  {
+    "id": "firms:viirs:20261003:napa",
+    "source": "firms",
+    "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/map/#d:2026-10-03;l:VIIRS_SNPP_NRT;@-122.35,38.55,8z",
+    "layerId": "wildfire",
+    "title": "VIIRS hotspot cluster north of Napa Valley",
+    "summary": "NASA FIRMS native hotspot. Cite NASA FIRMS. Heatmap-first; this row is a marker fixture.",
+    "occurredAt": "2026-10-03T11:40:00Z",
+    "updatedAt": "2026-10-03T11:55:00Z",
+    "lng": -122.35,
+    "lat": 38.55,
+    "altM": 0,
+    "geoPrecision": "point",
+    "geoSource": "native",
+    "weight": 0.82,
+    "significance": 55,
+    "entities": [{ "type": "place", "text": "Napa Valley", "confidence": 0.7 }],
+    "rawRef": "RAW.INGEST_BATCH:firms-fixture-001"
+  },
+  {
+    "id": "gdelt:123",
+    "source": "gdelt",
+    "sourceUrl": "https://api.gdeltproject.org/api/v2/doc/doc?query=Napa%20earthquake%20smoke&mode=artlist&maxrecords=10&format=json",
+    "layerId": "news",
+    "title": "Local outlets report shaking and smoke in Napa County",
+    "summary": "Curated headline fixture. Coordinates are a city-scale geocode, not a sensor point.",
+    "occurredAt": "2026-10-03T13:20:00Z",
+    "updatedAt": "2026-10-03T13:22:00Z",
+    "lng": -122.2869,
+    "lat": 38.2975,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "google_geocode",
+    "weight": 1,
+    "significance": 40,
+    "entities": [
+      { "type": "place", "text": "Napa County", "confidence": 0.86 },
+      { "type": "org", "text": "local outlets", "confidence": 0.4 }
+    ],
+    "rawRef": "RAW.INGEST_BATCH:gdelt-fixture-001"
+  }
+]
