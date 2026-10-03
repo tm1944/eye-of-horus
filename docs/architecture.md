@@ -1,5 +1,7 @@
 # Global events globe. Weekend architecture
 
+> Current team decision: TigerData/PostgreSQL replaces Snowflake. The Snowflake-specific setup and constraints below are historical. Use `apps/api/README.md` for the current connection and API contract; coordinate PostgreSQL DDL with Track B.
+
 Constraint. The team has free Google API access and free Snowflake API access. Cost is out of scope. Do not drop Snowflake or Gemini to save money. Still treat setup time, quotas, licenses, and demo quality as first-class risks.
 
 Goal. A weekend hackathon demo for four students. An interactive world view with heatmap layers and discrete markers for significant events. Layer toggles. Time scrubber. Optional LLM edges that relate events.

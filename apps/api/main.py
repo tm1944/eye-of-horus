@@ -17,12 +17,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from jsonschema import Draft202012Validator, FormatChecker
 from ingest_runner import run_ingest
 
-from snowflake_client import (
+from tigerdata_client import (
     fetch_mart_events,
     fetch_mart_links,
     ping_and_warmup,
-    snowflake_account_set,
-    SnowflakePing,
+    database_configured,
+    DatabasePing,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -212,13 +212,13 @@ def _write_snapshot(events: list[dict[str, Any]], *, last_ingest_at: str | None)
 
 
 def _force_fixtures(fixture_flag: bool) -> bool:
-    return fixture_flag or not snowflake_account_set()
+    return fixture_flag or not database_configured()
 
 
-def _source_status(*, snowflake: str, data_source: str) -> dict[str, str]:
+def _source_status(*, tigerdata: str, data_source: str) -> dict[str, str]:
     # Warehouse availability does not prove the sensors ingested successfully.
     sensor_status = "fixture" if data_source == "fixture" else "unknown"
-    status = {"usgs": sensor_status, "firms": sensor_status, "snowflake": snowflake}
+    status = {"usgs": sensor_status, "firms": sensor_status, "tigerdata": tigerdata}
     if data_source != "fixture":
         stored = _read_snapshot_meta().get("sourceStatus", {})
         if isinstance(stored, dict):
@@ -301,7 +301,7 @@ def _load_events_for_request(
     """Fall back on failed reads; a successful empty dataset remains empty."""
     if _force_fixtures(fixture_flag):
         events, label = _load_events_cache(prefer_snapshot=False)
-        return events, _source_status(snowflake="fixture", data_source=label), None
+        return events, _source_status(tigerdata="fixture", data_source=label), None
 
     # Request limits apply after filters and must not truncate the shared cache.
     mart_events, ping = fetch_mart_events()
@@ -311,27 +311,27 @@ def _load_events_for_request(
         try:
             _validate_rows(mart_events, "event")
         except ValueError as exc:
-            ping = SnowflakePing("error", ping.warehouse_ping, ping.last_ingest_at, str(exc))
+            ping = DatabasePing("error", ping.warehouse_ping, ping.last_ingest_at, str(exc))
         else:
             _write_snapshot(mart_events, last_ingest_at=last_ingest)
-            return mart_events, _source_status(snowflake="ok", data_source="warehouse"), None
+            return mart_events, _source_status(tigerdata="ok", data_source="warehouse"), None
 
-    # Snowflake dark / error / misconfigured → last good snapshot or fixtures.
+    # TigerData dark / error / misconfigured → last good snapshot or fixtures.
     try:
         events, label = _load_events_cache(prefer_snapshot=True)
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
         detail = {
             **detail,
-            "failingSource": "snowflake",
-            "snowflakeStatus": ping.status,
-            "snowflakeDetail": ping.detail,
+            "failingSource": "tigerdata",
+            "tigerdataStatus": ping.status,
+            "tigerdataDetail": ping.detail,
         }
         raise HTTPException(status_code=503, detail=detail) from exc
 
-    snowflake_status = ping.status if ping.status in {"dark", "error"} else "dark"
-    detail = ping.detail or f"Serving {label} after Snowflake {snowflake_status}"
-    return events, _source_status(snowflake=snowflake_status, data_source=label), detail
+    tigerdata_status = ping.status if ping.status in {"dark", "error"} else "dark"
+    detail = ping.detail or f"Serving {label} after TigerData {tigerdata_status}"
+    return events, _source_status(tigerdata=tigerdata_status, data_source=label), detail
 
 
 @app.get("/health")
@@ -347,7 +347,7 @@ def health() -> dict[str, Any]:
             try:
                 _validate_rows(rows, "event")
             except ValueError as exc:
-                ping = SnowflakePing("error", ping.warehouse_ping, ping.last_ingest_at, str(exc), ping.warmup_ms)
+                ping = DatabasePing("error", ping.warehouse_ping, ping.last_ingest_at, str(exc), ping.warmup_ms)
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
     ok = ping.status == "ok"
     detail = ping.detail
@@ -362,8 +362,8 @@ def health() -> dict[str, Any]:
         "ok": ok,
         "usingFixtures": data_source == "fixture",
         "dataSource": data_source,
-        "sourceStatus": _source_status(snowflake=ping.status, data_source=data_source),
-        "snowflake": ping.status,
+        "sourceStatus": _source_status(tigerdata=ping.status, data_source=data_source),
+        "tigerdata": ping.status,
         "warehousePing": ping.warehouse_ping,
         "warmupMs": ping.warmup_ms,
         "lastIngestAt": last_ingest,
@@ -416,7 +416,7 @@ def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str,
         raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
     links = None
     link_ping = None
-    if not _force_fixtures(fixture == 1) and _status["snowflake"] == "ok":
+    if not _force_fixtures(fixture == 1) and _status["tigerdata"] == "ok":
         links, link_ping = fetch_mart_links()
         if links is not None:
             try:
@@ -435,7 +435,7 @@ def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str,
         except HTTPException as exc:
             if link_ping is not None:
                 raise HTTPException(503, detail={
-                    "failingSource": "snowflake", "error": "No usable links or link cache",
+                    "failingSource": "tigerdata", "error": "No usable links or link cache",
                 }) from exc
             raise
     return [

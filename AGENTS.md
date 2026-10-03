@@ -6,7 +6,7 @@
 before changing API contracts, data flow, or map behavior. Read
 `docs/business-model.md` when changing product scope or demo messaging.
 
-- `apps/api/` contains Track C's FastAPI app, optional Snowflake adapter, and tests.
+- `apps/api/` contains Track C's FastAPI app, optional TigerData adapter, and tests.
 - `packages/schema/` holds the shared Event and EventLink JSON schemas.
 - `data/fixtures/` contains bundled events and links. `data/snapshots/` holds
   generated fallback data; runtime JSON files are ignored by Git.
@@ -29,7 +29,7 @@ python -m unittest discover -s tests -v
 ```
 
 These commands create the environment, install dependencies, run the API, and
-execute tests. Leave `SNOWFLAKE_ACCOUNT` unset for fixtures. Read
+execute tests. Leave `DATABASE_URL` unset for fixtures. Read
 `apps/api/README.md` for environment variables and current integration limits.
 Run `git diff --check` before submitting changes. No frontend build exists yet.
 
@@ -58,7 +58,7 @@ changes explicitly.
 
 ## Architecture and configuration
 
-Keep FastAPI as the browser-facing API; access Snowflake and Gemini server-side.
+Keep FastAPI as the browser-facing API; access TigerData and Gemini server-side.
 Preserve fallback data, keep credentials out of commits, and retain source
 attribution. Report unknown feed health honestly. `/ingest/run` executes only
 the server-configured `INGEST_COMMAND`; coordinate its loader with Track B.
