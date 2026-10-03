@@ -1,0 +1,8 @@
+{
+  "layers": ["earthquake", "wildfire", "humanitarian", "news"],
+  "coordinates": [
+    { "lat": 37.8, "lng": -122.4, "label": "San Francisco Bay Area" }
+  ],
+  "keywords": ["earthquake", "fire", "flooding", "displacement"],
+  "significanceFloor": 30
+}

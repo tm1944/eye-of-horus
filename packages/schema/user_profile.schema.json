@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tm1944/hypothesis-globe/packages/schema/user_profile.schema.json",
+  "title": "UserProfile",
+  "description": "Demo user preference config. Frontend writes data/user_config.json matching this schema; all backend jobs read from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["layers", "coordinates", "keywords", "significanceFloor"],
+  "properties": {
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "earthquake",
+          "wildfire",
+          "conflict",
+          "politics",
+          "terror",
+          "finance",
+          "humanitarian",
+          "news"
+        ]
+      },
+      "description": "Layer IDs to include. Matches layerId enum in event.schema.json."
+    },
+    "coordinates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lat", "lng"],
+        "properties": {
+          "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+          "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+          "label": {
+            "type": "string",
+            "description": "Human-readable name for this area of interest."
+          }
+        }
+      },
+      "description": "Geographic areas of interest provided by the frontend as lat/lng pairs. Backend scores events by proximity."
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Free-text topics matched against event keywords, labels, entity text, and title tokens."
+    },
+    "significanceFloor": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0,
+      "description": "Hard filter. Events with significance below this value are dropped in Stage 1 before scoring."
+    }
+  }
+}
