@@ -35,6 +35,7 @@ API mode forwards query parameters and HTTP statuses. Requests time out after 10
 ## Checks
 
 ```sh
+npm test
 npm run lint
 npm run build
 ```
@@ -51,4 +52,4 @@ Earth is the main view. Numbered pins follow geographic coordinates and connect 
 
 See [globe visuals and backend integration](docs/globe-and-api.md) for all named visual settings, projection/visibility behavior, field mappings, API routes, selection hooks, current limitations, and verification steps.
 
-The page fetches `GET /api/events` once on mount (and on error retry). Rotation and selections are local. Details, relationship, and health routes remain available through the proxy but are not currently called. Backend location search, pagination, heatmaps, and relation cards are not implemented.
+The page fetches `GET /api/events` once on mount (and on error retry). Rotation and selections are local. Details, relationship, and health routes remain available through the proxy but are not currently called. The smooth Earth uses the local `public/textures/8k_earth_daymap.jpg` texture. The Layers menu supports all eight layer IDs with markers by default; earthquake and wildfire additionally support heatmap/both modes using backend-supplied event weight. Layer/time filters are shareable via the URL; Back/Forward restores them. Selected event cards survive disabling their layers. Backend location search, pagination, a visible time scrubber, and relation cards are not implemented.

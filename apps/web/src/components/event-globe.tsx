@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { AmbientLight, DirectionalLight, PerspectiveCamera, Vector3 } from "three";
+import { AmbientLight, DirectionalLight, Mesh, PerspectiveCamera, Vector3 } from "three";
+import { LAYER_IDS, type HeatmapData } from "@/lib/layers";
 import type { Event } from "@/lib/api";
 import { GLOBE, eventColor } from "@/lib/globe-config";
 
 export type Location = { lat: number; lng: number };
 /** Integration hook: these selections are local; they never submit a request. */
 export type Selection = { kind: "location"; location: Location } | { kind: "event"; event: Event };
-type Callout = Location & { id: string; color: string; event?: Event };
+type Callout = Location & { id: string; color: string; event?: Event; retained?: boolean };
 
 const coordinate = (value: number, latitude: boolean) => `${Math.abs(value).toFixed(4)}° ${latitude ? value < 0 ? "S" : "N" : value < 0 ? "W" : "E"}`;
 const eventTime = (value: string) => {
@@ -20,8 +21,28 @@ const sourceHref = (value: string | null) => {
   try { const url = new URL(value ?? ""); return ["http:", "https:"].includes(url.protocol) ? url.href : null; } catch { return null; }
 };
 
-export default function EventGlobe({ events, selection, onSelect, rotating, onRotationChange, fixture }: {
+// Stable accessors prevent unrelated React renders from recalculating density.
+const heatmapAltitude = (layer: object) => GLOBE.heatmapBaseAltitude + LAYER_IDS.indexOf((layer as HeatmapData).id) * GLOBE.heatmapLayerGap;
+const heatmapColors = new Map(LAYER_IDS.map(id => {
+  const color = eventColor(id);
+  const red = parseInt(color.slice(1, 3), 16), green = parseInt(color.slice(3, 5), 16), blue = parseInt(color.slice(5, 7), 16);
+  return [id, (density: number) => `rgba(${red},${green},${blue},${Math.min(GLOBE.heatmapMaxOpacity, Math.max(0, density) * GLOBE.heatmapMaxOpacity)})`];
+}));
+function heatmapColor(layer: object) {
+  // three-globe binds the mesh before invoking this accessor on data updates.
+  const data = layer as HeatmapData & { __threeObjHeatmap?: Mesh };
+  const mesh = data.__threeObjHeatmap;
+  if (mesh) {
+    mesh.renderOrder = 10 + LAYER_IDS.indexOf(data.id);
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    materials.forEach(material => { material.depthWrite = false; });
+  }
+  return heatmapColors.get(data.id)!;
+}
+
+export default function EventGlobe({ events, heatmaps, selection, onSelect, rotating, onRotationChange, fixture }: {
   events: Event[];
+  heatmaps: HeatmapData[];
   selection: Selection | null;
   onSelect: (selection: Selection | null) => void;
   rotating: boolean;
@@ -79,8 +100,9 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
 
   const callouts = useMemo<Callout[]>(() => {
     const selectedId = selection?.kind === "event" ? selection.event.id : null;
-    const ranked = [...events].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.significance - a.significance || a.id.localeCompare(b.id));
-    const result = ranked.slice(0, GLOBE.maxCallouts - Number(selection?.kind === "location")).map((event) => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event }));
+    const retained = selection?.kind === "event" && !events.some(event => event.id === selectedId) ? selection.event : null;
+    const ranked = [...events, ...(retained ? [retained] : [])].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.significance - a.significance || a.id.localeCompare(b.id));
+    const result = ranked.slice(0, GLOBE.maxCallouts - Number(selection?.kind === "location")).map((event) => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: event.id === retained?.id }));
     return selection?.kind === "location" ? [{ id: "selected-location", ...selection.location, color: GLOBE.colors.selected }, ...result] : result;
   }, [events, selection]);
 
@@ -88,9 +110,19 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
   useEffect(() => {
     if (!ready) return;
     let frame = 0;
+    let dirty = true;
+    const instance = globe.current!;
+    const invalidate = () => { dirty = true; };
+    const observer = new ResizeObserver(invalidate);
+    observer.observe(stage.current!);
+    observer.observe(container.current!);
+    cards.current.forEach(card => observer.observe(card));
+    instance.controls().addEventListener("change", invalidate);
+    window.addEventListener("scroll", invalidate, true);
     const update = () => {
       const instance = globe.current;
-      if (instance && stage.current && container.current) {
+      if (dirty && instance && stage.current && container.current) {
+        dirty = false;
         const stageRect = stage.current.getBoundingClientRect();
         const canvasRect = container.current.getBoundingClientRect();
         const offsetX = canvasRect.left - stageRect.left;
@@ -105,13 +137,16 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
           // Perspective horizon: a point is visible only when n·camera > radius.
           const front = normal.dot(camera) > radius + 0.5;
           const point = instance.getScreenCoords(item.lat, item.lng, GLOBE.pointAltitude);
-          const shown = front && point.x > 0 && point.x < canvasRect.width && point.y > 0 && point.y < canvasRect.height;
+          const shown = !item.retained && front && point.x > 0 && point.x < canvasRect.width && point.y > 0 && point.y < canvasRect.height;
           const card = cards.current.get(item.id), pin = pins.current.get(item.id), path = paths.current.get(item.id);
           if (!card || !pin || !path) continue;
-          card.hidden = !shown; pin.hidden = !shown; path.style.display = shown ? "" : "none";
+          card.hidden = !shown && !item.retained; pin.hidden = !shown; path.style.display = shown ? "" : "none";
+          if (item.retained) {
+            visible.push({ item, x: offsetX, y: canvasRect.height / 2, side: "left" });
+            continue;
+          }
           if (!shown) continue;
           const x = point.x + offsetX, y = point.y + offsetY;
-          pin.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
           const middle = canvasRect.width / 2;
           let side = cardSides.current.get(item.id) ?? (point.x < middle ? "left" : "right");
           // Keep cards in a safe outer rail; switch before following the pin inward
@@ -121,6 +156,15 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
           cardSides.current.set(item.id, side);
           visible.push({ item, x, y, side });
         }
+        if (!desktop) {
+          visible.forEach(({ item }) => {
+            const card = cards.current.get(item.id)!;
+            card.style.left = ""; card.style.top = ""; card.style.transform = "";
+          });
+        }
+        // One measurement phase after visibility updates; all position writes follow.
+        const measurements = new Map(visible.map(({ item }) => [item.id, cards.current.get(item.id)!.getBoundingClientRect()]));
+        const endpoints = new Map<string, { x: number; y: number }>();
         // Balance crowded hemispheres across two rails, then sort vertically to reduce crossings.
         if (desktop) {
           for (const side of ["left", "right"] as const) {
@@ -130,7 +174,7 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
           for (const side of ["left", "right"] as const) {
             const group = visible.filter((entry) => entry.side === side).sort((a, b) => a.y - b.y);
             const padding = GLOBE.cardEdgePaddingPx;
-            const heights = group.map((entry) => cards.current.get(entry.item.id)!.offsetHeight);
+            const heights = group.map((entry) => measurements.get(entry.item.id)!.height);
             // Follow the projected latitude; only displace a card when another card
             // or the viewport boundary blocks its desired position.
             const tops = group.map((entry, index) => Math.max(padding, Math.min(canvasRect.height - padding - heights[index], entry.y - heights[index] / 2)));
@@ -141,19 +185,24 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
             }
             group.forEach((entry, index) => {
               const card = cards.current.get(entry.item.id)!;
-              card.style.left = side === "left" ? "24px" : `${stageRect.width - card.offsetWidth - 24}px`;
-              card.style.top = `${Math.max(padding, tops[index])}px`;
+              const width = measurements.get(entry.item.id)!.width;
+              const left = side === "left" ? 24 : stageRect.width - width - 24;
+              const top = Math.max(padding, tops[index]);
+              card.style.left = "0px";
+              card.style.top = "0px";
+              card.style.transform = `translate(${left}px, ${top}px)`;
+              endpoints.set(entry.item.id, { x: side === "left" ? left + width : left, y: top + heights[index] / 2 });
               card.dataset.side = side;
             });
           }
-        } else {
-          visible.forEach(({ item }) => { const card = cards.current.get(item.id)!; card.style.left = ""; card.style.top = ""; });
         }
         const placedPins: { x: number; y: number }[] = [];
-        for (const { item, x, y, side } of visible) {
-          const rect = cards.current.get(item.id)!.getBoundingClientRect();
-          const endX = desktop ? (side === "left" ? rect.right : rect.left) - stageRect.left : rect.left - stageRect.left + rect.width / 2;
-          const endY = desktop ? rect.top - stageRect.top + rect.height / 2 : rect.top - stageRect.top;
+        for (const { item, x, y } of visible) {
+          if (item.retained) continue;
+          const rect = measurements.get(item.id)!;
+          const endpoint = endpoints.get(item.id);
+          const endX = endpoint ? endpoint.x : rect.left - stageRect.left + rect.width / 2;
+          const endY = endpoint ? endpoint.y : rect.top - stageRect.top;
           // One segment, from the exact projected coordinate to the card edge.
           paths.current.get(item.id)!.setAttribute("d", `M ${x} ${y} L ${endX} ${endY}`);
           const length = Math.hypot(endX - x, endY - y);
@@ -171,9 +220,15 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      instance.controls().removeEventListener("change", invalidate);
+      window.removeEventListener("scroll", invalidate, true);
+    };
   }, [ready, callouts]);
 
+  const activeHeatmaps = useMemo(() => heatmaps.filter(layer => layer.points.length > 0), [heatmaps]);
   const points = useMemo(() => events.map((event) => ({ ...event, color: eventColor(event.layerId) })), [events]);
   function pause() {
     if (globe.current) globe.current.controls().autoRotate = false;
@@ -192,8 +247,13 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location."
       onPointerDownCapture={pause} onWheelCapture={pause}>
       {size.width > 0 && <Globe ref={globe} width={size.width} height={size.height}
-        backgroundColor="rgba(0,0,0,0)" globeImageUrl="/textures/earth-blue-marble.jpg"
+        backgroundColor="rgba(0,0,0,0)" globeImageUrl={GLOBE.textureUrl}
         atmosphereColor={GLOBE.atmosphereColor} atmosphereAltitude={GLOBE.atmosphereAltitude} animateIn={false}
+        heatmapsData={activeHeatmaps} heatmapPoints="points"
+        heatmapPointLat="lat" heatmapPointLng="lng" heatmapPointWeight="weight"
+        heatmapColorFn={heatmapColor}
+        heatmapBandwidth={GLOBE.heatmapBandwidthDegrees} heatmapBaseAltitude={heatmapAltitude} heatmapTopAltitude={heatmapAltitude} heatmapsTransitionDuration={0}
+        onHeatmapClick={(_, __, { lat, lng }) => { pause(); onSelect({ kind: "location", location: { lat, lng } }); }}
         pointsData={points} pointLat="lat" pointLng="lng" pointColor="color"
         pointRadius={GLOBE.pointRadiusDegrees} pointAltitude={GLOBE.pointAltitude} pointsTransitionDuration={0}
         onGlobeReady={() => {
@@ -224,6 +284,7 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
       return <article hidden key={item.id} onPointerEnter={pause} onFocus={pause} ref={(node) => { if (node) cards.current.set(item.id, node); else cards.current.delete(item.id); }} className={`earth-card${active ? " is-selected" : ""}`} style={{ "--pin-color": item.color } as CSSProperties}>
         <div className="card-category"><span>{String(index + 1).padStart(2, "0")} / {event?.layerId ?? "location"}</span>{fixture && event && <span className="sample-badge">Sample</span>}</div>
         <button className="card-title" onClick={() => select(item)} aria-pressed={active}>{event?.title ?? "Selected location"}</button>
+        {item.retained && <p className="retained-note">Selected event · hidden by map filters</p>}
         {event && <p className="card-summary">{event.summary ?? "No summary provided."}</p>}
         <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}{event && <span>{event.geoPrecision} precision</span>}</p>
         {event && <p className="card-time">{eventTime(event.occurredAt)}</p>}
