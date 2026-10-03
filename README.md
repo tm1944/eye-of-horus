@@ -18,13 +18,14 @@ Do not make a commercial news API the core of the demo. NewsAPI and GDELT Cloud 
 
 ## Local API (fixtures)
 
-Python 3.12+. Leave `SNOWFLAKE_ACCOUNT` unset.
+Python 3.12+. Leave `SNOWFLAKE_ACCOUNT` unset for fixtures. See `apps/api/README.md` for Snowflake, health warmup, and `INGEST_SECRET`.
 
 ```bash
 cd apps/api
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload --host 127.0.0.1 --port 43124
+curl http://127.0.0.1:43124/health
 curl 'http://127.0.0.1:43124/events?fixture=1'
 ```
 
