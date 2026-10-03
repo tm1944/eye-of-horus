@@ -2,7 +2,15 @@
 
 A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
 
-This repository is project setup. Implementation is the four teammates, in parallel, on the issues. Start at [#21](https://github.com/tm1944/hypothesis-globe/issues/21).
+Implementation is split across four teammate tracks. Start at the [runbook, #21](https://github.com/tm1944/hypothesis-globe/issues/21).
+
+The shared schemas, fixtures, and Track C API are implemented. For local API
+setup and tests, see [apps/api/README.md](apps/api/README.md). From `apps/api`,
+install with `pip install -r requirements.txt`, run with
+`uvicorn main:app --reload --host 127.0.0.1 --port 43124`, and test with
+`python -m unittest discover -s tests -v`. Use Python 3.12+ in a virtual environment.
+Leave `SNOWFLAKE_ACCOUNT` unset for fixtures. The protected `/ingest/run` endpoint
+executes a server-configured `INGEST_COMMAND`; Track B must supply the loader.
 
 Issues are ordered most critical to least critical. Labels mark `critical` / `high` / `medium` / `low` plus `UI`, `backend`, `data`, `ml`, `demo`, `docs`, `contract`, and `parallel`.
 

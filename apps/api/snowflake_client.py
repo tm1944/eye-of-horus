@@ -6,10 +6,12 @@ SNOWFLAKE_ACCOUNT is set. Pin: snowflake-connector-python==4.7.3.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
 
 
@@ -47,6 +49,14 @@ _COLUMN_ALIASES = {
     "ENTITIES": "entities",
     "RAW_REF": "rawRef",
     "RAWREF": "rawRef",
+    "SOURCE_ID": "sourceId",
+    "SOURCEID": "sourceId",
+    "TARGET_ID": "targetId",
+    "TARGETID": "targetId",
+    "RELATION": "relation",
+    "CONFIDENCE": "confidence",
+    "RATIONALE": "rationale",
+    "MODEL": "model",
 }
 
 
@@ -193,13 +203,27 @@ def _row_to_event(columns: list[str], row: tuple[Any, ...]) -> dict[str, Any]:
         key = _COLUMN_ALIASES.get(name.upper(), name)
         if isinstance(value, datetime):
             value = _iso_z(value)
+        elif isinstance(value, Decimal):
+            value = float(value)
+        elif key == "entities" and isinstance(value, str):
+            value = json.loads(value)
         event[key] = value
     return event
 
 
-def fetch_mart_events(*, limit: int = 8000) -> tuple[list[dict[str, Any]] | None, SnowflakePing]:
-    """Best-effort MART.EVENT read. Returns (events_or_None, ping)."""
-    ping = ping_and_warmup(fetch_last_ingest=True)
+def fetch_mart_events(*, limit: int | None = None, ping: SnowflakePing | None = None) -> tuple[list[dict[str, Any]] | None, SnowflakePing]:
+    return _fetch_mart("EVENT", limit=limit, ping=ping)
+
+
+def fetch_mart_links() -> tuple[list[dict[str, Any]] | None, SnowflakePing]:
+    return _fetch_mart("EVENT_LINK")
+
+
+def _fetch_mart(table: str, *, limit: int | None = None, ping: SnowflakePing | None = None) -> tuple[list[dict[str, Any]] | None, SnowflakePing]:
+    """Read one of the fixed MART tables. Table names never come from HTTP."""
+    if table not in {"EVENT", "EVENT_LINK"}:
+        raise ValueError("Unsupported MART table")
+    ping = ping or ping_and_warmup(fetch_last_ingest=True)
     if ping.status != "ok":
         return None, ping
 
@@ -218,7 +242,8 @@ def fetch_mart_events(*, limit: int = 8000) -> tuple[list[dict[str, Any]] | None
     try:
         cur = conn.cursor()
         try:
-            cur.execute(f"SELECT * FROM MART.EVENT LIMIT {int(limit)}")
+            limit_sql = f" LIMIT {int(limit)}" if limit is not None else ""
+            cur.execute(f"SELECT * FROM MART.{table}{limit_sql}")
             rows = cur.fetchall()
             columns = [col[0] for col in cur.description]
             events = [_row_to_event(columns, row) for row in rows]
@@ -228,7 +253,7 @@ def fetch_mart_events(*, limit: int = 8000) -> tuple[list[dict[str, Any]] | None
                 status="error",
                 warehouse_ping="ok",
                 last_ingest_at=ping.last_ingest_at,
-                detail=f"MART.EVENT unavailable; {exc}",
+                detail=f"MART.{table} unavailable; {exc}",
                 warmup_ms=ping.warmup_ms,
             )
         finally:
