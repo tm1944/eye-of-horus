@@ -1,0 +1,2 @@
+fastapi[standard]==0.142.2
+snowflake-connector-python==4.7.3
