@@ -2,6 +2,10 @@
 
 A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
 
+Issues are ordered most critical to least critical. Labels mark `critical` / `high` / `medium` / `low` plus `UI`, `backend`, `data`, `ml`, `demo`, `docs`, `contract`, and `parallel`.
+
+Repo: https://github.com/tm1944/hypothesis-globe
+
 ## Weekend sources
 
 - USGS earthquakes. Public domain GeoJSON feeds.
@@ -10,31 +14,55 @@ A Google Maps globe with heatmaps of significant events. Layers toggle on and of
 
 Do not make a commercial news API the core of the demo. NewsAPI and GDELT Cloud restrict republish and resale.
 
-## Stack we already have
+## Stack
 
-Google Maps, Gemini, and Snowflake are available at no cost for this team. Keep them. Challenge them only when they hurt demo speed, reliability, licensing, or quality.
+Google Maps, Gemini, and Snowflake stay. Cost is out of scope.
 
-- Snowflake is the warehouse. The globe API also reads a local snapshot so a cold warehouse or campus firewall cannot blank the map.
-- Maps JavaScript API is the globe. Keep attribution. Do not scrape tiles. Ship 2D first.
-- Gemini drafts relation cards with citations. It does not prove causality. Precompute demo cards. Never live-prompt the critical click.
+- Vite 8.3.2 + React 19.3
+- Google Maps JS vector basemap via `@vis.gl/react-google-maps` 1.10.1
+- deck.gl 9.4 heatmap, scatterplot, and arcs through `GoogleMapsOverlay`
+- FastAPI 0.142.2 as the only browser-facing API
+- Snowflake XSMALL. RAW VARIANT plus MART.EVENT plus MART.EVENT_LINK
+- Fixture JSON until the warehouse answers
+- Gemini `gemini-3.5-flash-lite` extract, `gemini-3.8-flash` links
 
-## Who would pay later
+Do not call Snowflake or Gemini from the browser. Do not use deprecated Maps HeatmapLayer. Do not start photorealistic 3D this weekend.
 
-1. Government and NGO watchboards.
-2. Insurance and reinsurance hazard desks.
-3. Commodity and macro desks.
-4. Corporate OSINT.
-5. Freemium prosumer.
-6. Mass consumer last.
+## Four students in parallel
 
-UI is not a moat. Licensed exclusive data is. Liveuamap already owns the consumer conflict map.
+Share schema and fixtures first. Then these tracks do not wait on each other.
 
-## Four-student split
+| Student | Track | Start here |
+| --- | --- | --- |
+| A | Map UI | #3 #5 #6 #8 |
+| B | Ingest and Snowflake | #4 #7 #10 #13 |
+| C | FastAPI | #2 #9 |
+| D | Gemini and geocode | #11 #12 #14 |
+| Anyone free | Keys, demo, polish | #17 #15 #16 |
 
-- **Globe.** Maps JS, toggles, heatmap, markers, attribution.
-- **Ingest.** USGS and FIRMS into Snowflake. Snapshot writer. Health page.
-- **Relations.** Curated 10 to 20 events. Gemini batch. Cards with sources and confidence.
-- **Narrative.** Demo script, buyer slide, offline snapshot, 60-second backup video.
+Everyone also owns #1.
+
+## Issues, most critical first
+
+- P0 [#17](https://github.com/tm1944/hypothesis-globe/issues/17) Enable Google APIs, map ID, and FIRMS key on Friday
+- P0 [#1](https://github.com/tm1944/hypothesis-globe/issues/1) Shared Event schema and weekend fixtures
+- P0 [#2](https://github.com/tm1944/hypothesis-globe/issues/2) FastAPI GET /events from fixtures
+- P0 [#3](https://github.com/tm1944/hypothesis-globe/issues/3) Google Maps vector map with one fixture point
+- P0 [#4](https://github.com/tm1944/hypothesis-globe/issues/4) Snowflake DDL and Python connector
+- P1 [#5](https://github.com/tm1944/hypothesis-globe/issues/5) Layer toggles and LayerState
+- P1 [#6](https://github.com/tm1944/hypothesis-globe/issues/6) deck.gl heatmap and scatterplot overlay
+- P1 [#7](https://github.com/tm1944/hypothesis-globe/issues/7) USGS ingest plus local snapshot
+- P1 [#8](https://github.com/tm1944/hypothesis-globe/issues/8) Time scrubber on one Event array
+- P1 [#9](https://github.com/tm1944/hypothesis-globe/issues/9) Health, sourceStatus, and fixture fallback
+- P2 [#10](https://github.com/tm1944/hypothesis-globe/issues/10) FIRMS ingest and downsample
+- P2 [#11](https://github.com/tm1944/hypothesis-globe/issues/11) Gemini extract, geocode verify, precomputed cards
+- P2 [#12](https://github.com/tm1944/hypothesis-globe/issues/12) Relation cards and ArcLayer
+- P2 [#13](https://github.com/tm1944/hypothesis-globe/issues/13) ReliefWeb country-centroid layer
+- P2 [#14](https://github.com/tm1944/hypothesis-globe/issues/14) 30-row geo and link eval
+- P3 [#15](https://github.com/tm1944/hypothesis-globe/issues/15) Demo script, buyer slide, backup video
+- P3 [#16](https://github.com/tm1944/hypothesis-globe/issues/16) Empty, loading, and error states
+- P3 [#18](https://github.com/tm1944/hypothesis-globe/issues/18) Optional ACLED if the account is already approved
+- P3 [#19](https://github.com/tm1944/hypothesis-globe/issues/19) Optional react-globe.gl swap
 
 ## Demo script
 
