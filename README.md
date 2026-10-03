@@ -28,6 +28,54 @@ Google Maps, Gemini, and Snowflake stay. Cost is out of scope.
 
 Do not call Snowflake or Gemini from the browser. Do not use deprecated Maps HeatmapLayer. Do not start photorealistic 3D this weekend.
 
+## How to run
+
+Python 3.12. Leave `SNOWFLAKE_ACCOUNT` unset so the API serves `data/fixtures`.
+
+API:
+
+```bash
+cd apps/api
+python3 -m venv .venv || uv venv .venv --python 3.12
+source .venv/bin/activate
+pip install -r requirements.txt
+# or: uv pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 43124
+```
+
+Check fixtures:
+
+```bash
+curl "http://127.0.0.1:43124/health"
+curl "http://127.0.0.1:43124/events?fixture=1"
+curl "http://127.0.0.1:43124/events/usgs:us7000example/links"
+```
+
+Web:
+
+```bash
+cd apps/web
+cp .env.example .env.local
+# set VITE_GOOGLE_MAPS_API_KEY
+# optional VITE_GOOGLE_MAPS_MAP_ID for vector tiles
+npm install
+npm run dev
+```
+
+The Vite app listens on `http://127.0.0.1:43123` and reads `VITE_API_BASE` (default `http://127.0.0.1:43124`). Without a Maps key the map shell still mounts and fixture points render on a fallback canvas. CORS allows the Vite origin.
+
+Env vars:
+
+| Variable | Where | Required now |
+| --- | --- | --- |
+| `VITE_GOOGLE_MAPS_API_KEY` | `apps/web/.env.local` | For a real Google basemap |
+| `VITE_GOOGLE_MAPS_MAP_ID` | `apps/web/.env.local` | For vector tiles |
+| `VITE_API_BASE` | `apps/web/.env.local` | No. Defaults to the local API |
+| `VITE_ORIGIN` | API process env | No. Extra CORS origin |
+| `SNOWFLAKE_ACCOUNT` | API process env | No. Unset = fixtures |
+
+This scaffold unblocks [#1](https://github.com/tm1944/hypothesis-globe/issues/1) [#2](https://github.com/tm1944/hypothesis-globe/issues/2) [#3](https://github.com/tm1944/hypothesis-globe/issues/3) [#4](https://github.com/tm1944/hypothesis-globe/issues/4). Full ingest, heatmap, scrubber, and Gemini are later issues.
+
 ## Four students in parallel
 
 Share schema and fixtures first. Then these tracks do not wait on each other.
