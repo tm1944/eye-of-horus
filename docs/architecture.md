@@ -1,5 +1,9 @@
 # Global events globe. Weekend architecture
 
+Globe update: the approved main-screen renderer is now `react-globe.gl` + Three.js, with local Earth imagery, auto-rotation, surface-coordinate selection, and event markers. The original Google Maps/deck.gl proposal below is retained for context, not the current renderer. No geocoding or backend request is needed to select latitude/longitude on the sphere.
+
+Frontend update: the UI now uses Next.js App Router in `apps/web` instead of Vite. The browser calls same-origin `/api/*` routes, which serve fixtures or forward GET requests to FastAPI at `API_BASE_URL` (localhost port 8000 by default). See [local setup](../apps/web/README.md). Earlier Vite references below describe the original proposal; the Event/Link contracts and map plan remain applicable.
+
 Constraint. The team has free Google API access and free Snowflake API access. Cost is out of scope. Do not drop Snowflake or Gemini to save money. Still treat setup time, quotas, licenses, and demo quality as first-class risks.
 
 Goal. A weekend hackathon demo for four students. An interactive world view with heatmap layers and discrete markers for significant events. Layer toggles. Time scrubber. Optional LLM edges that relate events.
