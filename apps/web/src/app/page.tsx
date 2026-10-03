@@ -27,8 +27,7 @@ export default function Home() {
   const { filters, update } = useLayerFilters();
   const visuals = useMemo(() => deriveVisuals(result?.data.events ?? emptyEvents, filters), [result, filters]);
   return <main className="earth-page" aria-label="Hypothesis Globe">
-    <LayerControls filters={filters} onChange={update} count={visuals.visible.length} onInteract={() => setRotating(false)} />
-    <GlobeBoundary><EventGlobe events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary>
-    {error && <div className="data-error" role="alert">Event data unavailable. The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
+    <GlobeBoundary><EventGlobe events={result?.data.events ?? emptyEvents} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary>
+    {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
 }

@@ -1,5 +1,7 @@
 # Global events globe. Business model and hackathon brief
 
+> Current team decision: TigerData/PostgreSQL replaces Snowflake. The Snowflake-specific setup and constraints below are historical. Use `apps/api/README.md` for the current connection and API contract; coordinate PostgreSQL DDL with Track B.
+
 Operator constraint. The team has free Google API access and free Snowflake API access. Do not drop Snowflake or Google Maps or Gemini to save money. Challenge those vendors only when they hurt weekend speed, live-demo reliability, licensing, or product quality.
 
 Later paid path. When credits end, keep the same event schema and move the warehouse bill and the Google Maps or Gemini bill onto a paid project. Do not redesign the product around cost.

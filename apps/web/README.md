@@ -12,14 +12,14 @@ Open http://localhost:3000. Default `DATA_MODE=fixture` loads the repository's s
 
 ## Connect FastAPI
 
-Have the API teammate start FastAPI on port 8000, then update `.env.local`:
+Have the API teammate start FastAPI on port 43124, then update `.env.local`:
 
 ```dotenv
 DATA_MODE=api
-API_BASE_URL=http://127.0.0.1:8000
+API_BASE_URL=http://127.0.0.1:43124
 ```
 
-Restart Next.js. The browser calls `/api/events` on port 3000; the Next.js server forwards it to FastAPI `/events` on port 8000. This avoids browser CORS configuration. Both variables are server-only; no `NEXT_PUBLIC_` prefix is needed. For a backend on another laptop, use that laptop's reachable address.
+Restart Next.js. The browser calls `/api/events` on port 3000; the Next.js server forwards it to FastAPI `/events` on port 43124. This avoids browser CORS configuration. Both variables are server-only; no `NEXT_PUBLIC_` prefix is needed. For a backend on another laptop, use that laptop's reachable address.
 
 Supported GET paths:
 
@@ -52,4 +52,4 @@ Earth is the main view. Numbered pins follow geographic coordinates and connect 
 
 See [globe visuals and backend integration](docs/globe-and-api.md) for all named visual settings, projection/visibility behavior, field mappings, API routes, selection hooks, current limitations, and verification steps.
 
-The page fetches `GET /api/events` once on mount (and on error retry). Rotation and selections are local. Details, relationship, and health routes remain available through the proxy but are not currently called. The smooth Earth uses the local `public/textures/8k_earth_daymap.jpg` texture. The Layers menu supports all eight layer IDs with markers by default; earthquake and wildfire additionally support heatmap/both modes using backend-supplied event weight. Layer/time filters are shareable via the URL; Back/Forward restores them. Selected event cards survive disabling their layers. Backend location search, pagination, a visible time scrubber, and relation cards are not implemented.
+The page follows every `/api/events` page on mount and on error retry. A changed dataset restarts once; partial or failed results are not displayed as complete. API-served fixtures retain Sample labels. Rotation and selections are local. Details, relationship, and health routes remain available through the proxy but are not currently called. Location search, heatmaps, and relation cards remain unimplemented.

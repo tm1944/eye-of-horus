@@ -66,14 +66,14 @@ Configuration in `apps/web/.env.local` (restart Next.js after changes):
 
 ```dotenv
 DATA_MODE=api
-API_BASE_URL=http://127.0.0.1:8000
+API_BASE_URL=http://127.0.0.1:43124
 ```
 
-Default mode is `fixture`. These variables stay server-side. Never put Snowflake or Gemini credentials in browser configuration. For deployment, `API_BASE_URL` must be reachable from the Next.js server. The browser keeps using relative `/api` URLs.
+Default mode is `fixture`. These variables stay server-side. Never put TigerData, FIRMS, or Gemini credentials in browser configuration. For deployment, `API_BASE_URL` must be reachable from the Next.js server. The browser keeps using relative `/api` URLs.
 
 | Browser endpoint | FastAPI endpoint | Current caller / behavior |
 | --- | --- | --- |
-| `GET /api/events` | `GET /events` | `getEvents()` in `src/lib/api.ts`, once on page mount and on error retry |
+| `GET /api/events` | `GET /events` | `getEvents()` in `src/lib/api.ts`, all pages on page mount and on error retry |
 | `GET /api/events/{id}` | `GET /events/{id}` | Proxy available; not currently requested because cards use the list payload |
 | `GET /api/events/{id}/links` | `GET /events/{id}/links` | Proxy available; not currently requested; relation cards are not implemented |
 | `GET /api/health` | `GET /health` | Proxy available; not polled by this page |
@@ -91,7 +91,7 @@ Expected events response:
 }
 ```
 
-The frontend currently loads **one page**, without server-side filters or cursor traversal. Layer/time filtering is local (see the layer-controls section below). `nextCursor`, `generatedAt`, and `sourceStatus` are retained in the response type but not shown or acted upon by this minimal view. Confirm pagination and geographic-search requirements before implementing those features. Rotation must never initiate per-frame requests.
+The frontend follows `nextCursor` until every page is loaded, then publishes one Event array. A 409 response discards partial data and restarts once; another failure shows Retry. Repeated cursors stop with an error. API-served fixtures are labeled Sample using sensor source status, even when the proxy is in API mode. The database status key is `tigerdata`. Rotation never initiates requests.
 
 ## Fields consumed by the UI
 
@@ -138,7 +138,7 @@ The link endpoint's response envelope must also be agreed before use; the fixtur
 - Click a source and verify its URL; click a pin/card title and verify selected state.
 - Rotate/zoom/resize and confirm cards track their pins vertically, switch sides, and never cover Earth or each other. Confirm each connector has one straight segment.
 - Scroll in to country scale, select a surface coordinate, and use Reset view to return to the whole Earth.
-- Inspect requests: only initial/retry `/api/events`, assets, and explicitly opened source links.
+- Inspect requests: only initial/retry `/api/events` pages, assets, and explicitly opened source links.
 - Run `npm run lint` and `npm run build` from `apps/web`.
 
 ## Layer controls and deep links (#5)
