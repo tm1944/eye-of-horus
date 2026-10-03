@@ -16,6 +16,20 @@ Repo: https://github.com/tm1944/hypothesis-globe
 
 Do not make a commercial news API the core of the demo. NewsAPI and GDELT Cloud restrict republish and resale.
 
+## Local API (fixtures)
+
+Python 3.12+. Leave `SNOWFLAKE_ACCOUNT` unset.
+
+```bash
+cd apps/api
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 43124
+curl 'http://127.0.0.1:43124/events?fixture=1'
+```
+
+CORS defaults to the Vite origin `http://127.0.0.1:43123` (override with `CORS_ORIGIN` or `VITE_ORIGIN`).
+
 ## Stack
 
 Google Maps, Gemini, and Snowflake stay. Cost is out of scope.
