@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tm1944/hypothesis-globe/packages/schema/link.schema.json",
+  "title": "EventLink",
+  "description": "LLM hypothesis edge. Never emit relation=caused unless a human checked it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "sourceId",
+    "targetId",
+    "relation",
+    "confidence",
+    "rationale",
+    "model"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "sourceId": { "type": "string" },
+    "targetId": { "type": "string" },
+    "relation": {
+      "type": "string",
+      "enum": ["co_occurs", "same_place", "same_topic", "reported_together"]
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "rationale": { "type": "string" },
+    "model": { "type": "string" }
+  }
+}
