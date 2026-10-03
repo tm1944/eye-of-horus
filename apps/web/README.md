@@ -47,7 +47,7 @@ Use a Next.js server runtime with `DATA_MODE=api` and a backend URL reachable fr
 
 ## Interactive globe
 
-Earth is the main view. Numbered pins follow geographic coordinates and connect to readable cards outside the sphere. Back-facing callouts are hidden; on mobile, cards sit below Earth. Click a surface point to capture full-precision latitude/longitude, or a pin/card to select an event. Pause/resume, drag, and zoom remain available. Rotation honors reduced-motion preferences.
+Earth is the main view. Numbered pins follow geographic coordinates and connect to readable cards outside the sphere. Back-facing callouts are hidden; on mobile, cards sit below Earth. Click a surface point to capture full-precision latitude/longitude, or a pin/card to select an event. Cards follow their pins vertically and switch safe sides with straight connectors. Country-scale zoom and Reset view are available alongside pause/resume and dragging. Rotation honors reduced-motion preferences.
 
 See [globe visuals and backend integration](docs/globe-and-api.md) for all named visual settings, projection/visibility behavior, field mappings, API routes, selection hooks, current limitations, and verification steps.
 

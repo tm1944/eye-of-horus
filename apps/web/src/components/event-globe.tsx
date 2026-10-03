@@ -31,6 +31,8 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
   const stage = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const globe = useRef<GlobeMethods | undefined>(undefined);
+  const fittedDistance = useRef<number | null>(null);
+  const cardSides = useRef(new Map<string, "left" | "right">());
   const cards = useRef(new Map<string, HTMLElement>());
   const pins = useRef(new Map<string, HTMLButtonElement>());
   const paths = useRef(new Map<string, SVGPathElement>());
@@ -57,7 +59,7 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
     controls.autoRotateSpeed = GLOBE.rotationSpeed;
   }, [rotating, ready]);
 
-  // Fit the entire sphere inside the central canvas, keeping side cards outside Earth.
+  // Start at a whole-Earth fit, but allow close country-scale zoom inside the central canvas.
   useEffect(() => {
     if (!ready || !globe.current || !size.width || !size.height) return;
     const instance = globe.current;
@@ -66,9 +68,13 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
     const focalPixels = size.height / (2 * Math.tan(camera.fov * Math.PI / 360));
     const screenRadius = Math.min(size.width * GLOBE.surfaceFitWidth, size.height * GLOBE.surfaceFitHeight);
     const distance = Math.sqrt(radius ** 2 + (focalPixels * radius / screenRadius) ** 2);
-    instance.controls().minDistance = distance;
+    const minimum = radius * (1 + GLOBE.minZoomAltitude);
+    const previousFit = fittedDistance.current;
+    const nextDistance = previousFit ? instance.camera().position.length() / previousFit * distance : distance;
+    fittedDistance.current = distance;
+    instance.controls().minDistance = minimum;
     instance.controls().maxDistance = distance * GLOBE.zoomOutMultiplier;
-    instance.pointOfView({ altitude: distance / radius - 1 });
+    instance.pointOfView({ altitude: Math.max(minimum, Math.min(distance * GLOBE.zoomOutMultiplier, nextDistance)) / radius - 1 });
   }, [ready, size]);
 
   const callouts = useMemo<Callout[]>(() => {
@@ -106,7 +112,14 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
           if (!shown) continue;
           const x = point.x + offsetX, y = point.y + offsetY;
           pin.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-          visible.push({ item, x, y, side: point.x < canvasRect.width / 2 ? "left" : "right" });
+          const middle = canvasRect.width / 2;
+          let side = cardSides.current.get(item.id) ?? (point.x < middle ? "left" : "right");
+          // Keep cards in a safe outer rail; switch before following the pin inward
+          // could carry the card across Earth. Hysteresis avoids center-line flicker.
+          if (side === "left" && point.x > middle + GLOBE.sideSwitchBufferPx) side = "right";
+          if (side === "right" && point.x < middle - GLOBE.sideSwitchBufferPx) side = "left";
+          cardSides.current.set(item.id, side);
+          visible.push({ item, x, y, side });
         }
         // Balance crowded hemispheres across two rails, then sort vertically to reduce crossings.
         if (desktop) {
@@ -116,31 +129,43 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
           }
           for (const side of ["left", "right"] as const) {
             const group = visible.filter((entry) => entry.side === side).sort((a, b) => a.y - b.y);
-            const totalHeight = group.reduce((sum, entry) => sum + (cards.current.get(entry.item.id)?.offsetHeight ?? 0), 0) + Math.max(0, group.length - 1) * GLOBE.cardGapPx;
-            let top = Math.max(80, (canvasRect.height - totalHeight) / 2);
-            for (const entry of group) {
+            const padding = GLOBE.cardEdgePaddingPx;
+            const heights = group.map((entry) => cards.current.get(entry.item.id)!.offsetHeight);
+            // Follow the projected latitude; only displace a card when another card
+            // or the viewport boundary blocks its desired position.
+            const tops = group.map((entry, index) => Math.max(padding, Math.min(canvasRect.height - padding - heights[index], entry.y - heights[index] / 2)));
+            for (let i = 1; i < tops.length; i++) tops[i] = Math.max(tops[i], tops[i - 1] + heights[i - 1] + GLOBE.cardGapPx);
+            if (tops.length) {
+              tops[tops.length - 1] = Math.min(tops[tops.length - 1], canvasRect.height - padding - heights[heights.length - 1]);
+              for (let i = tops.length - 2; i >= 0; i--) tops[i] = Math.min(tops[i], tops[i + 1] - heights[i] - GLOBE.cardGapPx);
+            }
+            group.forEach((entry, index) => {
               const card = cards.current.get(entry.item.id)!;
               card.style.left = side === "left" ? "24px" : `${stageRect.width - card.offsetWidth - 24}px`;
-              card.style.top = `${top}px`;
-              top += card.offsetHeight + GLOBE.cardGapPx;
-            }
+              card.style.top = `${Math.max(padding, tops[index])}px`;
+              card.dataset.side = side;
+            });
           }
         } else {
           visible.forEach(({ item }) => { const card = cards.current.get(item.id)!; card.style.left = ""; card.style.top = ""; });
         }
         const placedPins: { x: number; y: number }[] = [];
         for (const { item, x, y, side } of visible) {
-          // Keep nearby events separately clickable without moving their true anchors.
-          let pinY = y;
-          while (placedPins.some((pin) => Math.hypot(pin.x - x, pin.y - pinY) < 34)) pinY += 36;
-          placedPins.push({ x, y: pinY });
-          pins.current.get(item.id)!.style.transform = `translate(${x}px, ${pinY}px) translate(-50%, -50%)`;
           const rect = cards.current.get(item.id)!.getBoundingClientRect();
           const endX = desktop ? (side === "left" ? rect.right : rect.left) - stageRect.left : rect.left - stageRect.left + rect.width / 2;
           const endY = desktop ? rect.top - stageRect.top + rect.height / 2 : rect.top - stageRect.top;
-          const bendX = desktop ? (side === "left" ? offsetX - 12 : offsetX + canvasRect.width + 12) : x;
-          const bendY = desktop ? y : canvasRect.bottom - stageRect.top + 12;
-          paths.current.get(item.id)!.setAttribute("d", `M ${x - 3} ${y} a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M ${x} ${y} L ${x} ${pinY} L ${bendX} ${desktop ? pinY : bendY} L ${endX} ${endY}`);
+          // One segment, from the exact projected coordinate to the card edge.
+          paths.current.get(item.id)!.setAttribute("d", `M ${x} ${y} L ${endX} ${endY}`);
+          const length = Math.hypot(endX - x, endY - y);
+          let travel = 0;
+          let pinX = x, pinY = y;
+          while (length > 0 && travel + 36 < length && placedPins.some((pin) => Math.hypot(pin.x - pinX, pin.y - pinY) < 34)) {
+            travel += 36;
+            pinX = x + (endX - x) * travel / length;
+            pinY = y + (endY - y) * travel / length;
+          }
+          placedPins.push({ x: pinX, y: pinY });
+          pins.current.get(item.id)!.style.transform = `translate(${pinX}px, ${pinY}px) translate(-50%, -50%)`;
         }
       }
       frame = requestAnimationFrame(update);
@@ -160,7 +185,10 @@ export default function EventGlobe({ events, selection, onSelect, rotating, onRo
   }
 
   return <div className="earth-stage" ref={stage}>
-    <div className="earth-controls"><button onClick={() => onRotationChange(!rotating)} disabled={!ready} aria-pressed={rotating}>{rotating ? "Pause rotation" : "Resume rotation"}</button></div>
+    <div className="earth-controls"><button disabled={!ready} onClick={() => {
+      pause();
+      if (globe.current && fittedDistance.current) globe.current.pointOfView({ ...GLOBE.initialView, altitude: fittedDistance.current / globe.current.getGlobeRadius() - 1 });
+    }}>Reset view</button><button onClick={() => onRotationChange(!rotating)} disabled={!ready} aria-pressed={rotating}>{rotating ? "Pause rotation" : "Resume rotation"}</button></div>
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location."
       onPointerDownCapture={pause} onWheelCapture={pause}>
       {size.width > 0 && <Globe ref={globe} width={size.width} height={size.height}

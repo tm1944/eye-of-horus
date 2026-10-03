@@ -1,7 +1,7 @@
 /** Visual-only settings. None are sent to FastAPI. Units are explicit below. */
 export const GLOBE = {
   initialView: { lat: 30, lng: -110 }, // degrees, east-positive longitude
-  rotationSpeed: 0.28, // Three.js OrbitControls speed; 1 ≈ one revolution/minute at 60 fps
+  rotationSpeed: 1, // Three.js OrbitControls speed; 1 ≈ one revolution/minute at 60 fps
   atmosphereColor: "#87c8ef",
   atmosphereAltitude: 0.12, // fraction of globe radius
   ambientLightIntensity: 2.0,
@@ -12,6 +12,9 @@ export const GLOBE = {
   surfaceFitWidth: 0.43, // projected sphere radius / canvas width
   surfaceFitHeight: 0.39, // projected sphere radius / canvas height
   zoomOutMultiplier: 1.7,
+  minZoomAltitude: 0.04, // nearest camera height / globe radius (~255 km on Earth)
+  sideSwitchBufferPx: 28, // hysteresis around the screen center before changing card sides
+  cardEdgePaddingPx: 80, // space for controls and bottom hint
   maxCallouts: 4, // highest-significance events; selected event takes priority
   cardGapPx: 16,
   desktopBreakpointPx: 1100,

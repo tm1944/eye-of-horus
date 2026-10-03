@@ -10,7 +10,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #dbf9ff; outline-offs
 .earth-canvas { width: calc(100% - 640px); height: max(100dvh, 800px); margin: 0 320px; position: relative; overflow: hidden; cursor: grab; }
 .earth-canvas:active { cursor: grabbing; }
 .earth-canvas canvas { display: block; }
-.earth-controls { position: absolute; top: 24px; right: 24px; z-index: 5; }
+.earth-controls { display: flex; gap: 8px; position: absolute; top: 24px; right: 24px; z-index: 5; }
 .earth-controls button, .data-error button { border: 1px solid #526879; background: #142335; border-radius: 24px; padding: 12px 20px; font-size: 14px; }
 .earth-controls button:hover { background: #223c50; }
 .earth-controls button:disabled { opacity: .6; }

@@ -4,13 +4,13 @@
 
 Earth occupies the center of the page. There is no dashboard header, event list, inspector, or permanent connection banner. A compact rotation control and interaction hint remain. Data errors show a retry notice; sample cards are explicitly labeled **Sample**.
 
-Desktop (1100px and wider): the center canvas reserves 320px on each side. Cards are 278px wide and sit 24px from the outside edges. The camera fits the entire sphere inside its canvas; zoom-in stops at that fit, so Earth never moves behind cards. Each rail holds at most two cards with a 16px gap. Layout is at least 800px tall so the cards remain readable on shorter windows; the page may scroll vertically.
+Desktop (1100px and wider): the center canvas reserves 320px on each side. Cards are 278px wide and sit 24px from the outside edges. The initial camera fits the entire sphere inside its canvas. Zoom-in now reaches a camera altitude of 0.04 globe radii (roughly 255 km above a real Earth), enabling country-scale and closer inspection. The enlarged Earth is clipped to the center canvas, keeping cards unobstructed. This remains a single Earth texture, not detailed map tiles or country borders. Each rail holds at most two cards with a 16px gap. Layout is at least 800px tall so the cards remain readable on shorter windows; the page may scroll vertically.
 
 Below 1100px, the canvas takes the full width and cards move into a grid below it. Below 580px, that grid becomes one column. No card is placed over Earth. Connectors are behind the cards and ignore pointer events.
 
 Card title: 17px, coordinates: 14px, body: 13px, UTC time: 12px. Bright text sits on opaque dark panels. N/S and E/W clarify coordinate signs. Coordinates are rounded to four decimals **only for display**; state retains the original numbers. Summaries longer than 60px scroll inside the card, without hiding the source or coordinates. Titles wrap. Source links accept HTTP/HTTPS only. Null summaries and source URLs have explicit fallbacks.
 
-Numbered screen-space pins correspond to numbered cards. Nearby numbered badges are separated by at least 34px; a small anchor ring and short leader preserve each exact projected coordinate. All loaded events also retain globe markers. Up to four events are eligible for cards, ranked by `significance` descending with ID as the tie-breaker. The selected event takes priority; a selected surface point consumes one slot. This is a visual cap, not an API filter. Numbers identify the current displayed candidate set, not durable event IDs. The backend identity is always `event.id`.
+Numbered screen-space pins correspond to numbered cards. Nearby numbered badges slide along their straight connector where space permits to provide separate click targets. The connector still begins at the exact projected coordinate; event data does not move. All loaded events also retain globe markers. Up to four events are eligible for cards, ranked by `significance` descending with ID as the tie-breaker. The selected event takes priority; a selected surface point consumes one slot. This is a visual cap, not an API filter. Numbers identify the current displayed candidate set, not durable event IDs. The backend identity is always `event.id`.
 
 ## Rotation, anchoring, and visibility
 
@@ -21,7 +21,7 @@ Each animation frame:
 1. Convert a callout's geographic coordinates to a surface vector with `getCoords`.
 2. Test whether the surface faces the camera. For the current spherical Earth centered at the origin, the perspective horizon is `surfaceNormal · cameraPosition > globeRadius` (with a 0.5 world-unit margin).
 3. Project with `getScreenCoords(lat, lng, pinAltitude)` and offset into the page's globe container.
-4. Move the screen pin and SVG connector. Cards are sorted vertically within the nearest side rail; overcrowded rails spill to the opposite rail. Back-facing or off-canvas pins, cards, and connectors are hidden together.
+4. Move the screen pin and its single straight SVG segment. Cards follow the projected pin vertically, clamped to the viewport and separated from neighboring cards. They stay in reserved side areas, switching sides after the pin crosses the canvas midpoint by 28px. This buffer prevents rapid flipping near the center. Overcrowded rails spill to the opposite rail. Cards never animate across Earth when switching. Back-facing or off-canvas pins, cards, and connectors are hidden together.
 
 The projection loop mutates only DOM positions and visibility. It never changes event coordinates and makes **zero network requests**. Its animation frame, media listener, and resize observer are cleaned up on unmount. Cards near the horizon can disappear as Earth turns; pause rotation to read or interact with them.
 
@@ -34,7 +34,7 @@ Dragging, zooming, surface clicks, pin clicks, card title clicks, and hovering/f
 | Setting | Default | Meaning / units |
 | --- | --- | --- |
 | `initialView` | 30, -110 | Initial latitude/longitude in degrees; positive longitude is east |
-| `rotationSpeed` | 0.28 | OrbitControls speed; 1 is approximately one orbit/minute at 60fps |
+| `rotationSpeed` | 1 | OrbitControls speed; 1 is approximately one orbit/minute at 60fps |
 | `atmosphereColor` | #87c8ef | Atmosphere color |
 | `atmosphereAltitude` | 0.12 | Fraction of globe radius |
 | `ambientLightIntensity` | 2.0 | Three.js ambient intensity, chosen for readable terrain |
@@ -44,13 +44,16 @@ Dragging, zooming, surface clicks, pin clicks, card title clicks, and hovering/f
 | `pointAltitude` | 0.016 | Marker height as a fraction of globe radius |
 | `surfaceFitWidth` | 0.43 | Maximum initial sphere radius / canvas width |
 | `surfaceFitHeight` | 0.39 | Maximum initial sphere radius / canvas height |
+| `minZoomAltitude` | 0.04 | Nearest camera altitude / globe radius; lower is closer |
+| `sideSwitchBufferPx` | 28 | Midpoint hysteresis before a card switches rails |
+| `cardEdgePaddingPx` | 80 | Vertical clearance for controls and hint |
 | `zoomOutMultiplier` | 1.7 | Maximum camera distance / fitted camera distance |
 | `maxCallouts` | 4 | Maximum card candidates including a selected surface point |
 | `cardGapPx` | 16 | Minimum vertical spacing between desktop cards |
 | `desktopBreakpointPx` | 1100 | Must match CSS media breakpoint |
 | `colors` | by layer | Pin, connector, and card-accent colors |
 
-The perspective fit uses the actual camera field of view: focal pixels = canvas height / (2 × tan(FOV/2)); distance = sqrt(radius² + (focalPixels × radius / desiredScreenRadius)²). Resizing recomputes the fit. None of these visual settings belong in the backend Event contract.
+The perspective fit uses the actual camera field of view: focal pixels = canvas height / (2 × tan(FOV/2)); distance = sqrt(radius² + (focalPixels × radius / desiredScreenRadius)²). Resizing recomputes the fit while preserving the current zoom-to-fit ratio within the zoom limits. Reset view restores the initial latitude/longitude and whole-Earth fit, and pauses rotation. None of these visual settings belong in the backend Event contract.
 
 ## Current frontend/backend boundary
 
@@ -133,6 +136,7 @@ The link endpoint's response envelope must also be agreed before use; the fixtur
 - Pause/resume; drag until a marker disappears behind Earth; verify its card and connector disappear too.
 - Click a surface point: verify the card's hemisphere labels, pin tracking, and clear action.
 - Click a source and verify its URL; click a pin/card title and verify selected state.
-- Rotate/zoom/resize and confirm cards never cover Earth or each other.
+- Rotate/zoom/resize and confirm cards track their pins vertically, switch sides, and never cover Earth or each other. Confirm each connector has one straight segment.
+- Scroll in to country scale, select a surface coordinate, and use Reset view to return to the whole Earth.
 - Inspect requests: only initial/retry `/api/events`, assets, and explicitly opened source links.
 - Run `npm run lint` and `npm run build` from `apps/web`.
