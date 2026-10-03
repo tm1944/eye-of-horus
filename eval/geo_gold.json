@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-03T19:00:00Z",
+  "notes": "Placeholder 30-row gold set for #14. Fill pipeline* and predicted* after the first eval run. Native rows must stay within 1 km of source coords. Place-name rows must match Google's first geocode, not the model raw coords. Relation pairs are human labels. Optimize precision over recall. Hide globe edges below confidence 0.7.",
+  "nativeGeo": [
+    {"id": "gold:native:01", "kind": "native_geo", "source": "usgs", "sourceId": "usgs:us7000example", "sourceLng": -122.4, "sourceLat": 37.8, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:02", "kind": "native_geo", "source": "firms", "sourceId": "firms:viirs:20261003:napa", "sourceLng": -122.35, "sourceLat": 38.55, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:03", "kind": "native_geo", "source": "usgs", "sourceId": null, "sourceLng": -155.282, "sourceLat": 19.393, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:04", "kind": "native_geo", "source": "usgs", "sourceId": null, "sourceLng": 142.369, "sourceLat": 38.322, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:05", "kind": "native_geo", "source": "usgs", "sourceId": null, "sourceLng": 28.247, "sourceLat": 39.145, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:06", "kind": "native_geo", "source": "firms", "sourceId": null, "sourceLng": -121.1, "sourceLat": 40.2, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:07", "kind": "native_geo", "source": "firms", "sourceId": null, "sourceLng": 144.8, "sourceLat": -37.7, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:08", "kind": "native_geo", "source": "usgs", "sourceId": null, "sourceLng": -71.573, "sourceLat": -33.045, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:09", "kind": "native_geo", "source": "firms", "sourceId": null, "sourceLng": 20.45, "sourceLat": -18.92, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null},
+    {"id": "gold:native:10", "kind": "native_geo", "source": "usgs", "sourceId": null, "sourceLng": 101.506, "sourceLat": 0.891, "pipelineLng": null, "pipelineLat": null, "maxErrorKm": 1, "pass": null}
+  ],
+  "placeName": [
+    {"id": "gold:place:01", "kind": "place_name", "placeText": "Napa, California", "googleLng": -122.2869, "googleLat": 38.2975, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:02", "kind": "place_name", "placeText": "Kyiv, Ukraine", "googleLng": 30.5234, "googleLat": 50.4501, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:03", "kind": "place_name", "placeText": "Port-au-Prince, Haiti", "googleLng": -72.3388, "googleLat": 18.5944, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:04", "kind": "place_name", "placeText": "Christchurch, New Zealand", "googleLng": 172.6362, "googleLat": -43.5321, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:05", "kind": "place_name", "placeText": "Lahore, Pakistan", "googleLng": 74.3587, "googleLat": 31.5204, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:06", "kind": "place_name", "placeText": "Valparaíso, Chile", "googleLng": -71.6127, "googleLat": -33.0472, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:07", "kind": "place_name", "placeText": "Kagoshima, Japan", "googleLng": 130.5571, "googleLat": 31.5966, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:08", "kind": "place_name", "placeText": "Addis Ababa, Ethiopia", "googleLng": 38.7469, "googleLat": 9.032, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:09", "kind": "place_name", "placeText": "Anchorage, Alaska", "googleLng": -149.9003, "googleLat": 61.2181, "modelLng": null, "modelLat": null, "pass": null},
+    {"id": "gold:place:10", "kind": "place_name", "placeText": "Palu, Indonesia", "googleLng": 119.8707, "googleLat": -0.9003, "modelLng": null, "modelLat": null, "pass": null}
+  ],
+  "relations": [
+    {"id": "gold:rel:01", "kind": "relation", "sourceId": "usgs:us7000example", "targetId": "gdelt:123", "label": "related", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:02", "kind": "relation", "sourceId": "firms:viirs:20261003:napa", "targetId": "gdelt:123", "label": "related", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:03", "kind": "relation", "sourceId": "usgs:us7000example", "targetId": "firms:viirs:20261003:napa", "label": "unrelated", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:04", "kind": "relation", "sourceId": "gold:native:03", "targetId": "gold:place:02", "label": "unrelated", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:05", "kind": "relation", "sourceId": "gold:native:04", "targetId": "gold:place:07", "label": "related", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:06", "kind": "relation", "sourceId": "gold:native:08", "targetId": "gold:place:06", "label": "related", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:07", "kind": "relation", "sourceId": "gold:native:10", "targetId": "gold:place:10", "label": "related", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:08", "kind": "relation", "sourceId": "gold:place:03", "targetId": "gold:place:08", "label": "unrelated", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:09", "kind": "relation", "sourceId": "gold:native:06", "targetId": "gold:place:01", "label": "related", "predictedRelation": null, "predictedConfidence": null, "pass": null},
+    {"id": "gold:rel:10", "kind": "relation", "sourceId": "gold:native:09", "targetId": "gold:place:05", "label": "unrelated", "predictedRelation": null, "predictedConfidence": null, "pass": null}
+  ]
+}
