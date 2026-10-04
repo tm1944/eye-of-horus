@@ -389,106 +389,11 @@ a:focus-visible {
   clip-path: inset(50%);
 }
 
-/* LAYER MENU — top-left at 24px; z-index 8 places it above globe controls and cards. */
-.layer-menu {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  z-index: 8;
-  font-size: 14px;
-}
-
-/* Menu trigger: gray pill with 24px corners, content-sized width, 12px / 18px padding. */
-.layer-menu summary {
-  cursor: pointer;
-  border: 1px solid #777575;
-  background: #4e4d4d;
-  padding: 12px 18px;
-  border-radius: 24px;
-  width: fit-content;
-}
-
-/* Enabled-layer count uses a light gray accent and 10px separation. */
-.layer-menu summary span {
-  color: #e0dede;
-  margin-left: 10px;
-}
-
-/* Expanded panel: 310px wide, 12px corners, charcoal fill, and gray border.
- * Its height leaves 120px of viewport room; overflow scrolls within the panel. */
-.layer-panel {
-  width: 310px;
-  max-height: calc(100dvh - 120px);
-  overflow: auto;
-  padding: 18px;
-  background: #363535;
-  border: 1px solid #777575;
-  border-radius: 12px;
-  margin-top: 10px;
-  box-shadow: 0 12px 40px #0008;
-}
-
-/* Panel heading: 18px text with 8px of space below. */
-.layer-panel h2 {
-  font-size: 18px;
-  margin: 0 0 8px;
-}
-
 /* Supporting panel text: muted gray, 12px, with generous line spacing. */
 .layer-help {
   color: #c6c4c4;
   font-size: 12px;
   line-height: 1.5;
-}
-
-/* Each layer row has a slate bottom divider and 13px vertical padding. */
-.layer-row {
-  border: 0;
-  border-bottom: 1px solid #5b5959;
-  padding: 13px 0;
-  margin: 0;
-}
-
-/* Align the checkbox and semibold label with a 10px gap. */
-.layer-toggle {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Square native checkboxes sized to 17px, with mint checked-state color. */
-.layer-toggle input {
-  width: 17px;
-  height: 17px;
-  accent-color: #c6c4c4;
-}
-
-/* Mode controls sit 27px inward to align beneath the checkbox label. */
-.layer-options {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0 0 27px;
-}
-
-/* Small 11px labels share the available row width. */
-.layer-options label {
-  font-size: 11px;
-  color: #d1cfcf;
-  flex: 1;
-}
-
-/* Full-width select: blue-charcoal fill, white text, gray border, 4px corners. */
-.layer-options select {
-  display: block;
-  margin-top: 5px;
-  width: 100%;
-  padding: 6px;
-  background: #4e4d4d;
-  border: 1px solid #858282;
-  border-radius: 4px;
-  color: #fff;
 }
 
 /* Time-filter details: muted 12px text with 15px top separation; long values wrap. */
@@ -516,29 +421,14 @@ a:focus-visible {
 }
 
 /* Keyboard focus for form controls: 3px off-white outline with a tighter 3px offset. */
-.layer-menu summary:focus-visible,
 select:focus-visible,
 input:focus-visible {
   outline: 3px solid #eeeeee;
   outline-offset: 3px;
 }
 
-/* PHONE CONTROLS (≤580px) — smaller insets/buttons and a panel that fits
- * within the screen with 12px clearance on each side. */
+/* PHONE CONTROLS (≤580px) — smaller globe-control insets and buttons. */
 @media (max-width: 580px) {
-  .layer-menu {
-    top: 16px;
-    left: 12px;
-  }
-
-  .layer-menu summary {
-    padding: 10px 12px;
-  }
-
-  .layer-menu summary span {
-    margin-left: 3px;
-  }
-
   .earth-controls {
     gap: 4px;
     right: 12px;
@@ -547,10 +437,6 @@ input:focus-visible {
   .earth-controls button {
     font-size: 12px;
     padding: 11px 10px;
-  }
-
-  .layer-panel {
-    width: min(310px, calc(100vw - 24px));
   }
 }
 
@@ -647,50 +533,228 @@ input:focus-visible {
   outline-offset: 3px;
 }
 
-/* LEFT SIDEBAR — 280px control column, independent vertical scrolling.
- * The globe uses the remaining width; smaller screens use a 210px column. */
+/* PAGE LAYOUT — 64px layer icon rail, globe, then a 64px settings icon rail.
+ * Both rails stick to the viewport and scroll independently of the globe. */
 .earth-page {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr) 64px;
   align-items: start;
-}
-.globe-sidebar {
-  position: sticky;
-  top: 0;
-  height: 100dvh;
-  overflow-y: auto;
-  padding: 16px;
-  background: #363535;
-  border-right: 1px solid #747272;
-  z-index: 9;
 }
 .globe-workspace {
   min-width: 0;
   overflow: hidden;
 }
-.globe-sidebar .layer-menu {
-  position: static;
+
+/* ICON RAILS — the left rail has one icon per layer category, the right rail one per
+ * settings panel. Off icons are muted; active icons sit on a lighter gray tile (layer
+ * icons in their category color). Hover opens a fixed flyout toward the globe. */
+.icon-rail {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  background: #363535;
+  z-index: 9;
+}
+.layer-rail {
+  border-right: 1px solid #747272;
+}
+.settings-rail {
+  border-left: 1px solid #747272;
+}
+.icon-rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rail-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0dede;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #5b5959;
+}
+.rail-count small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #a9a7a7;
+}
+.rail-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  color: #9a9898;
+  cursor: pointer;
+  transition: background-color .12s, color .12s;
+}
+.rail-icon:hover,
+.rail-icon[data-open] {
+  background: #444343;
+  color: #e0dede;
+}
+.rail-icon[data-state="on"],
+.rail-icon[data-state="partial"] {
+  background: #5d5b5b;
+  color: var(--category-color, #f2f0f0);
+}
+.rail-icon[data-state="on"]:hover,
+.rail-icon[data-state="partial"]:hover,
+.rail-icon[data-state]:not([data-state="off"])[data-open] {
+  background: #686666;
+}
+.rail-icon[data-open] {
+  border-color: #8a8787;
+}
+.rail-icon:focus-visible {
+  outline: 2px solid #eeeeee;
+  outline-offset: 2px;
+}
+/* Partial categories show how many subcategories are on. */
+.rail-badge {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #242424;
+  color: #e0dede;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+.category-flyout {
+  position: fixed;
+  z-index: 20;
+  overflow-y: auto;
+  padding: 8px;
+  background: #363535;
+  border: 1px solid #8a8787;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px #0008;
   font-size: 13px;
 }
-.globe-sidebar .layer-menu summary {
+/* The flyout heading names the hovered icon and toggles the whole category. */
+.flyout-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  margin-bottom: 6px;
+  border-radius: 5px;
+  border-bottom: 1px solid #5b5959;
+  font-weight: 600;
+  cursor: pointer;
+}
+.flyout-heading[data-enabled] {
+  background: #5d5b5b;
+}
+.flyout-heading span {
+  flex: 1;
+}
+.flyout-heading small {
+  font-size: 11px;
+  font-weight: 400;
+  color: #c6c4c4;
+}
+.flyout-heading input,
+.subcategory-toggle input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: #c6c4c4;
+}
+.category-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.subcategory-row {
+  border-radius: 5px;
+  padding: 2px 0;
+}
+.subcategory-row + .subcategory-row {
+  margin-top: 2px;
+}
+.subcategory-row:hover {
+  background: #444343;
+}
+.subcategory-row[data-enabled] {
+  background: #5d5b5b;
+}
+.subcategory-row[data-enabled]:hover {
+  background: #686666;
+}
+.subcategory-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.subcategory-row select {
+  display: block;
+  margin: 0 8px 6px 33px;
+  width: calc(100% - 41px);
+  padding: 4px;
+  background: #4e4d4d;
+  border: 1px solid #858282;
   border-radius: 4px;
-  width: 100%;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
 }
-.globe-sidebar .layer-panel {
-  width: 100%;
-  max-height: none;
-  overflow: visible;
-  padding: 12px 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+.flyout-heading:focus-within,
+.subcategory-toggle:focus-within {
+  outline: 2px solid #eeeeee;
+  outline-offset: -2px;
+  border-radius: 5px;
 }
-.selected-countries {
-  margin-bottom: 24px;
-  font-size: 13px;
+
+/* SETTINGS FLYOUT — the active panel's title, then its controls. */
+.settings-flyout {
+  padding: 12px 14px 14px;
 }
-.selected-countries h2 {
-  font-size: 17px;
+.settings-flyout[hidden] {
+  display: none;
+}
+.flyout-title {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+.settings-flyout .time-summary {
+  border-top: 1px solid #5b5959;
+  margin-top: 12px;
+}
+/* Hover label for one-click rail actions (reset view, rotation). */
+.rail-label {
+  padding: 7px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.rail-icon:disabled {
+  opacity: .45;
+  cursor: default;
+}
+/* Separates one-click actions from panel icons. */
+.settings-rail ul + ul {
+  padding-top: 10px;
+  border-top: 1px solid #5b5959;
 }
 .selected-countries p {
   color: #c6c4c4;
@@ -739,24 +803,50 @@ input:focus-visible {
 .earth-card[data-dragging="true"], .earth-card[data-dragging="true"] * {
   cursor: grabbing;
 }
-@media (max-width: 700px) {
-  .earth-page {
-  grid-template-columns: 210px minmax(0, 1fr);
-}
-  .globe-sidebar {
-  padding: 10px;
-}
-}
+/* Phones: the layer rail becomes a strip across the top and the settings rail a
+ * strip fixed to the bottom; flyouts open toward the globe. */
 @media (max-width: 480px) {
   .earth-page {
-  display: block;
-}
-  .globe-sidebar {
-  position: relative;
-  height: auto;
-  max-height: 38dvh;
-  width: 100%;
-}
+    display: block;
+    padding-bottom: 57px;
+  }
+  .icon-rail {
+    position: relative;
+    height: auto;
+    flex-direction: row;
+    justify-content: center;
+    padding: 8px;
+  }
+  .icon-rail ul {
+    flex-direction: row;
+    gap: 4px;
+  }
+  .layer-rail {
+    border-right: 0;
+    border-bottom: 1px solid #747272;
+  }
+  .settings-rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-left: 0;
+    border-top: 1px solid #747272;
+  }
+  .settings-rail ul + ul {
+    padding: 0 0 0 10px;
+    border-top: 0;
+    border-left: 1px solid #5b5959;
+  }
+  .rail-count {
+    padding: 0 8px 0 0;
+    border-bottom: 0;
+    border-right: 1px solid #5b5959;
+  }
+  .rail-icon {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 /* Expanded-card demo links: full-width, boxy gray buttons with readable text.

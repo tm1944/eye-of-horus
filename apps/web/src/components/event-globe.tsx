@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { AmbientLight, CatmullRomCurve3, TubeGeometry, DirectionalLight, Mesh, MeshBasicMaterial, PerspectiveCamera, Raycaster, Vector2, Vector3, type Object3D } from "three";
-import { LAYER_IDS, LABELS, type LayerId, type HeatmapData } from "@/lib/layers";
+import { AlwaysStencilFunc, AmbientLight, CatmullRomCurve3, TubeGeometry, DirectionalLight, EqualStencilFunc, Mesh, MeshBasicMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, Vector2, Vector3, type Material, type Object3D } from "three";
+import { LABELS, type LayerId, type HeatmapPoint } from "@/lib/layers";
 import type { Event } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
 import { cardWorldAnchor } from "@/lib/card-anchor";
@@ -32,38 +32,55 @@ const sourceHref = (value: string | null) => {
 };
 
 // Stable accessors prevent unrelated React renders from recalculating density.
-const heatmapAltitude = (layer: object) => GLOBE.heatmapBaseAltitude + LAYER_IDS.indexOf((layer as HeatmapData).id) * GLOBE.heatmapLayerGap;
 const borders = countries.features.flatMap(country => countryBorders([country]).map(points => ({ countryId: country.id, points: borderContour(points, GLOBE.landCurvatureDegrees).map(point => ({ lng: point[0], lat: point[1], countryId: country.id })) })));
 const borderLongitude = (point: object) => (point as { lng: number }).lng;
 const borderLatitude = (point: object) => (point as { lat: number }).lat;
-const heatmapColors = new Map(LAYER_IDS.map(id => {
-  const color = eventColor(id);
-  const red = parseInt(color.slice(1, 3), 16), green = parseInt(color.slice(3, 5), 16), blue = parseInt(color.slice(5, 7), 16);
-  return [id, (density: number) => `rgba(${red},${green},${blue},${Math.min(GLOBE.heatmapMaxOpacity, Math.max(0, density) * GLOBE.heatmapMaxOpacity)})`];
-}));
-function heatmapColor(layer: object) {
-  // three-globe binds the mesh before invoking this accessor on data updates.
-  const data = layer as HeatmapData & { __threeObjHeatmap?: Mesh };
-  const mesh = data.__threeObjHeatmap;
-  if (mesh) {
-    mesh.renderOrder = 10 + LAYER_IDS.indexOf(data.id);
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    materials.forEach(material => { material.depthWrite = false; });
+const rendererConfig = { stencil: true }; // land writes a stencil mask that clips the heatmap
+const LAND_STENCIL = 1;
+// Visible land caps mark their pixels; the heatmap then draws only on those pixels,
+// so density never spills past coastlines into the ocean.
+function writeLandStencil<T extends Material>(material: T): T {
+  material.stencilWrite = true;
+  material.stencilRef = LAND_STENCIL;
+  material.stencilFunc = AlwaysStencilFunc;
+  material.stencilZPass = ReplaceStencilOp;
+  return material;
+}
+function clipToLand(mesh: Mesh) {
+  mesh.renderOrder = 10;
+  for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+    material.depthWrite = false;
+    material.depthTest = false; // the stencil already limits it to visible land, including raised countries
+    material.stencilWrite = true;
+    material.stencilWriteMask = 0;
+    material.stencilRef = LAND_STENCIL;
+    material.stencilFunc = EqualStencilFunc;
   }
-  return heatmapColors.get(data.id)!;
+}
+const heatmapRgb = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
+const heatmapLow = heatmapRgb(GLOBE.heatmapLowColor), heatmapHigh = heatmapRgb(GLOBE.heatmapHighColor);
+// Density 0 is fully transparent; denser areas warm toward the high color. The
+// square root lifts sparse regions so a single dense cluster cannot hide the rest.
+function heatmapRamp(density: number) {
+  const t = Math.sqrt(Math.min(1, Math.max(0, density)));
+  const [red, green, blue] = heatmapLow.map((channel, index) => Math.round(channel + (heatmapHigh[index] - channel) * t));
+  return `rgba(${red},${green},${blue},${Math.min(GLOBE.heatmapMaxOpacity, t * GLOBE.heatmapOpacityGain)})`;
 }
 
-export default function EventGlobe({ allEvents, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture }: {
+export default function EventGlobe({ allEvents, events, selectedCountries, onToggleCountry, heatmap, selection, onSelect, rotating, onRotationChange, fixture, resetViewKey, onReadyChange }: {
   allEvents: Event[];
   events: Event[];
   selectedCountries: { id: string; name: string; events: Event[] }[];
   onToggleCountry: (id: string) => void;
-  heatmaps: HeatmapData[];
+  heatmap: HeatmapPoint[];
   selection: Selection | null;
   onSelect: (selection: Selection | null) => void;
   rotating: boolean;
   onRotationChange: (rotating: boolean) => void;
   fixture: boolean;
+  /** Increment to return the camera to the initial fitted view. */
+  resetViewKey: number;
+  onReadyChange: (ready: boolean) => void;
 }) {
   // The native sphere keeps ocean picking and far-side occlusion without painting water.
   const oceanDepthMaterial = useMemo(() => new MeshBasicMaterial({ colorWrite: false }), []);
@@ -84,6 +101,37 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const paths = useRef(new Map<string, SVGPathElement>());
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
+  // At the default fit or farther out the globe shows only the heatmap; zooming in
+  // swaps it for individual markers.
+  const [zoomedIn, setZoomedIn] = useState(false);
+  const heatmapVisible = useRef(true);
+  useEffect(() => onReadyChange(ready), [ready, onReadyChange]);
+  useEffect(() => {
+    if (resetViewKey && globe.current && fittedDistance.current) globe.current.pointOfView({ ...GLOBE.initialView, altitude: fittedDistance.current / globe.current.getGlobeRadius() - 1 });
+  }, [resetViewKey]);
+  useEffect(() => {
+    if (!ready) return;
+    let frame = 0;
+    const tick = () => {
+      const instance = globe.current, fit = fittedDistance.current;
+      if (instance && fit) setZoomedIn(instance.camera().position.length() < fit * GLOBE.zoomInThreshold);
+      frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
+  useEffect(() => {
+    heatmapVisible.current = !zoomedIn;
+    globe.current?.scene().traverse(object => {
+      if ((object as Object3D & { __globeObjType?: string }).__globeObjType === "heatmap") object.visible = !zoomedIn;
+    });
+  }, [zoomedIn, ready]);
+  const heatmapColor = useCallback((layer: object) => {
+    // three-globe binds the mesh before invoking this accessor on data updates.
+    const mesh = (layer as { __threeObjHeatmap?: Mesh }).__threeObjHeatmap;
+    if (mesh) { clipToLand(mesh); mesh.visible = heatmapVisible.current; }
+    return heatmapRamp;
+  }, []);
   const [treeRoot, setTreeRoot] = useState<Event | null>(null);
   const [connections, setConnections] = useState<Connection<Event>[]>([]);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(() => new Set());
@@ -195,7 +243,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const [hoveredBorderId, setHoveredBorderId] = useState<string | null>(null);
   const hoverId = hoveredBorderId ?? hoveredCountryId;
   const landMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
-    continentMaterial(country.id === "ATA" ? GLOBE.antarcticaColor : GLOBE.landColor, GLOBE.continentEdgeShadeStrength),
+    writeLandStencil(continentMaterial(country.id === "ATA" ? GLOBE.antarcticaColor : GLOBE.landColor, GLOBE.continentEdgeShadeStrength)),
   ])), []);
   const sideMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
     continentMaterial(GLOBE.landColor, GLOBE.continentEdgeShadeStrength),
@@ -296,7 +344,9 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     return selection?.kind === "location" ? [{ id: "selected-location", ...selection.location, color: GLOBE.colors.selected }, ...result] : result;
   }, [events, selection, selectedEvents, rootEvent, selectedCountries.length, displayEvents, relationshipEvents, allEvents, expandedCards]);
 
-  const points = useMemo(() => displayEvents.map((event) => ({ ...event, color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId), altitude: GLOBE.pointAltitude })), [displayEvents, selectedIds]);
+  // Relationship trees always show their markers; otherwise markers wait for zoom-in.
+  const showMarkers = zoomedIn || !!rootEvent;
+  const points = useMemo(() => showMarkers ? displayEvents.map((event) => ({ ...event, color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId), altitude: GLOBE.pointAltitude })) : [], [showMarkers, displayEvents, selectedIds]);
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
     countries.features.find(country => countryContains(country, event))?.id,
   ])), [displayEvents]);
@@ -500,7 +550,8 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     };
   }, [ready, callouts, expandedCards, selectedIds, points, pointCountries]);
 
-  const activeHeatmaps = useMemo(() => rootEvent ? [] : heatmaps.filter(layer => layer.points.length > 0), [heatmaps, rootEvent]);
+  // Data stays loaded while zoomed in (the mesh is hidden) so zooming out needs no new density pass.
+  const activeHeatmaps = useMemo(() => rootEvent || !heatmap.length ? [] : [{ points: heatmap }], [heatmap, rootEvent]);
 
   function select(item: Callout) {
     onSelect(item.event ? { kind: "event", event: item.event } : { kind: "location", location: { lat: item.lat, lng: item.lng } });
@@ -598,9 +649,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   }
 
   return <div className="earth-stage" ref={stage} style={{ "--connector-width": `${GLOBE.connectorWidthPx}px` } as CSSProperties}>
-    <div className="earth-controls"><button disabled={!ready} onClick={() => {
-      if (globe.current && fittedDistance.current) globe.current.pointOfView({ ...GLOBE.initialView, altitude: fittedDistance.current / globe.current.getGlobeRadius() - 1 });
-    }}>Reset view</button><button data-rotation-toggle onClick={() => onRotationChange(!rotating)} disabled={!ready} aria-pressed={rotating}>{rotating ? "Pause rotation" : "Resume rotation"}</button>{selection?.kind === "event" && <button onClick={clearTree}>Clear selection tree</button>}</div>
+    {selection?.kind === "event" && <div className="earth-controls"><button onClick={clearTree}>Clear selection tree</button></div>}
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location.">
       <div ref={orbSurface} className="earth-orb-surface" aria-hidden="true">
         <FluidOrb size={GLOBE.orbRenderSize} color={GLOBE.orbColor} topColor={GLOBE.orbTopColor} maxFps={GLOBE.orbMaxFps} maxPixelRatio={GLOBE.orbMaxPixelRatio} />
@@ -608,7 +657,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
       <div className="earth-renderer" onPointerDownCapture={beginGlobePress} onPointerMoveCapture={trackGlobePress}
         onPointerUpCapture={finishGlobePress} onPointerCancelCapture={() => { globePress.current = null; }}
         onPointerLeave={() => { globePress.current = null; }}>
-      {size.width > 0 && <Globe ref={globe} width={size.width} height={size.height}
+      {size.width > 0 && <Globe ref={globe} width={size.width} height={size.height} rendererConfig={rendererConfig}
         backgroundColor="rgba(0,0,0,0)" globeMaterial={oceanDepthMaterial}
         polygonsData={countries.features} polygonGeoJsonGeometry="geometry"
         polygonCapMaterial={landMaterial} polygonSideMaterial={sideMaterial}
@@ -623,7 +672,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
         heatmapsData={activeHeatmaps} heatmapPoints="points"
         heatmapPointLat="lat" heatmapPointLng="lng" heatmapPointWeight="weight"
         heatmapColorFn={heatmapColor}
-        heatmapBandwidth={GLOBE.heatmapBandwidthDegrees} heatmapBaseAltitude={heatmapAltitude} heatmapTopAltitude={heatmapAltitude} heatmapsTransitionDuration={0}
+        heatmapBandwidth={GLOBE.heatmapBandwidthDegrees} heatmapBaseAltitude={GLOBE.heatmapBaseAltitude} heatmapTopAltitude={GLOBE.heatmapBaseAltitude} heatmapsTransitionDuration={0}
         pointsData={points} pointLat="lat" pointLng="lng" pointColor="color"
         pointRadius={GLOBE.pointRadiusDegrees} pointAltitude="altitude" pointsTransitionDuration={0}
         onGlobeReady={() => {
