@@ -10,6 +10,7 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -71,19 +72,11 @@ class DatabasePing:
 
 
 def load_repo_env() -> None:
-    """Load repo-root .env without overriding variables already set in the process."""
-    path = REPO_ROOT / ".env"
-    if not path.is_file():
-        return
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = value
+    """Process environment wins, followed by .env, then legacy .env.local."""
+    from dotenv import load_dotenv
+
+    for name in (".env", ".env.local"):
+        load_dotenv(REPO_ROOT / name, override=False)
 
 
 def database_url() -> str:
@@ -113,7 +106,8 @@ def _iso_z(value: Any) -> str | None:
 def _connect():
     import psycopg
 
-    return psycopg.connect(database_url(), connect_timeout=15)
+    return psycopg.connect(database_url(), connect_timeout=5, sslmode="require",
+                            options="-c statement_timeout=10000")
 
 
 def _json_value(value: Any) -> Any:
@@ -139,10 +133,22 @@ def _clean_attributes(value: Any) -> dict[str, Any]:
     return cleaned
 
 
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, datetime):
+        return _iso_z(value)
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def _row_to_event(row: dict[str, Any]) -> dict[str, Any]:
     entities = _json_value(row.get("entities")) or []
     tags = _json_value(row.get("tags")) or []
-    return {
+    return _json_safe({
         "id": row["id"],
         "source": row["source"],
         "sourceUrl": row.get("source_url"),
@@ -163,7 +169,7 @@ def _row_to_event(row: dict[str, Any]) -> dict[str, Any]:
         "rawRef": row.get("raw_ref"),
         "tags": tags if isinstance(tags, list) else [],
         "attributes": _clean_attributes(row.get("attributes")),
-    }
+    })
 
 
 def ping_and_warmup(*, fetch_last_ingest: bool = True) -> DatabasePing:
@@ -181,7 +187,7 @@ def ping_and_warmup(*, fetch_last_ingest: bool = True) -> DatabasePing:
         return DatabasePing(
             status="dark",
             last_ingest_at=None,
-            detail=f"TigerData unreachable: {exc}",
+            detail="TigerData connection unavailable",
         )
 
     try:
@@ -207,15 +213,15 @@ def ping_and_warmup(*, fetch_last_ingest: bool = True) -> DatabasePing:
         return DatabasePing(
             status="dark",
             last_ingest_at=None,
-            detail=f"TigerData warmup failed: {exc}",
+            detail="TigerData warmup failed",
             warmup_ms=int((time.perf_counter() - started) * 1000),
         )
     finally:
         conn.close()
 
 
-def fetch_mart_events(*, limit: int = 8000) -> tuple[list[dict[str, Any]] | None, DatabasePing]:
-    ping = ping_and_warmup(fetch_last_ingest=True)
+def fetch_mart_events(*, ping: DatabasePing | None = None) -> tuple[list[dict[str, Any]] | None, DatabasePing]:
+    ping = ping or ping_and_warmup(fetch_last_ingest=True)
     if ping.status != "ok":
         return None, ping
 
@@ -225,15 +231,14 @@ def fetch_mart_events(*, limit: int = 8000) -> tuple[list[dict[str, Any]] | None
         return None, DatabasePing(
             status="dark",
             last_ingest_at=ping.last_ingest_at,
-            detail=f"TigerData unreachable on event read: {exc}",
+            detail="TigerData connection unavailable on event read",
             warmup_ms=ping.warmup_ms,
         )
 
     try:
         with conn.cursor() as cur:
             cur.execute(
-                _EVENT_SQL + "\nORDER BY e.occurred_at DESC\nLIMIT %s",
-                (int(limit),),
+                _EVENT_SQL + "\nORDER BY e.occurred_at DESC, e.event_id",
             )
             columns = [col.name for col in cur.description]
             events = [_row_to_event(dict(zip(columns, row, strict=True))) for row in cur.fetchall()]
@@ -242,14 +247,14 @@ def fetch_mart_events(*, limit: int = 8000) -> tuple[list[dict[str, Any]] | None
         return None, DatabasePing(
             status="error",
             last_ingest_at=ping.last_ingest_at,
-            detail=f"mart.event unavailable: {exc}",
+            detail="mart.event unavailable",
             warmup_ms=ping.warmup_ms,
         )
     finally:
         conn.close()
 
 
-def fetch_links_for_event(event_id: str) -> list[dict[str, Any]] | None:
+def fetch_links_for_event(event_id: str | None) -> list[dict[str, Any]] | None:
     """Return links touching event_id, or None when the database cannot be read."""
     if not database_configured():
         return None
@@ -264,9 +269,10 @@ def fetch_links_for_event(event_id: str) -> list[dict[str, Any]] | None:
                 SELECT link_id, source_id, target_id, relation, confidence,
                        rationale, citations, model
                 FROM mart.event_link
-                WHERE source_id = %s OR target_id = %s
+                WHERE %s::text IS NULL OR source_id = %s OR target_id = %s
+                ORDER BY link_id
                 """,
-                (event_id, event_id),
+                (event_id, event_id, event_id),
             )
             links = []
             for link_id, source_id, target_id, relation, confidence, rationale, citations, model in cur.fetchall():
@@ -282,7 +288,7 @@ def fetch_links_for_event(event_id: str) -> list[dict[str, Any]] | None:
                 parsed = _json_value(citations)
                 if isinstance(parsed, list) and parsed:
                     item["citations"] = parsed
-                links.append(item)
+                links.append(_json_safe(item))
             return links
     except Exception:  # noqa: BLE001
         return None
@@ -338,3 +344,9 @@ def write_event_links(links: list[dict[str, Any]]) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def fetch_mart_links() -> tuple[list[dict[str, Any]] | None, DatabasePing]:
+    links = fetch_links_for_event(None)
+    return links, DatabasePing("ok" if links is not None else "error", None,
+                              None if links is not None else "mart.event_link unavailable")

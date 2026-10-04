@@ -25,7 +25,7 @@ tiger db uri SERVICE_ID --with-password
 
 Paste the printed `postgresql://...` string into `.env`. Leave `FIRMS_MAP_KEY` blank. That key is only for loading new hotspots, and the database already has its data.
 
-3. Start the API so it reads that database. The frontend expects port 8000.
+3. Start the API so it reads that database. The frontend expects port 43124.
 
 ```bash
 cd apps/api
@@ -37,7 +37,7 @@ macOS/Linux: `source .venv/bin/activate`
 
 ```bash
 pip install -r requirements.txt
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+uvicorn main:app --reload --host 127.0.0.1 --port 43124
 ```
 
 `GET /health` should report `"database": "ok"`. If `DATABASE_URL` is empty, the API serves fixture JSON instead.
@@ -54,7 +54,7 @@ Set these in `apps/web/.env.local`, then restart Next.js after any change:
 
 ```dotenv
 DATA_MODE=api
-API_BASE_URL=http://127.0.0.1:8000
+API_BASE_URL=http://127.0.0.1:43124
 ```
 
 ```bash

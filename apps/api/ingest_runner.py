@@ -11,8 +11,10 @@ from fastapi import HTTPException
 _run_lock = threading.Lock()
 
 
-def run_ingest(repo_root: Path) -> None:
+def run_ingest(repo_root: Path, *, default_command: list[str] | None = None) -> None:
     raw = os.environ.get("INGEST_COMMAND", "")
+    if not raw and default_command is not None:
+        raw = json.dumps(default_command)
     if not raw:
         raise HTTPException(503, detail={
             "failingSource": "ingest",

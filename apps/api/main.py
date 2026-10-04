@@ -8,6 +8,7 @@ import hashlib
 import os
 import secrets
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -18,11 +19,12 @@ from jsonschema import Draft202012Validator, FormatChecker
 from ingest_runner import run_ingest
 
 from db import (
-    database_configured,
-    fetch_links_for_event,
     fetch_mart_events,
     fetch_mart_links,
     ping_and_warmup,
+    database_configured,
+    load_repo_env,
+    DatabasePing,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -43,6 +45,8 @@ _VALIDATORS = {
     )
     for name in ("event", "link")
 }
+
+load_repo_env()
 
 # In-process last-known ingest time, updated by warehouse reads.
 _last_ingest_at: str | None = None
@@ -215,8 +219,18 @@ def _force_fixtures(fixture_flag: bool) -> bool:
     return fixture_flag or not database_configured()
 
 
-def _source_status(*, database: str) -> dict[str, str]:
-    return {"usgs": "ok", "firms": "ok", "database": database}
+def _source_status(*, database: str, data_source: str) -> dict[str, str]:
+    # Warehouse availability does not prove the sensors ingested successfully.
+    sensor_status = "fixture" if data_source == "fixture" else "unknown"
+    status = {"usgs": sensor_status, "firms": sensor_status, "database": database}
+    if data_source != "fixture":
+        stored = _read_snapshot_meta().get("sourceStatus", {})
+        if isinstance(stored, dict):
+            for source in ("usgs", "firms"):
+                value = stored.get(source)
+                if isinstance(value, str) and value in {"ok", "error", "dark", "unknown"}:
+                    status[source] = value
+    return status
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -290,17 +304,23 @@ def _load_events_for_request(
 ) -> tuple[list[dict[str, Any]], dict[str, str], str | None]:
     """Fall back on failed reads; a successful empty dataset remains empty."""
     if _force_fixtures(fixture_flag):
-        events, _label = _load_events_cache(prefer_snapshot=False)
-        return events, _source_status(database="fixture"), None
+        events, label = _load_events_cache(prefer_snapshot=False)
+        return events, _source_status(database="fixture", data_source=label), None
 
     # Request limits apply after filters and must not truncate the shared cache.
     mart_events, ping = fetch_mart_events()
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
 
     if mart_events is not None:
-        _write_snapshot(mart_events, last_ingest_at=last_ingest)
-        return mart_events, _source_status(database="ok"), None
+        try:
+            _validate_rows(mart_events, "event")
+        except ValueError as exc:
+            ping = DatabasePing("error", ping.last_ingest_at, str(exc))
+        else:
+            _write_snapshot(mart_events, last_ingest_at=last_ingest)
+            return mart_events, _source_status(database="ok", data_source="warehouse"), None
 
+    # TigerData dark / error / misconfigured → last good snapshot or fixtures.
     try:
         events, label = _load_events_cache(prefer_snapshot=True)
     except HTTPException as exc:
@@ -315,12 +335,12 @@ def _load_events_for_request(
 
     database_status = ping.status if ping.status in {"dark", "error"} else "dark"
     detail = ping.detail or f"Serving {label} after TigerData {database_status}"
-    return events, _source_status(database=database_status), detail
+    return events, _source_status(database=database_status, data_source=label), detail
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    """Database ping + last ingest. SELECT 1 runs when DATABASE_URL is set."""
+    """Warehouse ping + last ingest. Call before the pitch to warm SELECT 1."""
     ping = ping_and_warmup(fetch_last_ingest=True)
     data_source = "warehouse"
     if ping.status == "ok":
@@ -331,13 +351,22 @@ def health() -> dict[str, Any]:
             try:
                 _validate_rows(rows, "event")
             except ValueError as exc:
-                ping = DatabasePing("error", ping.warehouse_ping, ping.last_ingest_at, str(exc), ping.warmup_ms)
+                ping = DatabasePing("error", ping.last_ingest_at, str(exc), ping.warmup_ms)
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
-    using_fixtures = ping.status == "fixture" or not database_configured()
-    ok = ping.status in {"ok", "fixture"} or _cache_available()
+    ok = ping.status == "ok"
+    detail = ping.detail
+    if ping.status != "ok":
+        try:
+            _, data_source = _load_events_cache(prefer_snapshot=ping.status != "fixture")
+            ok = True
+        except HTTPException:
+            data_source = "unavailable"
+            detail = f"{detail or 'Warehouse unavailable'}; no readable event cache"
     return {
         "ok": ok,
-        "usingFixtures": using_fixtures or ping.status in {"dark", "error"},
+        "usingFixtures": data_source == "fixture",
+        "dataSource": data_source,
+        "sourceStatus": _source_status(database=ping.status, data_source=data_source),
         "database": ping.status,
         "warmupMs": ping.warmup_ms,
         "lastIngestAt": last_ingest,
@@ -388,11 +417,30 @@ def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str,
     ids = {event["id"] for event in events}
     if event_id not in ids:
         raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
-    if not _force_fixtures(fixture == 1):
-        stored = fetch_links_for_event(event_id)
-        if stored is not None:
-            return stored
-    links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture == 1))
+    links = None
+    link_ping = None
+    if not _force_fixtures(fixture == 1) and _status["database"] == "ok":
+        links, link_ping = fetch_mart_links()
+        if links is not None:
+            try:
+                _validate_rows(links, "link")
+            except ValueError:
+                links = None
+            else:
+                try:
+                    SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+                    _atomic_write(LINKS_SNAPSHOT, json.dumps(links, indent=2) + "\n")
+                except OSError:
+                    pass
+    if links is None:
+        try:
+            links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture == 1))
+        except HTTPException as exc:
+            if link_ping is not None:
+                raise HTTPException(503, detail={
+                    "failingSource": "database", "error": "No usable links or link cache",
+                }) from exc
+            raise
     return [
         link
         for link in links
@@ -428,7 +476,7 @@ def ingest_run(
     authorization: str | None = Header(default=None),
     x_ingest_secret: str | None = Header(default=None, alias="X-Ingest-Secret"),
 ) -> dict[str, Any]:
-    """Run USGS, GDACS, and optional FIRMS ingest when INGEST_SECRET matches."""
+    """Run the configured Track B loader after authenticating the request."""
     expected = os.environ.get("INGEST_SECRET", "").strip()
     provided = _extract_ingest_secret(authorization, x_ingest_secret)
     authorized = (
@@ -439,12 +487,12 @@ def ingest_run(
     if not authorized:
         raise HTTPException(status_code=401, detail="Unauthorized: valid INGEST_SECRET required")
 
-    if str(REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(REPO_ROOT))
-    from jobs.ingest.run import run_ingest
-
-    result = run_ingest()
-    if result.get("ok"):
-        _remember_last_ingest(_now_iso())
-    result["lastIngestAt"] = _resolved_last_ingest(None)
-    return result
+    default_command = [sys.executable, "-m", "jobs.ingest"] if database_configured() else None
+    run_ingest(REPO_ROOT, default_command=default_command)
+    if database_configured():
+        _remember_last_ingest(ping_and_warmup(fetch_last_ingest=True).last_ingest_at)
+    return {
+        "ok": True,
+        "status": "completed",
+        "lastIngestAt": _resolved_last_ingest(None),
+    }
