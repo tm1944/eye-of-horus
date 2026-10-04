@@ -16,6 +16,7 @@ import CountryHeadlines from "@/components/country-headlines";
 import { indexLinks } from "@/lib/related-events";
 import ViewTabs from "@/components/view-tabs";
 import DataAttribution from "@/components/data-attribution";
+import { EyeOfHorusIcon } from "@/components/eye-of-horus";
 
 const EventGlobe = dynamic(() => import("@/components/event-globe"), { ssr: false, loading: () => <div className="earth-loading" role="status">Loading Earth…</div> });
 const emptyEvents: EventsResponse["events"] = [];
@@ -141,14 +142,14 @@ export default function Home() {
   const shown = useMemo(() => explore && selectedCountries.length
     ? restrictVisuals(visuals, new Set(selectedCountries.flatMap(country => country.events.map(event => event.id))))
     : visuals, [explore, selectedCountries, visuals]);
-  return <main className="earth-page" data-tab={tab} aria-label="Hypothesis Globe">
+  return <main className="earth-page" data-tab={tab} aria-label="Eye of Horus">
     {explore && <LayerRail filters={filters} onChange={update} reflowKey={[filters, selectedCountries]} openRequest={countriesPanelRequest} closeRequest={settingsCloseRequest} panels={[
       { id: "countries", label: "Selected countries", badge: selectedCountries.length, active: selectedCountries.length > 0, content: <CountryHeadlines countries={selectedCountries}
         onRemove={toggleCountry} onClear={() => setSelectedCountryIds([])} onPick={pickCountryHeadline}
         include={event => !!filters.layers[event.layerId as LayerId]?.enabled} linkCount={id => linkIndex.get(id)?.length ?? 0} /> },
       { id: "significance", label: "Significance", content: <DisplaySettings filters={filters} onChange={update} count={visuals.visible.length} markerCount={visuals.markers.length} markerCandidateCount={visuals.markerCandidateCount} /> },
     ]} />}
-    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
+    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><div className="globe-brand" role="img" aria-label="Eye of Horus" title="Eye of Horus"><EyeOfHorusIcon /></div><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
       feed={tab === "feed" ? { section: feedSection, onSection: section => { setFeed({}); setSelection(null); setFeedSection(section); }, saved: profile?.readingList.length ?? 0, loading: !feed.events && !feed.error, error: feed.error, onStartOver: startOver } : null} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={shown.markers} linkable={visuals.visible} heatmaps={shown.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
     {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
