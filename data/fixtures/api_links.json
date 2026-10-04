@@ -1,0 +1,12 @@
+[
+  {
+    "id": "link:gnews:fixture123:usgs:us7000example",
+    "sourceId": "gnews:fixture123",
+    "targetId": "usgs:us7000example",
+    "relation": "primary-story",
+    "confidence": 0.74,
+    "rationale": "The article reports shaking in Napa County within hours of the M6.2 Napa earthquake.",
+    "citations": [],
+    "model": "gemini-3.5-flash-lite"
+  }
+]

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/tm1944/hypothesis-globe/packages/schema/link.schema.json",
   "title": "EventLink",
-  "description": "LLM hypothesis edge. Never emit relation=caused unless a human checked it.",
+  "description": "LLM hypothesis edge. Mirrors the TigerData mart.event_link table (the source of truth). Never present a link as a verified cause.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,23 +12,23 @@
     "relation",
     "confidence",
     "rationale",
+    "citations",
     "model"
   ],
   "properties": {
-    "id": { "type": "string" },
-    "sourceId": { "type": "string" },
-    "targetId": { "type": "string" },
+    "id": { "type": "string", "description": "link_id" },
+    "sourceId": { "type": "string", "description": "source_id" },
+    "targetId": { "type": "string", "description": "target_id" },
     "relation": {
       "type": "string",
-      "enum": ["co_occurs", "same_place", "same_topic", "reported_together"]
+      "description": "Written by jobs/llm/link_events.py, e.g. same-event, shares-context, affects-market, primary-story, mentions, analyzes"
     },
     "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-    "rationale": { "type": "string" },
+    "rationale": { "type": "string", "description": "rationale; empty when null" },
     "citations": {
-      "type": "array",
-      "items": { "type": "string", "format": "uri" },
-      "description": "Source URLs justifying this link, for user further reading."
+      "type": ["array", "object"],
+      "description": "citations jsonb: news↔news links store {plausibility, evidence, verdict, world_knowledge}; others store []"
     },
-    "model": { "type": "string" }
+    "model": { "type": "string", "description": "model; empty when null" }
   }
 }

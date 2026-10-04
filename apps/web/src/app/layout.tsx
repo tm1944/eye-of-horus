@@ -9,5 +9,6 @@ const inter = localFont({
 });
 export const metadata: Metadata = { title: "Hypothesis Globe", description: "Technology, government, finance, and societal events around the world." };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" className={inter.variable}><body>{children}</body></html>;
+  // Browser extensions add attributes to <html> before hydration; ignore only those.
+  return <html lang="en" className={inter.variable} suppressHydrationWarning><body>{children}</body></html>;
 }

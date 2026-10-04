@@ -1,7 +1,6 @@
 import type { Event } from "./api";
 
 export const CATEGORIES = [
-  { id: "hazards", label: "Natural Hazards", layers: ["earthquake", "wildfire", "cyclone", "flood", "volcano", "drought", "environment"] },
   { id: "security", label: "Conflict & Security", layers: ["conflict", "terror", "crime", "protest", "strategic_development"] },
   { id: "politics", label: "Politics & World", layers: ["politics", "world", "news", "media"] },
   { id: "economy", label: "Economy & Tech", layers: ["finance", "business", "technology", "science"] },

@@ -27,6 +27,7 @@ SELECT
   e.summary,
   e.occurred_at,
   e.updated_at,
+  e.ended_at,
   e.lng,
   e.lat,
   e.alt_m,
@@ -34,7 +35,9 @@ SELECT
   e.geo_source,
   e.weight,
   e.significance,
+  e.country_iso3,
   COALESCE(e.keywords, '[]'::jsonb) AS keywords,
+  COALESCE(e.entities, '[]'::jsonb) AS entities,
   e.raw_ref,
   COALESCE(
     (
@@ -153,6 +156,7 @@ def _json_safe(value: Any) -> Any:
 
 def _row_to_event(row: dict[str, Any]) -> dict[str, Any]:
     keywords = _json_value(row.get("keywords")) or []
+    entities = _json_value(row.get("entities")) or []
     tags = _json_value(row.get("tags")) or []
     return _json_safe({
         "id": row["id"],
@@ -164,14 +168,17 @@ def _row_to_event(row: dict[str, Any]) -> dict[str, Any]:
         "summary": row.get("summary"),
         "occurredAt": _iso_z(row.get("occurred_at")),
         "updatedAt": _iso_z(row.get("updated_at")) or _iso_z(row.get("occurred_at")),
+        "endedAt": _iso_z(row.get("ended_at")),
         "lng": row["lng"],
         "lat": row["lat"],
         "altM": row.get("alt_m"),
         "geoPrecision": row["geo_precision"],
         "geoSource": row["geo_source"],
-        "weight": 0 if row.get("weight") is None else row.get("weight"),
+        "weight": row.get("weight"),
         "significance": row["significance"],
+        "countryIso3": row.get("country_iso3"),
         "keywords": keywords if isinstance(keywords, list) else [],
+        "entities": entities if isinstance(entities, list) else [],
         "rawRef": row.get("raw_ref"),
         "tags": tags if isinstance(tags, list) else [],
         "attributes": _clean_attributes(row.get("attributes")),
@@ -282,19 +289,17 @@ def fetch_links_for_event(event_id: str | None) -> list[dict[str, Any]] | None:
             )
             links = []
             for link_id, source_id, target_id, relation, confidence, rationale, citations, model in cur.fetchall():
-                item = {
+                parsed = _json_value(citations)
+                links.append(_json_safe({
                     "id": link_id,
                     "sourceId": source_id,
                     "targetId": target_id,
                     "relation": relation,
                     "confidence": confidence,
                     "rationale": rationale or "",
+                    "citations": parsed if isinstance(parsed, (list, dict)) else [],
                     "model": model or "",
-                }
-                parsed = _json_value(citations)
-                if isinstance(parsed, list) and parsed:
-                    item["citations"] = parsed
-                links.append(_json_safe(item))
+                }))
             return links
     except Exception:  # noqa: BLE001
         return None

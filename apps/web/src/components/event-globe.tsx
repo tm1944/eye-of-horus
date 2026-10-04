@@ -5,7 +5,7 @@ import Globe, { type GlobeMethods } from "react-globe.gl";
 import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
 import { CATEGORIES, LABELS, type CategoryHeatmap, type CategoryId, type LayerId } from "@/lib/layers";
 import { densityField, heatmapSegments, sphereGrid, type SphereGrid } from "@/lib/heatmap-density";
-import type { Event } from "@/lib/api";
+import type { Event, EventLink } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
 import { cardWorldAnchor } from "@/lib/card-anchor";
 import { cardsOverlap, placeCard, type CardRect } from "@/lib/card-placement";
@@ -14,9 +14,10 @@ import countries from "@/data/countries.geojson.json";
 import countryColors from "@/data/country-colors.json";
 import { neighborBorders, borderContour } from "@/lib/country-borders";
 import { globeClipPlanes } from "@/lib/globe-depth";
-import RelatedEventControls from "@/components/related-event-controls";
+import RelatedEventControls, { relationLabel } from "@/components/related-event-controls";
+import LinkCard from "@/components/link-card";
 import FluidOrb from "@/components/ui/fluid-orb";
-import { connectTree, pruneBranch, type Connection, floatingArc } from "@/lib/related-events";
+import { arcSpecs, floatingArc, growProgress, indexLinks, otherEnd, pickTarget, retractProgress, type ArcSpec, type Hit, type Pick } from "@/lib/related-events";
 import { GLOBE, PIN, eventColor } from "@/lib/globe-config";
 
 export type Location = { lat: number; lng: number };
@@ -222,8 +223,85 @@ function createHeatmapMesh(id: CategoryId, base: HeatmapBase) {
 }
 const heatmapKey = (heatmap: CategoryHeatmap) => heatmap.points.map(point => `${point.lat},${point.lng},${point.weight}`).join(";");
 
-export default function EventGlobe({ allEvents, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture, resetViewKey, onReadyChange }: {
+// RELATIONSHIP ARCS — tubes whose uv.x runs 0 at the origin pin to 1 at the linked pin.
+// `progress` hides everything past it, so animating it flies the arc out (or reels it
+// back in). A bright head rides the leading edge while growing; `glow` lifts the core
+// and fades in an additive halo tube on hover.
+const ARC_VERTEX = `
+  varying float vAlong;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    vAlong = uv.x;
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    vNormal = normalize(normalMatrix * normal);
+    vView = normalize(-viewPosition.xyz);
+    gl_Position = projectionMatrix * viewPosition;
+  }`;
+const ARC_CORE_FRAGMENT = `
+  uniform vec3 color;
+  uniform float progress;
+  uniform float glow;
+  uniform float growing;
+  varying float vAlong;
+  void main() {
+    if (vAlong > progress) discard;
+    float head = growing * smoothstep(progress - 0.06, progress, vAlong);
+    gl_FragColor = vec4(mix(color, vec3(1.0), clamp(0.35 * glow + 0.7 * head, 0.0, 1.0)), 1.0);
+    #include <colorspace_fragment>
+  }`;
+const ARC_HALO_FRAGMENT = `
+  uniform vec3 color;
+  uniform float progress;
+  uniform float glow;
+  varying float vAlong;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    if (vAlong > progress || glow < 0.003) discard;
+    float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
+    gl_FragColor = vec4(color, glow * 0.6 * facing * facing);
+    #include <colorspace_fragment>
+  }`;
+// Picking only: thick enough to hover comfortably, but never drawn.
+const arcHitMaterial = new MeshBasicMaterial({ colorWrite: false, depthWrite: false, transparent: true, opacity: 0 });
+const noRaycast = () => {};
+type ArcState = "grow" | "shown" | "retract";
+type Arc = {
+  originId: string; group: Group; hit: Mesh; uniforms: { progress: { value: number }; glow: { value: number }; growing: { value: number } }[];
+  state: ArcState; start: number; from: number; progress: number; glow: number;
+};
+function createArc(spec: ArcSpec<EventLink>, start: Vector3, end: Vector3, globeRadius: number): Omit<Arc, "state" | "start" | "from" | "progress" | "glow"> {
+  const curve = new CatmullRomCurve3(floatingArc(start, end, globeRadius, GLOBE.relatedArcClearance, GLOBE.relatedArcRise));
+  const radius = GLOBE.relatedArcRadius * (GLOBE.relatedArcMinRadiusScale + (1 - GLOBE.relatedArcMinRadiusScale) * Math.max(0, Math.min(1, spec.link.confidence)));
+  const shared = () => ({ color: { value: new Color(GLOBE.relatedArcColor) }, progress: { value: 0 }, glow: { value: 0 }, growing: { value: 1 } });
+  const coreUniforms = shared(), haloUniforms = shared();
+  const core = new Mesh(new TubeGeometry(curve, 128, radius, 8, false), new ShaderMaterial({ vertexShader: ARC_VERTEX, fragmentShader: ARC_CORE_FRAGMENT, uniforms: coreUniforms }));
+  const halo = new Mesh(new TubeGeometry(curve, 128, radius * GLOBE.relatedArcHaloScale, 12, false), new ShaderMaterial({
+    vertexShader: ARC_VERTEX, fragmentShader: ARC_HALO_FRAGMENT, uniforms: haloUniforms,
+    blending: AdditiveBlending, transparent: true, depthWrite: false,
+  }));
+  const hit = new Mesh(new TubeGeometry(curve, 48, radius * GLOBE.relatedArcHitScale, 6, false), arcHitMaterial);
+  core.raycast = noRaycast;
+  halo.raycast = noRaycast;
+  halo.renderOrder = 20;
+  hit.userData.linkId = spec.link.id;
+  const group = new Group();
+  group.add(core, halo, hit);
+  return { originId: spec.from, group, hit, uniforms: [coreUniforms, haloUniforms] };
+}
+function disposeArc(arc: Arc) {
+  arc.group.removeFromParent();
+  for (const child of arc.group.children as Mesh[]) {
+    child.geometry.dispose();
+    if (child.material !== arcHitMaterial) (child.material as Material).dispose();
+  }
+}
+
+export default function EventGlobe({ allEvents, links, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture, resetViewKey, onReadyChange }: {
   allEvents: Event[];
+  /** Every relationship hypothesis, loaded once; undefined links means still loading. */
+  links: { links?: EventLink[]; error?: string };
   events: Event[];
   selectedCountries: { id: string; name: string; events: Event[] }[];
   onToggleCountry: (id: string) => void;
@@ -292,9 +370,22 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
       (layer.mesh.material as ShaderMaterial).dispose();
     });
   }, []);
-  const [treeRoot, setTreeRoot] = useState<Event | null>(null);
-  const [connections, setConnections] = useState<Connection<Event>[]>([]);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(() => new Set());
+  // Hover is pin-first: an arc only hovers where no pin is under the pointer.
+  const [hoveredPinId, setHoveredPinId] = useState<string | null>(null);
+  const [hoveredArcId, setHoveredArcId] = useState<string | null>(null);
+  // The open card keeps its arc (and that arc's origin) drawn until it closes.
+  const [openLink, setOpenLink] = useState<{ id: string; origin: string; x: number; y: number; width: number; height: number } | null>(null);
+  const arcs = useRef(new Map<string, Arc>());
+  const hoveredArcRef = useRef<string | null>(null);
+  const openLinkRef = useRef<string | null>(null);
+  const pointer = useRef<{ x: number; y: number; inside: boolean; dirty: boolean }>({ x: 0, y: 0, inside: false, dirty: false });
+  const tooltip = useRef<HTMLDivElement>(null);
+  const hoverRaycaster = useMemo(() => new Raycaster(), []);
+  useEffect(() => { hoveredArcRef.current = hoveredArcId; }, [hoveredArcId]);
+  useEffect(() => { openLinkRef.current = openLink?.id ?? null; }, [openLink]);
+  const linkIndex = useMemo(() => indexLinks(links.links ?? []), [links.links]);
+  const linksById = useMemo(() => new Map((links.links ?? []).map(link => [link.id, link])), [links.links]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -411,7 +502,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const selectedCountryIds = useMemo(() => new Set(selectedCountries.map(country => country.id)), [selectedCountries]);
   const selectedEvents = useMemo(() => [...new Map(selectedCountries.flatMap(country => country.events).map(event => [event.id, event])).values()], [selectedCountries]);
   const selectedIds = useMemo(() => new Set(selectedEvents.map(event => event.id)), [selectedEvents]);
-  const rootEvent = treeRoot ?? (selection?.kind === "event" ? selection.event : null);
+  const rootEvent = selection?.kind === "event" ? selection.event : null;
   // Add, update or remove category heatmaps; unchanged categories keep their density.
   useEffect(() => {
     if (!ready || !globe.current) return;
@@ -462,61 +553,27 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const landMaterial = useCallback((value: object) => landMaterials.get((value as CountryFeature).id)!, [landMaterials]);
   const countryBorderColor = useCallback((path: object) => selectedCountryIds.has((path as typeof borders[number]).countryId) ? "#000000" : borderColors.get(path as typeof borders[number])!, [selectedCountryIds]);
   const polygonAltitude = useCallback((value: object) => selectedCountryIds.has((value as CountryFeature).id) ? GLOBE.selectedCountryAltitude : GLOBE.landAltitude, [selectedCountryIds]);
-  const relationshipEvents = useMemo(() => [...new Map(connections.flatMap(link => [link.source, link.target]).map(event => [event.id, event])).values()], [connections]);
+  // A selected event shows its linked events, but only those its filters already show.
+  const relationshipEvents = useMemo(() => {
+    if (!rootEvent) return [];
+    const visible = new Map(events.map(event => [event.id, event]));
+    const linked = (linkIndex.get(rootEvent.id) ?? []).map(link => visible.get(otherEnd(link, rootEvent.id)));
+    return [...new Map(linked.filter((event): event is Event => !!event && event.id !== rootEvent.id).map(event => [event.id, event])).values()];
+  }, [rootEvent, events, linkIndex]);
   const displayEvents = useMemo(() => rootEvent ? [...new Map([rootEvent, ...relationshipEvents].map(event => [event.id, event])).values()] : [...new Map([...events, ...selectedEvents, ...relationshipEvents].map(event => [event.id, event])).values()], [events, selectedEvents, relationshipEvents, rootEvent]);
 
-  useEffect(() => {
-    if (!ready || !globe.current || !connections.length) return;
-    const instance = globe.current;
-    const vector = (event: Event) => {
-      const { x, y, z } = instance.getCoords(event.lat, event.lng);
-      return new Vector3(x, y, z);
-    };
-    const arcs = connections.map(connection => {
-      const curve = new CatmullRomCurve3(floatingArc(vector(connection.source), vector(connection.target), instance.getGlobeRadius(), GLOBE.relatedArcClearance, GLOBE.relatedArcRise));
-      const geometry = new TubeGeometry(curve, 128, GLOBE.relatedArcRadius, 6, false);
-      const material = new MeshBasicMaterial({ color: GLOBE.relatedArcColor });
-      const arc = new Mesh(geometry, material);
-      arc.raycast = () => {}; // The decorative link never blocks POI/country picking.
-      instance.scene().add(arc);
-      return arc;
-    });
-    return () => arcs.forEach(arc => { instance.scene().remove(arc); arc.geometry.dispose(); arc.material.dispose(); });
-  }, [ready, connections]);
+  // A connection card belongs to the selection it was opened from.
+  useEffect(() => { setOpenLink(null); }, [rootEvent?.id]);
 
-  function clearTree() {
-    setConnections([]);
-    setTreeRoot(null);
+  const closeLink = useCallback(() => setOpenLink(null), []);
+  function clearSelection() {
     setExpandedCards(new Set());
+    setOpenLink(null);
     onSelect(null);
   }
-  function removeBranch(id: string) {
-    if (id === rootEvent?.id) { clearTree(); return; }
-    const next = pruneBranch(connections, id);
-    setConnections(next.links);
-    setExpandedCards(current => new Set([...current].filter(value => !next.removed.has(value))));
-    if (selection?.kind === "event" && next.removed.has(selection.event.id) && rootEvent) onSelect({ kind: "event", event: rootEvent });
-  }
-  function clearChildren(source: Event) {
-    let remaining = connections;
-    const removed = new Set<string>();
-    for (const child of connections.filter(link => link.source.id === source.id)) {
-      const next = pruneBranch(remaining, child.target.id);
-      remaining = next.links;
-      next.removed.forEach(id => removed.add(id));
-    }
-    setConnections(remaining);
-    setExpandedCards(current => new Set([...current].filter(id => !removed.has(id))));
-    if (selection?.kind === "event" && removed.has(selection.event.id)) onSelect({ kind: "event", event: source });
-  }
-  function addConnection(source: Event, target: Event) {
-    const root = rootEvent ?? source;
-    setTreeRoot(root);
-    setConnections(current => connectTree(current, root, source, target));
-  }
-  function visitRelated(source: Event, target: Event) {
+  function visitEvent(target: Event) {
     onRotationChange(false);
-    addConnection(source, target);
+    setOpenLink(null);
     // Connection navigation opens only the headline; details remain opt-in.
     setExpandedCards(current => {
       const next = new Set(current);
@@ -552,6 +609,147 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
     countries.features.find(country => countryContains(country, event))?.id,
   ])), [displayEvents]);
+
+  // ARCS — fan out from the selected pin, the hovered pin, and the arc whose card is open.
+  // Both ends must be shown pins, so links to filtered-out events are skipped.
+  const pointsRef = useRef(points);
+  useEffect(() => { pointsRef.current = points; }, [points]);
+  const shownIds = useMemo(() => new Set(points.map(point => point.id)), [points]);
+  const desiredArcs = useMemo(() => arcSpecs([rootEvent?.id, hoveredPinId, openLink?.origin], linkIndex, shownIds),
+    [rootEvent?.id, hoveredPinId, openLink?.origin, linkIndex, shownIds]);
+  useEffect(() => {
+    const instance = globe.current;
+    if (!ready || !instance) return;
+    const now = performance.now();
+    const wanted = new Map(desiredArcs.map(spec => [spec.link.id, spec]));
+    for (const [id, arc] of arcs.current) {
+      const spec = wanted.get(id);
+      if (spec && spec.from !== arc.originId) { disposeArc(arc); arcs.current.delete(id); continue; } // a new origin redraws it outward from there
+      if (spec && arc.state === "retract") Object.assign(arc, { state: "grow", start: now, from: arc.progress });
+      if (!spec && arc.state !== "retract") Object.assign(arc, { state: "retract", start: now, from: arc.progress });
+    }
+    const located = new Map(points.map(point => [point.id, point]));
+    const vector = (id: string) => {
+      const { lat, lng } = located.get(id)!;
+      const { x, y, z } = instance.getCoords(lat, lng);
+      return new Vector3(x, y, z);
+    };
+    const fanned = new Map<string, number>();
+    for (const spec of desiredArcs) {
+      if (arcs.current.has(spec.link.id)) continue;
+      const order = fanned.get(spec.from) ?? 0;
+      fanned.set(spec.from, order + 1);
+      const arc: Arc = { ...createArc(spec, vector(spec.from), vector(spec.to), instance.getGlobeRadius()), state: "grow", start: now + order * GLOBE.relatedArcStaggerMs, from: 0, progress: 0, glow: 0 };
+      instance.scene().add(arc.group);
+      arcs.current.set(spec.link.id, arc);
+    }
+  }, [ready, desiredArcs, points]);
+  useEffect(() => {
+    const live = arcs.current;
+    return () => { live.forEach(disposeArc); live.clear(); };
+  }, []);
+
+  // Find the pin or arc under a client point. Pins win; the globe hides its far side.
+  const globeSurface = useRef<Mesh | null>(null);
+  function pickAt(clientX: number, clientY: number): Pick {
+    const instance = globe.current;
+    if (!instance) return null;
+    const bounds = instance.renderer().domElement.getBoundingClientRect();
+    if (clientX < bounds.left || clientX > bounds.right || clientY < bounds.top || clientY > bounds.bottom) return null;
+    if (!globeSurface.current) instance.scene().traverse(object => {
+      if ((object as Object3D & { __globeObjType?: string }).__globeObjType === "globe") globeSurface.current = (object.children.find(child => (child as Mesh).isMesh) as Mesh) ?? null;
+    });
+    instance.camera().updateMatrixWorld();
+    hoverRaycaster.setFromCamera(new Vector2(2 * (clientX - bounds.left) / bounds.width - 1, 1 - 2 * (clientY - bounds.top) / bounds.height), instance.camera());
+    const pinObjects = pointsRef.current.map(point => (point as typeof point & { __threeObjObject?: Object3D }).__threeObjObject).filter((pin): pin is Object3D => !!pin);
+    const arcHits = [...arcs.current.values()].filter(arc => arc.state !== "retract" && arc.progress > 0.9).map(arc => arc.hit);
+    const surface = globeSurface.current;
+    type PickObject = Object3D & { __globeObjType?: string; __data?: unknown };
+    const hits: Hit[] = [];
+    for (const hit of hoverRaycaster.intersectObjects([...pinObjects, ...arcHits, ...(surface ? [surface] : [])], true)) {
+      if (hit.object.userData.linkId) { hits.push({ kind: "arc", id: hit.object.userData.linkId, distance: hit.distance }); continue; }
+      if (hit.object === surface) { hits.push({ kind: "surface", distance: hit.distance }); continue; }
+      let owner: PickObject | null = hit.object;
+      while (owner && !owner.__globeObjType) owner = owner.parent;
+      if (owner?.__globeObjType === "object") hits.push({ kind: "pin", id: (owner.__data as Event).id, distance: hit.distance });
+    }
+    return pickTarget(hits);
+  }
+  // A hovered pin keeps its preview arcs briefly after the pointer leaves, and for as long
+  // as the pointer rests on one of them, so they can be reached and clicked.
+  const hover = useRef<Pick>(null);
+  const hoverOrigin = useRef<string | null>(null);
+  const releaseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function setHoverOrigin(id: string | null) {
+    clearTimeout(releaseTimer.current);
+    hoverOrigin.current = id;
+    setHoveredPinId(id);
+  }
+  function applyHover(pick: Pick) {
+    const previous = hover.current;
+    if (previous?.kind === pick?.kind && previous?.id === pick?.id) return;
+    hover.current = pick;
+    setHoveredArcId(pick?.kind === "arc" ? pick.id : null);
+    if (container.current) container.current.style.cursor = pick ? "pointer" : "";
+    if (pick?.kind === "pin") setHoverOrigin(pick.id);
+    else if (pick?.kind === "arc" && arcs.current.get(pick.id)?.originId === hoverOrigin.current) clearTimeout(releaseTimer.current);
+    else if (hoverOrigin.current) {
+      clearTimeout(releaseTimer.current);
+      releaseTimer.current = setTimeout(() => setHoverOrigin(null), GLOBE.relatedArcHoverReleaseMs);
+    }
+  }
+  function placeTooltip() {
+    const element = tooltip.current, surface = stage.current;
+    if (!element || !surface) return;
+    const bounds = surface.getBoundingClientRect();
+    element.style.transform = `translate(${pointer.current.x - bounds.left + 14}px, ${pointer.current.y - bounds.top + 14}px)`;
+  }
+  useEffect(placeTooltip, [hoveredArcId]);
+  useEffect(() => () => clearTimeout(releaseTimer.current), []);
+
+  // Animate arcs and resolve hover once per frame, never per pointer event.
+  useEffect(() => {
+    if (!ready || !globe.current) return;
+    const controls = globe.current.controls();
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0, last = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - last;
+      last = now;
+      for (const [id, arc] of arcs.current) {
+        if (arc.state === "grow") {
+          arc.progress = media.matches ? 1 : arc.from + (1 - arc.from) * growProgress(now - arc.start, GLOBE.relatedArcGrowMs);
+          if (arc.progress >= 1) arc.state = "shown";
+        } else if (arc.state === "retract") {
+          arc.progress = media.matches ? 0 : retractProgress(arc.from, now - arc.start, GLOBE.relatedArcRetractMs);
+          if (arc.progress <= 0) { disposeArc(arc); arcs.current.delete(id); continue; }
+        }
+        const target = arc.state !== "retract" && (id === hoveredArcRef.current || id === openLinkRef.current) ? 1 : 0;
+        const step = media.matches ? 1 : elapsed / GLOBE.relatedArcHoverMs;
+        arc.glow = target > arc.glow ? Math.min(target, arc.glow + step) : Math.max(target, arc.glow - step);
+        for (const uniforms of arc.uniforms) {
+          uniforms.progress.value = arc.progress;
+          uniforms.glow.value = arc.glow;
+          uniforms.growing.value = arc.state === "grow" ? 1 : 0;
+        }
+      }
+      const current = pointer.current;
+      if (current.dirty) {
+        current.dirty = false;
+        const press = globePress.current;
+        const dragging = !!press && press.maxDistance > press.tolerance;
+        applyHover(current.inside && !dragging ? pickAt(current.x, current.y) : null);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    // Rotation and zoom move things under a still pointer.
+    const moved = () => { pointer.current.dirty = true; };
+    controls.addEventListener("change", moved);
+    return () => { cancelAnimationFrame(frame); controls.removeEventListener("change", moved); };
+    // pickAt and applyHover read only refs and stable setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   // Update only projected DOM positions each frame, not React state or backend data.
   useEffect(() => {
@@ -822,6 +1020,15 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
     instance.camera().updateMatrixWorld();
     instance.scene().updateMatrixWorld(true);
+    // Arcs open their connection card; pins still beat arcs, and any other click closes it.
+    const pick = pickAt(event.clientX, event.clientY);
+    const arc = pick?.kind === "arc" ? arcs.current.get(pick.id) : undefined;
+    if (pick?.kind === "arc" && arc && stage.current) {
+      const stageBounds = stage.current.getBoundingClientRect();
+      setOpenLink({ id: pick.id, origin: arc.originId, x: event.clientX - stageBounds.left, y: event.clientY - stageBounds.top, width: stageBounds.width, height: stageBounds.height });
+      return;
+    }
+    setOpenLink(null);
     clickRaycaster.setFromCamera(new Vector2(2 * (event.clientX - bounds.left) / bounds.width - 1, 1 - 2 * (event.clientY - bounds.top) / bounds.height), instance.camera());
     type PickObject = Object3D & { __globeObjType?: string; __data?: unknown };
     for (const hit of clickRaycaster.intersectObjects(instance.scene().children, true)) {
@@ -850,14 +1057,15 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   }
 
   return <div className="earth-stage" ref={stage} style={{ "--connector-width": `${GLOBE.connectorWidthPx}px` } as CSSProperties}>
-    {selection?.kind === "event" && <div className="earth-controls"><button onClick={clearTree}>Clear selection tree</button></div>}
+    {selection?.kind === "event" && <div className="earth-controls"><button onClick={clearSelection}>Clear selection</button></div>}
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location.">
       <div ref={orbSurface} className="earth-orb-surface" aria-hidden="true">
         <FluidOrb size={GLOBE.orbRenderSize} color={GLOBE.orbColor} topColor={GLOBE.orbTopColor} maxFps={GLOBE.orbMaxFps} maxPixelRatio={GLOBE.orbMaxPixelRatio} edgeShade={GLOBE.continentEdgeShadeStrength} />
       </div>
       <div className="earth-renderer" onPointerDownCapture={beginGlobePress} onPointerMoveCapture={trackGlobePress}
         onPointerUpCapture={finishGlobePress} onPointerCancelCapture={() => { globePress.current = null; }}
-        onPointerLeave={() => { globePress.current = null; }}>
+        onPointerMove={event => { pointer.current = { x: event.clientX, y: event.clientY, inside: true, dirty: true }; placeTooltip(); }}
+        onPointerLeave={() => { globePress.current = null; pointer.current = { ...pointer.current, inside: false, dirty: true }; }}>
       {size.width > 0 && <Globe ref={globe} width={size.width} height={size.height} rendererConfig={rendererConfig}
         backgroundColor="rgba(0,0,0,0)" globeMaterial={oceanDepthMaterial}
         polygonsData={countries.features} polygonGeoJsonGeometry="geometry"
@@ -925,14 +1133,24 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
         {item.retained && <p className="retained-note">Selected event · hidden by map filters</p>}
         {event && <p className="card-summary">{event.summary ?? "No summary provided."}</p>}
         <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}{event && <span>{event.geoPrecision} precision</span>}</p>
-        {event && <RelatedEventControls key={event.id} event={event} allEvents={allEvents} connections={connections} rootId={rootEvent?.id}
-          onVisit={visitRelated} onAdd={addConnection} onRemove={removeBranch} onClear={clearChildren} />}
+        {event && <RelatedEventControls key={event.id} event={event} allEvents={allEvents}
+          links={links.links ? linkIndex.get(event.id) ?? [] : undefined} error={links.error} onVisit={visitEvent} />}
         {event && <p className="card-time">{eventTime(event.occurredAt)}</p>}
         <div className="card-footer">{href ? <a href={href} target="_blank" rel="noreferrer">{event!.source.toUpperCase()} ↗</a> : <span>{event?.source.toUpperCase() ?? "Coordinates captured"}</span>}
-          {active && <button onClick={() => event ? removeBranch(event.id) : clearTree()} aria-label={event?.id === rootEvent?.id ? "Clear root and all branches" : "Remove branch and descendants"}>{event?.id === rootEvent?.id ? "Clear entire tree" : "Remove branch"}</button>}</div>
+          {(event ? event.id === rootEvent?.id : selection?.kind === "location") && <button onClick={clearSelection}>Clear selection</button>}</div>
         </>}
       </article>;
     })}</div>
+    {hoveredArcId && linksById.get(hoveredArcId) && <div className="arc-tooltip" ref={tooltip} aria-hidden="true">
+      {relationLabel(linksById.get(hoveredArcId)!.relation)} · {Math.round(linksById.get(hoveredArcId)!.confidence * 100)}%
+    </div>}
+    {openLink && linksById.get(openLink.id) && (() => {
+      const link = linksById.get(openLink.id)!;
+      const byId = new Map(allEvents.map(item => [item.id, item]));
+      return <LinkCard link={link} source={byId.get(link.sourceId)} target={byId.get(link.targetId)}
+        x={openLink.x} y={openLink.y} stageWidth={openLink.width} stageHeight={openLink.height}
+        onVisit={visitEvent} onClose={closeLink} />;
+    })()}
     <p className="earth-hint">Drag to explore <span>·</span> Scroll to zoom <span>·</span> Click a place</p>
   </div>;
 }

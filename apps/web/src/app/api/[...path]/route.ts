@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const isFeed = path[0] === "feed" && (path.length === 1 || (path.length === 2 && path[1] === "pins"));
-  const allowed = isFeed || (path[0] === "health" && path.length === 1) ||
+  const allowed = isFeed || ((path[0] === "health" || path[0] === "links") && path.length === 1) ||
     (path[0] === "events" && (path.length <= 2 || (path.length === 3 && path[2] === "links")));
   if (!allowed) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const mode = process.env.DATA_MODE ?? "fixture";
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   if (mode === "fixture") {
     if (isFeed) return NextResponse.json({ error: "Feed ranking requires DATA_MODE=api and FastAPI. Use fixture=1 for sample events." }, { status: 503, headers });
     if (path[0] === "health") return NextResponse.json({ status: "ok", mode, backendConnected: false }, { headers });
+    if (path[0] === "links") return NextResponse.json(links, { headers });
     if (path.length === 1) return NextResponse.json({
       generatedAt: new Date().toISOString(),
       sourceStatus: { usgs: "fixture", firms: "fixture", gdelt: "fixture" },

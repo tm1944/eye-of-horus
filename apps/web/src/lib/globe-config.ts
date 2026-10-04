@@ -24,7 +24,15 @@ export const GLOBE = {
   relatedArcColor: "#ff3030", // floating relationship curve
   relatedArcClearance: 0.07, // both endpoints above even raised countries and markers
   relatedArcRise: 0.12, // extra height at the middle, in globe radii
-  relatedArcRadius: 0.3, // red tube thickness in Three.js world units
+  relatedArcRadius: 0.3, // red tube thickness in Three.js world units, at full confidence
+  relatedArcMinRadiusScale: 0.5, // a confidence-0 link draws at half thickness
+  relatedArcGrowMs: 650, // flight from the origin pin out to a linked pin
+  relatedArcStaggerMs: 70, // delay between successive arcs fanning out from one pin
+  relatedArcRetractMs: 280, // arcs pull back into their origin when no longer shown
+  relatedArcHitScale: 5, // invisible picking tube is this many times thicker than the drawn arc
+  relatedArcHaloScale: 3.2, // hover glow tube radius relative to the drawn arc
+  relatedArcHoverMs: 140, // glow fade in/out
+  relatedArcHoverReleaseMs: 250, // a hovered pin's arcs linger this long so the pointer can reach them
   rotationSpeed: 1, // Three.js OrbitControls speed; 1 ≈ one revolution/minute at 60 fps
   atmosphereColor: "#333333", // one shade lighter than the #242424 page background
   atmosphereAltitude: 0.12, // outer halo thickness, fraction of globe radius

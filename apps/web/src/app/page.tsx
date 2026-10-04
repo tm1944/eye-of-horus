@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { getEvents, type EventsResponse } from "@/lib/api";
+import { getEvents, getLinks, type EventLink, type EventsResponse } from "@/lib/api";
 import countries from "@/data/countries.geojson.json";
 import { countryContains } from "@/lib/country-selection";
 import type { Selection } from "@/components/event-globe";
@@ -30,6 +30,16 @@ export default function Home() {
     });
     return () => controller.abort();
   }, [attempt]);
+  // Links load once with the events; without them the globe simply draws no arcs.
+  const [links, setLinks] = useState<{ links?: EventLink[]; error?: string }>({});
+  useEffect(() => {
+    const controller = new AbortController();
+    setLinks({});
+    getLinks(controller.signal).then(links => setLinks({ links })).catch((error: unknown) => {
+      if (!controller.signal.aborted) setLinks({ error: error instanceof Error ? error.message : "Unable to load related events." });
+    });
+    return () => controller.abort();
+  }, [attempt]);
   const { filters, update } = useLayerFilters();
   const visuals = useMemo(() => deriveVisuals(result?.data.events ?? emptyEvents, filters), [result, filters]);
   const selectedCountries = useMemo(() => selectedCountryIds.map(id => {
@@ -41,7 +51,7 @@ export default function Home() {
   }
   return <main className="earth-page" aria-label="Hypothesis Globe">
     <LayerRail filters={filters} onChange={update} />
-    <div className="globe-workspace"><GlobeBoundary><EventGlobe allEvents={result?.data.events ?? emptyEvents} selectedCountries={selectedCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} resetViewKey={resetViewKey} onReadyChange={setGlobeReady} /></GlobeBoundary></div>
+    <div className="globe-workspace"><GlobeBoundary><EventGlobe allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={selectedCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} resetViewKey={resetViewKey} onReadyChange={setGlobeReady} /></GlobeBoundary></div>
     <SettingsRail reflowKey={[filters, selectedCountries]} actions={[
       { id: "reset", label: "Reset view", icon: "reset", disabled: !globeReady, onClick: () => setResetViewKey(value => value + 1) },
       { id: "rotation", label: rotating ? "Pause rotation" : "Resume rotation", icon: rotating ? "pause" : "play", pressed: rotating, disabled: !globeReady, onClick: () => setRotating(value => !value) },

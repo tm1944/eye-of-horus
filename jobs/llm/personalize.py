@@ -9,7 +9,7 @@ get_globe_pins(n)   -- top n events spread across the globe for pin display
 
 Functions read data/user_config.json only when no explicit config is supplied.
 The API supplies request selections and validated events without file preferences.
-Falls back to data/fixtures/events.json when DATABASE_URL is unset.
+Falls back to data/fixtures/api_events.json when DATABASE_URL is unset.
 
 See docs/personalization_algorithm.md for full algorithm spec.
 """
@@ -30,7 +30,7 @@ from typing import Any
 
 _REPO_ROOT = Path(__file__).parents[2]
 CONFIG_PATH = _REPO_ROOT / "data" / "user_config.json"
-FIXTURES_PATH = _REPO_ROOT / "data" / "fixtures" / "events.json"
+FIXTURES_PATH = _REPO_ROOT / "data" / "fixtures" / "api_events.json"
 
 # ---------------------------------------------------------------------------
 # Scoring weights (must sum to 1.0)
@@ -110,7 +110,7 @@ def coord_score(event_lat: float, event_lng: float, coordinates: list[dict]) -> 
 def keyword_score(event: dict, keywords: list[str]) -> float:
     """Fraction of user keywords matched in event text fields.
 
-    Checks: event title tokens, entity text, and any 'labels' field in the DB row.
+    Checks: event title tokens, entity and keyword text, and any 'labels' field in the DB row.
     Exact phrase match = full weight; any single token match = half weight.
     """
     if not keywords:
@@ -119,8 +119,8 @@ def keyword_score(event: dict, keywords: list[str]) -> float:
     # Build a searchable token set from all event text fields
     searchable = set()
     searchable.update(event.get("title", "").lower().split())
-    for entity in event.get("entities", []):
-        searchable.update(entity.get("text", "").lower().split())
+    for term in event.get("entities", []) + event.get("keywords", []):
+        searchable.update(term.get("text", "").lower().split())
     for label in event.get("labels", []):
         searchable.add(str(label).lower())
 

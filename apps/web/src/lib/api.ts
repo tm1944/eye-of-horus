@@ -4,7 +4,9 @@ export type Event = Omit<(typeof events)[number], "sourceUrl" | "summary" | "raw
   summary: string | null;
   rawRef: string | null;
 };
-export type EventLink = (typeof links)[number];
+/** News↔news links store scores in citations; other links store a list. */
+export type LinkScores = { plausibility?: number; evidence?: number; verdict?: string; world_knowledge?: string[] };
+export type EventLink = Omit<(typeof links)[number], "citations"> & { citations: unknown[] | LinkScores };
 export type EventsResponse = {
   generatedAt: string;
   sourceStatus: Record<string, string>;
@@ -46,13 +48,24 @@ export async function getEvents(signal?: AbortSignal) {
   throw new Error("Events changed while loading. Retry loading events.");
 }
 
-/** Load backend relationship hypotheses for either end of an event link. */
-export async function getEventLinks(eventId: string, signal?: AbortSignal): Promise<EventLink[]> {
-  const response = await fetch(`/api/events/${encodeURIComponent(eventId)}/links`, { signal, cache: "no-store" });
-  if (!response.ok) throw new Error(`Related events request failed (${response.status}).`);
+async function readLinks(response: Response): Promise<EventLink[]> {
   const links: unknown = await response.json();
   if (!Array.isArray(links) || links.some(link => !link || typeof link.sourceId !== "string" || typeof link.targetId !== "string")) {
     throw new Error("The backend returned an invalid event links response.");
   }
   return links as EventLink[];
+}
+
+/** Load backend relationship hypotheses for either end of an event link. */
+export async function getEventLinks(eventId: string, signal?: AbortSignal): Promise<EventLink[]> {
+  const response = await fetch(`/api/events/${encodeURIComponent(eventId)}/links`, { signal, cache: "no-store" });
+  if (!response.ok) throw new Error(`Related events request failed (${response.status}).`);
+  return readLinks(response);
+}
+
+/** Load every relationship hypothesis once, so hovering a pin never waits on the network. */
+export async function getLinks(signal?: AbortSignal): Promise<EventLink[]> {
+  const response = await fetch("/api/links", { signal, cache: "no-store" });
+  if (!response.ok) throw new Error(`Links request failed (${response.status}).`);
+  return readLinks(response);
 }

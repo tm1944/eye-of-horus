@@ -818,20 +818,54 @@ input:focus-visible {
   }
 }
 
-/* Expanded-card demo links: full-width, boxy gray buttons with readable text.
+/* Expanded-card related events: full-width, boxy gray buttons that navigate to the link.
  * These scroll inside the card; the headline remains its free-position drag handle. */
 .card-related { border-top: 1px solid #777575; margin-top: 12px; padding-top: 10px; }
 .card-related h3 { font-size: 14px; margin: 0 0 6px; }
-.card-related h3 span { color: #d2d0d0; font-size: 11px; font-weight: 400; }
 .card-related p { font-size: 12px; color: #d2d0d0; }
+.card-related .relationship-context { margin: 3px 0 0; font-size: 11px; color: #bdbbbb; }
 .card-related button { display: block; width: 100%; margin-top: 6px; padding: 8px; text-align: left; background: #393838; color: #fff; font-size: 13px; line-height: 1.4; cursor: pointer; }
 .card-related button:hover { background: #605d5d; }
 .card-related button:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
 
-/* Compact related-event row: readable destination plus a small connection toggle.
- * Warm orange marks an enabled link; disabled clear buttons stay visibly muted. */
-.related-event-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 6px; }
-.card-connections h4 { font-size: 12px; margin: 10px 0 4px; color: #d2d0d0; }
-.card-related .connection-toggle { text-align: center; padding: 6px 2px; }
-.card-related .connection-toggle[aria-pressed="true"] { color: #ffd4a7; background: #563c28; }
-.card-related button:disabled { opacity: .45; cursor: default; }
+/* Hovered arc label; it follows the pointer and never intercepts it. */
+.arc-tooltip {
+  position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none;
+  padding: 4px 8px; background: #2b2b2bee; color: #f0eeee; font-size: 12px; white-space: nowrap;
+  border-left: 2px solid #ff3030; text-transform: capitalize;
+}
+
+/* Clicked arc: the hypothesis, its reasoning, and both linked events. Above headline cards. */
+.link-card {
+  position: absolute; z-index: 8; overflow: auto;
+  padding: 14px 16px 12px; background: #3f3e3e; color: #f0eeee;
+  border-left: 3px solid #ff3030; box-shadow: 0 8px 28px #000a;
+  font-size: 13px; line-height: 1.45;
+}
+.link-card-header { display: flex; align-items: center; gap: 8px; }
+.link-relation { font-weight: 700; font-size: 15px; text-transform: capitalize; }
+.link-close { margin-left: auto; background: none; color: #d2d0d0; font-size: 20px; line-height: 1; padding: 0 4px; cursor: pointer; }
+.link-close:hover { color: #fff; }
+.link-confidence { position: relative; margin: 10px 0 12px; padding-top: 8px; font-size: 12px; color: #d2d0d0; }
+.link-confidence::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: #555353; }
+.link-confidence span { position: absolute; left: 0; top: 0; height: 4px; background: #ff3030; }
+.link-confidence strong { color: #fff; }
+.link-events { display: grid; gap: 4px; }
+.link-event {
+  display: grid; gap: 2px; width: 100%; text-align: left; cursor: pointer;
+  padding: 8px 10px; background: #2f2e2e; color: #fff; border-left: 3px solid var(--pin-color);
+}
+.link-event:hover { background: #555353; }
+.link-event:focus-visible, .link-close:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+.link-event.is-missing { color: #bdbbbb; font-style: italic; }
+.link-event-title { font-size: 13px; }
+.link-event-meta { font-size: 11px; color: #bdbbbb; }
+.link-direction { text-align: center; color: #ff3030; font-size: 12px; }
+.link-reasoning { margin-top: 12px; border-top: 1px solid #5f5d5d; padding-top: 8px; }
+.link-reasoning h4 { margin: 0 0 4px; font-size: 12px; color: #d2d0d0; text-transform: uppercase; letter-spacing: 1px; }
+.link-reasoning p { margin: 0 0 6px; color: #e6e4e4; }
+.link-reasoning ul { margin: 0; padding-left: 18px; color: #e6e4e4; }
+.link-scores { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 10px 0 0; font-size: 12px; }
+.link-scores dt { color: #bdbbbb; }
+.link-scores dd { margin: 0; text-transform: capitalize; }
+.link-model { margin: 10px 0 0; font-size: 11px; color: #a9a7a7; }

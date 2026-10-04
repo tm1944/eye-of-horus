@@ -6,10 +6,10 @@ import ts from 'typescript';
 const source = readFileSync(new URL('../src/lib/layers.ts', import.meta.url), 'utf8');
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
 const { CATEGORIES, CATEGORY_OF, DEFAULT_CATEGORIES, LAYER_IDS, defaultLayers, parseFilters, writeFilters, deriveVisuals, categoryState, setCategoryEnabled, setLayerEnabled } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
-const events = JSON.parse(readFileSync(new URL('../../../data/fixtures/events.json', import.meta.url), 'utf8'));
-test('all 29 layers persist; politics, economy and security start fully on, hazards off', () => {
+const events = JSON.parse(readFileSync(new URL('./fixtures/events.json', import.meta.url), 'utf8'));
+test('all 30 layers persist; politics, economy and security start fully on, hazards off', () => {
  const layers = defaultLayers();
- assert.equal(Object.keys(layers).length, 29);
+ assert.equal(Object.keys(layers).length, 30);
  assert.deepEqual(DEFAULT_CATEGORIES, ['security', 'politics', 'economy']);
  for (const id of DEFAULT_CATEGORIES) assert.equal(categoryState(layers, id), 'on');
  assert.equal(categoryState(layers, 'hazards'), 'off');

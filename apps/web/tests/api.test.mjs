@@ -8,8 +8,8 @@ const source = readFileSync(new URL("../src/lib/api.ts", import.meta.url), "utf8
 const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText;
-const { getEvents, getEventLinks } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
-const fixtures = JSON.parse(readFileSync(new URL("../../../data/fixtures/events.json", import.meta.url), "utf8"));
+const { getEvents, getEventLinks, getLinks } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+const fixtures = JSON.parse(readFileSync(new URL("./fixtures/events.json", import.meta.url), "utf8"));
 const liveStatus = { usgs: "ok", firms: "unknown", tigerdata: "ok" };
 const response = (events, nextCursor = null, sourceStatus = liveStatus) => Response.json({
   generatedAt: "2026-10-03T12:00:00Z", events, nextCursor, sourceStatus,
@@ -91,4 +91,17 @@ test("relationship loader distinguishes an empty list from errors and invalid re
  await assert.rejects(getEventLinks('a'),/503/);
  await assert.rejects(getEventLinks('a'),/invalid/);
  await assert.rejects(getEventLinks('a'),/invalid/);
+});
+test("bulk link loader reads every link once and validates the response", async () => {
+ const controller = new AbortController();
+ const links=[{id:'link1',sourceId:'a',targetId:'b',citations:{plausibility:.8}}];
+ const replies=[Response.json(links),new Response(null,{status:502}),Response.json([{sourceId:'a'}])];
+ const fetch=mock.method(globalThis,'fetch',async(url,options)=>{
+  assert.equal(url,'/api/links');
+  return replies.shift();
+ });
+ assert.deepEqual(await getLinks(controller.signal),links);
+ assert.equal(fetch.mock.calls[0].arguments[1].signal,controller.signal);
+ await assert.rejects(getLinks(),/502/);
+ await assert.rejects(getLinks(),/invalid/);
 });

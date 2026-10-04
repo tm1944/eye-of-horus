@@ -17,12 +17,15 @@ _COLUMN_ALIASES = {
     "SOURCEURL": "sourceUrl",
     "LAYER_ID": "layerId",
     "LAYERID": "layerId",
+    "SUBTYPE": "subtype",
     "TITLE": "title",
     "SUMMARY": "summary",
     "OCCURRED_AT": "occurredAt",
     "OCCURREDAT": "occurredAt",
     "UPDATED_AT": "updatedAt",
     "UPDATEDAT": "updatedAt",
+    "ENDED_AT": "endedAt",
+    "ENDEDAT": "endedAt",
     "LNG": "lng",
     "LAT": "lat",
     "ALT_M": "altM",
@@ -33,9 +36,15 @@ _COLUMN_ALIASES = {
     "GEOSOURCE": "geoSource",
     "WEIGHT": "weight",
     "SIGNIFICANCE": "significance",
+    "COUNTRY_ISO3": "countryIso3",
+    "COUNTRYISO3": "countryIso3",
+    "KEYWORDS": "keywords",
     "ENTITIES": "entities",
     "RAW_REF": "rawRef",
     "RAWREF": "rawRef",
+    "TAGS": "tags",
+    "ATTRIBUTES": "attributes",
+    "CITATIONS": "citations",
     "SOURCE_ID": "sourceId",
     "SOURCEID": "sourceId",
     "TARGET_ID": "targetId",
@@ -70,7 +79,7 @@ def _row_to_event(columns: list[str], row: tuple[Any, ...]) -> dict[str, Any]:
             value = _iso_z(value)
         elif isinstance(value, Decimal):
             value = float(value)
-        elif key == "entities" and isinstance(value, str):
+        elif key in ("entities", "keywords", "tags", "attributes", "citations") and isinstance(value, str):
             value = json.loads(value)
         event[key] = value
     return event

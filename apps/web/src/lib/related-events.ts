@@ -1,12 +1,5 @@
 import { Vector3 } from "three";
 
-/** Demo navigation only: these are not factual or backend-inferred relationships. */
-export function placeholderRelatedEvents<T extends { id: string }>(source: T, events: T[]): T[] {
-  const unique = [...new Map(events.map(event => [event.id, event])).values()].sort((a, b) => a.id.localeCompare(b.id));
-  const index = unique.findIndex(event => event.id === source.id);
-  return Array.from({ length: Math.min(3, unique.length) }, (_, offset) => unique[(Math.max(index, 0) + offset + 1) % unique.length]).filter(event => event.id !== source.id);
-}
-
 /** Great-circle samples with elevated ends and a gentle arch. Handles antipodes. */
 export function floatingArc(start: Vector3, end: Vector3, radius: number, clearance: number, rise: number) {
   const a = start.clone().normalize(), b = end.clone().normalize();
@@ -21,31 +14,65 @@ export function floatingArc(start: Vector3, end: Vector3, radius: number, cleara
   });
 }
 
-export type Connection<T> = { source: T; target: T };
-/** Directed, source-scoped UI connections; never mutate another source's links. */
-export function setConnection<T extends { id: string }>(connections: Connection<T>[], source: T, target: T, enabled: boolean): Connection<T>[] {
-  const others = connections.filter(link => link.source.id !== source.id || link.target.id !== target.id);
-  return enabled && source.id !== target.id ? [...others, { source, target }] : others;
-}
-export function clearSourceConnections<T extends { id: string }>(connections: Connection<T>[], sourceId: string): Connection<T>[] {
-  return connections.filter(link => link.source.id !== sourceId);
-}
+type Link = { id: string; sourceId: string; targetId: string };
 
-/** Remove a node and every descendant, retaining unrelated sibling branches. */
-export function pruneBranch<T extends { id: string }>(links: Connection<T>[], id: string) {
-  const removed = new Set([id]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const link of links) if (removed.has(link.source.id) && !removed.has(link.target.id)) {
-      removed.add(link.target.id); changed = true;
+/** Index links under both endpoints; a link is undirected for display. */
+export function indexLinks<L extends Link>(links: L[]): Map<string, L[]> {
+  const index = new Map<string, L[]>();
+  for (const link of links) {
+    for (const id of new Set([link.sourceId, link.targetId])) {
+      const list = index.get(id);
+      if (list) list.push(link); else index.set(id, [link]);
     }
   }
-  return { removed, links: links.filter(link => !removed.has(link.source.id) && !removed.has(link.target.id)) };
+  return index;
 }
-/** Each node has one parent. Existing nodes are navigable, never reparented or cycled. */
-export function connectTree<T extends { id: string }>(links: Connection<T>[], root: T, source: T, target: T) {
-  if (target.id === root.id || links.some(link => link.target.id === target.id)) return links;
-  if (source.id !== root.id && !links.some(link => link.target.id === source.id)) return links;
-  return setConnection(links, source, target, true);
+
+/** The far end of a link, seen from one of its events. */
+export const otherEnd = (link: Link, id: string) => link.sourceId === id ? link.targetId : link.sourceId;
+
+export type ArcSpec<L> = { link: L; from: string; to: string };
+/**
+ * Arcs fan out from each origin (selected first, then hovered) to its linked events.
+ * Both ends must be shown pins: links to filtered-out events are skipped. A link that
+ * two origins share is drawn once, from the earlier origin.
+ */
+export function arcSpecs<L extends Link>(origins: (string | null | undefined)[], index: Map<string, L[]>, shown: Set<string>): ArcSpec<L>[] {
+  const specs: ArcSpec<L>[] = [];
+  const seen = new Set<string>();
+  for (const origin of origins) {
+    if (!origin || !shown.has(origin)) continue;
+    for (const link of index.get(origin) ?? []) {
+      const to = otherEnd(link, origin);
+      if (to === origin || !shown.has(to) || seen.has(link.id)) continue;
+      seen.add(link.id);
+      specs.push({ link, from: origin, to });
+    }
+  }
+  return specs;
+}
+
+export type Hit = { kind: "pin" | "arc" | "surface"; id?: string; distance: number };
+export type Pick = { kind: "pin" | "arc"; id: string } | null;
+/**
+ * Pins win over arcs wherever both are under the pointer, even when the arc is
+ * nearer the camera. Anything behind the first surface hit (the far side) is ignored.
+ */
+export function pickTarget(hits: Hit[]): Pick {
+  const sorted = [...hits].sort((a, b) => a.distance - b.distance);
+  const surface = sorted.find(hit => hit.kind === "surface")?.distance ?? Infinity;
+  const front = sorted.filter(hit => hit.kind !== "surface" && hit.distance <= surface && hit.id);
+  const pick = front.find(hit => hit.kind === "pin") ?? front.find(hit => hit.kind === "arc");
+  return pick ? { kind: pick.kind as "pin" | "arc", id: pick.id! } : null;
+}
+
+/** Ease-out growth from 0 to 1; a negative elapsed time (stagger delay) stays at 0. */
+export function growProgress(elapsedMs: number, durationMs: number) {
+  const t = Math.max(0, Math.min(1, elapsedMs / durationMs));
+  return 1 - (1 - t) ** 3;
+}
+/** Ease-in retraction from wherever the arc was when it started to leave. */
+export function retractProgress(from: number, elapsedMs: number, durationMs: number) {
+  const t = Math.max(0, Math.min(1, elapsedMs / durationMs));
+  return from * (1 - t ** 3);
 }

@@ -30,8 +30,10 @@ from db import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_DIR = REPO_ROOT / "data" / "fixtures"
 SNAPSHOTS_DIR = REPO_ROOT / "data" / "snapshots"
-EVENTS_FIXTURE = FIXTURES_DIR / "events.json"
-LINKS_FIXTURE = FIXTURES_DIR / "links.json"
+# API-shaped (mart.event) fixtures. data/fixtures/events.json is the news
+# pipeline's staging file (run_ingest.py → tigerdata/upload.py), not API data.
+EVENTS_FIXTURE = FIXTURES_DIR / "api_events.json"
+LINKS_FIXTURE = FIXTURES_DIR / "api_links.json"
 EVENTS_SNAPSHOT = SNAPSHOTS_DIR / "events.json"
 LINKS_SNAPSHOT = SNAPSHOTS_DIR / "links.json"
 SNAPSHOT_META = SNAPSHOTS_DIR / "meta.json"
@@ -413,17 +415,11 @@ def list_events(
     return body
 
 
-@app.get("/events/{event_id}/links")
-def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str, Any]]:
-    events, _status, _detail = _load_events_for_request(
-        fixture_flag=fixture == 1,
-    )
-    ids = {event["id"] for event in events}
-    if event_id not in ids:
-        raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
+def _load_links_for_request(*, fixture_flag: bool, live: bool) -> list[dict[str, Any]]:
+    """Read every link, caching good live reads; fall back to snapshot or fixtures."""
     links = None
     link_ping = None
-    if not _force_fixtures(fixture == 1) and _status["database"] == "ok":
+    if not _force_fixtures(fixture_flag) and live:
         links, link_ping = fetch_mart_links()
         if links is not None:
             try:
@@ -438,13 +434,31 @@ def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str,
                     pass
     if links is None:
         try:
-            links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture == 1))
+            links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture_flag))
         except HTTPException as exc:
             if link_ping is not None:
                 raise HTTPException(503, detail={
                     "failingSource": "database", "error": "No usable links or link cache",
                 }) from exc
             raise
+    return links
+
+
+@app.get("/links")
+def list_links(fixture: int | None = None) -> list[dict[str, Any]]:
+    """Every link in one read, so the globe can draw arcs without a request per event."""
+    return _load_links_for_request(fixture_flag=fixture == 1, live=True)
+
+
+@app.get("/events/{event_id}/links")
+def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str, Any]]:
+    events, _status, _detail = _load_events_for_request(
+        fixture_flag=fixture == 1,
+    )
+    ids = {event["id"] for event in events}
+    if event_id not in ids:
+        raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
+    links = _load_links_for_request(fixture_flag=fixture == 1, live=_status["database"] == "ok")
     return [
         link
         for link in links

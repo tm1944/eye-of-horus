@@ -283,6 +283,17 @@ class ApiTests(unittest.TestCase):
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(None, dark)):
             self.assertEqual(self.client.get(path).json(), [link])
 
+    def test_all_links_endpoint_reads_once_and_falls_back(self):
+        self.assertEqual(self.client.get("/links").json(), self.links)
+        healthy = DatabasePing("ok", None)
+        dark = DatabasePing("dark", None, "simulated outage")
+        link = {**self.links[0], "id": "link:live"}
+        with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_links", return_value=([link], healthy)), patch.object(main, "fetch_mart_events") as events:
+            self.assertEqual(self.client.get("/links").json(), [link])
+            events.assert_not_called()
+        with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_links", return_value=(None, dark)):
+            self.assertEqual(self.client.get("/links").json(), [link])
+
     def test_invalid_live_links_use_existing_cache(self):
         healthy = DatabasePing("ok", None)
         path = f"/events/{self.events[0]['id']}/links"
