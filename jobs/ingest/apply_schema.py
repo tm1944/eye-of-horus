@@ -1,4 +1,4 @@
-"""Apply sql/001_init.sql to the TigerData database in DATABASE_URL."""
+"""Apply sql/001_init.sql and sql/003_acled.sql to the TigerData database."""
 
 from __future__ import annotations
 
@@ -21,16 +21,16 @@ def main() -> None:
             "(see .env.example), then run: python -m jobs.ingest.apply_schema"
         )
         raise SystemExit(1)
-    sql_path = REPO_ROOT / "sql" / "001_init.sql"
-    statements = _statements(sql_path.read_text(encoding="utf-8"))
     import psycopg
 
     with psycopg.connect(database_url(), connect_timeout=30) as conn:
         with conn.cursor() as cur:
-            for statement in statements:
-                cur.execute(statement)
+            for name in ("001_init.sql", "003_acled.sql"):
+                sql_path = REPO_ROOT / "sql" / name
+                for statement in _statements(sql_path.read_text(encoding="utf-8")):
+                    cur.execute(statement)
+                print(f"Applied sql/{name}")
         conn.commit()
-    print("Applied sql/001_init.sql")
 
 
 def _statements(sql: str) -> list[str]:

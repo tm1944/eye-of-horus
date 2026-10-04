@@ -7,9 +7,9 @@ const source = readFileSync(new URL('../src/lib/layers.ts', import.meta.url), 'u
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
 const { CATEGORIES, LAYER_IDS, defaultLayers, parseFilters, writeFilters, deriveVisuals, categoryState, setCategoryEnabled, setLayerEnabled } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 const events = JSON.parse(readFileSync(new URL('../../../data/fixtures/events.json', import.meta.url), 'utf8'));
-test('all 29 layers persist, with four societal product defaults', () => {
+test('all 30 layers persist, with four societal product defaults', () => {
  const layers = defaultLayers();
- assert.equal(Object.keys(layers).length, 29);
+ assert.equal(Object.keys(layers).length, 30);
  assert.deepEqual(LAYER_IDS.filter(id => layers[id].enabled).sort(), ['finance','humanitarian','politics','technology']);
 });
 test('empty layers means none; malformed URL values are safe', () => {

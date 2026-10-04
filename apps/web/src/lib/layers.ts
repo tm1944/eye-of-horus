@@ -2,7 +2,7 @@ import type { Event } from "./api";
 
 export const CATEGORIES = [
   { id: "hazards", label: "Natural Hazards", layers: ["earthquake", "wildfire", "cyclone", "flood", "volcano", "drought", "environment"] },
-  { id: "security", label: "Conflict & Security", layers: ["conflict", "terror", "crime", "protest"] },
+  { id: "security", label: "Conflict & Security", layers: ["conflict", "terror", "crime", "protest", "strategic_development"] },
   { id: "politics", label: "Politics & World", layers: ["politics", "world", "news", "media"] },
   { id: "economy", label: "Economy & Tech", layers: ["finance", "business", "technology", "science"] },
   { id: "society", label: "Humanitarian & Health", layers: ["humanitarian", "famine", "health", "education"] },
@@ -19,7 +19,7 @@ export type Filters = { layers: LayerState; time: TimeWindow; minSignificance: n
 export type HeatmapPoint = { lat: number; lng: number; weight: number };
 export const LABELS: Record<LayerId, string> = {
   earthquake: "Earthquakes", wildfire: "Wildfires", cyclone: "Cyclones", flood: "Floods", volcano: "Volcanoes", drought: "Droughts", environment: "Environment",
-  conflict: "Conflict", terror: "Terror", crime: "Crime", protest: "Protests",
+  conflict: "Conflict", terror: "Terror", crime: "Crime", protest: "Protests", strategic_development: "Strategic developments",
   politics: "Government & Politics", world: "World", news: "News", media: "Media",
   finance: "Finance", business: "Business", technology: "Technology", science: "Science",
   humanitarian: "Society", famine: "Famine", health: "Health", education: "Education",

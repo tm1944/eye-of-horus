@@ -59,7 +59,8 @@
         "volcano",
         "drought",
         "famine",
-        "protest"
+        "protest",
+        "strategic_development"
       ]
     },
     "subtype": { "type": ["string", "null"] },
