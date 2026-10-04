@@ -31,14 +31,17 @@ export const GLOBE = {
   ambientLightIntensity: 2.0,
   sunlightIntensity: 1.1,
   maxPixelRatio: 1.5, // limit GPU cost on high-density displays
-  pointRadiusDegrees: 1.9, // unnumbered surface markers; 5× the original 0.38° radius
+  pointRadiusDegrees: 0.63, // unnumbered surface markers; a third of the earlier 1.9° radius
   heatmapBandwidthDegrees: 3, // smoothing radius; also bounds native heatmap mesh detail
   heatmapBaseAltitude: 0.002, // fraction of globe radius
-  heatmapLayerGap: 0.0005, // separate flat shells to avoid intersecting surfaces
-  heatmapMaxOpacity: 0.65, // allows overlapping layer colors to remain visible
+  heatmapMaxOpacity: 0.75, // densest areas keep the land faintly visible
+  heatmapOpacityGain: 1.6, // opacity per unit of normalized density, capped above
+  heatmapLowColor: "#ffd27a", // sparse marker density
+  heatmapHighColor: "#ff4d2e", // dense marker density
+  zoomInThreshold: 0.97, // camera distance / default fit below which markers replace the heatmap
   pointAltitude: 0.016, // fraction of globe radius
-  surfaceFitWidth: 0.46, // projected sphere radius / canvas width
-  surfaceFitHeight: 0.44, // projected sphere radius / canvas height
+  surfaceFitWidth: 0.36, // projected sphere radius / canvas width
+  surfaceFitHeight: 0.34, // projected sphere radius / canvas height
   zoomOutMultiplier: 1.7,
   minZoomAltitude: 0.04, // nearest camera height / globe radius (~255 km on Earth)
   pinToCardDistancePx: 80, // preferred horizontal gap when a card first appears
@@ -49,11 +52,15 @@ export const GLOBE = {
   headlinePerspectivePx: 900, // larger values flatten perspective
   cardEdgePaddingPx: 24, // responsive card width margin and retained-selection inset
   maxCallouts: 4, // highest-significance events; selected event takes priority
+  // One hue family per sidebar category; subcategories are shades of it.
   colors: {
-    technology: "#80e5ef",
-    earthquake: "#ffc38b", wildfire: "#ff8d91", news: "#a0d9ff",
-    humanitarian: "#d3b9ff", conflict: "#fba6bf", politics: "#e6d09c",
-    terror: "#ffaeae", finance: "#94e5c9", selected: "#ceffe5",
+    earthquake: "#ffc38b", wildfire: "#ff9f6b", cyclone: "#ffd9a8", flood: "#f5b26e", volcano: "#ff8a4c", drought: "#e8c08f", environment: "#ffcf96", // hazards
+    conflict: "#fba6bf", terror: "#ff8fa8", crime: "#f7bccd", protest: "#ffa3c4", // security
+    politics: "#e6d09c", world: "#f0dc9e", news: "#d9c48a", media: "#f5e6b8", // politics & world
+    finance: "#94e5c9", business: "#7fd9b8", technology: "#80e5ef", science: "#a6f0e0", // economy & tech
+    humanitarian: "#d3b9ff", famine: "#c0a3f5", health: "#e0cfff", education: "#b9a8ec", // humanitarian & health
+    culture: "#a0d9ff", entertainment: "#8ccaff", sports: "#b7e3ff", fashion: "#9cc2f5", travel: "#c4e8ff", food: "#86bdf0", // culture & lifestyle
+    selected: "#ceffe5",
   } as Record<string, string>,
 };
 export const eventColor = (layer: string) => GLOBE.colors[layer] ?? "#d3b9ff";

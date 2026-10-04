@@ -1,20 +1,47 @@
 import type { Event } from "./api";
 
-export const LAYER_IDS = ["technology", "politics", "finance", "humanitarian", "conflict", "news", "earthquake", "wildfire", "terror"] as const;
-export type LayerId = typeof LAYER_IDS[number];
-export const supportsHeatmap = (id: LayerId) => id === "earthquake" || id === "wildfire";
-export type LayerMode = "heatmap" | "markers" | "both";
-export type WeightField = "weight";
-export type LayerState = Record<LayerId, { enabled: boolean; mode: LayerMode; weightField: WeightField }>;
+export const CATEGORIES = [
+  { id: "hazards", label: "Natural Hazards", layers: ["earthquake", "wildfire", "cyclone", "flood", "volcano", "drought", "environment"] },
+  { id: "security", label: "Conflict & Security", layers: ["conflict", "terror", "crime", "protest"] },
+  { id: "politics", label: "Politics & World", layers: ["politics", "world", "news", "media"] },
+  { id: "economy", label: "Economy & Tech", layers: ["finance", "business", "technology", "science"] },
+  { id: "society", label: "Humanitarian & Health", layers: ["humanitarian", "famine", "health", "education"] },
+  { id: "culture", label: "Culture & Lifestyle", layers: ["culture", "entertainment", "sports", "fashion", "travel", "food"] },
+] as const;
+export type CategoryId = typeof CATEGORIES[number]["id"];
+export const LAYER_IDS = CATEGORIES.flatMap(category => category.layers);
+export type LayerId = typeof CATEGORIES[number]["layers"][number];
+export type LayerState = Record<LayerId, { enabled: boolean }>;
 export type TimeWindow = { startIso: string; endIso: string } | null;
 export const MAX_MARKERS = 5000;
 export const DEFAULT_MIN_SIGNIFICANCE = 50;
-export type DensityLayerId = "earthquake" | "wildfire";
-export type Filters = { layers: LayerState; time: TimeWindow; minSignificance: number; heatmapLayer: DensityLayerId };
-export type HeatmapData = { id: LayerId; points: { lat: number; lng: number; weight: number }[] };
-export const LABELS: Record<LayerId, string> = { technology: "Technology", politics: "Government & Politics", finance: "Finance", humanitarian: "Society", conflict: "Conflict", news: "News", earthquake: "Earthquakes", wildfire: "Wildfires", terror: "Terror" };
+export type Filters = { layers: LayerState; time: TimeWindow; minSignificance: number };
+export type HeatmapPoint = { lat: number; lng: number; weight: number };
+export const LABELS: Record<LayerId, string> = {
+  earthquake: "Earthquakes", wildfire: "Wildfires", cyclone: "Cyclones", flood: "Floods", volcano: "Volcanoes", drought: "Droughts", environment: "Environment",
+  conflict: "Conflict", terror: "Terror", crime: "Crime", protest: "Protests",
+  politics: "Government & Politics", world: "World", news: "News", media: "Media",
+  finance: "Finance", business: "Business", technology: "Technology", science: "Science",
+  humanitarian: "Society", famine: "Famine", health: "Health", education: "Education",
+  culture: "Culture", entertainment: "Entertainment", sports: "Sports", fashion: "Fashion", travel: "Travel", food: "Food",
+};
 export function defaultLayers(): LayerState {
-  return Object.fromEntries(LAYER_IDS.map(id => [id, { enabled: ["technology", "politics", "finance", "humanitarian"].includes(id), mode: supportsHeatmap(id) ? "both" : "markers", weightField: "weight" }])) as LayerState;
+  return Object.fromEntries(LAYER_IDS.map(id => [id, { enabled: ["technology", "politics", "finance", "humanitarian"].includes(id) }])) as LayerState;
+}
+export type CategoryState = "on" | "off" | "partial";
+export function categoryState(layers: LayerState, id: CategoryId): CategoryState {
+  const members = CATEGORIES.find(category => category.id === id)!.layers;
+  const enabled = members.filter(layer => layers[layer].enabled).length;
+  return enabled === 0 ? "off" : enabled === members.length ? "on" : "partial";
+}
+// Enabling a category enables every subcategory; disabling it closes them all.
+export function setCategoryEnabled(filters: Filters, id: CategoryId, enabled: boolean): Filters {
+  const layers = { ...filters.layers };
+  for (const layer of CATEGORIES.find(category => category.id === id)!.layers) layers[layer] = { ...layers[layer], enabled };
+  return { ...filters, layers };
+}
+export function setLayerEnabled(filters: Filters, id: LayerId, enabled: boolean): Filters {
+  return { ...filters, layers: { ...filters.layers, [id]: { ...filters.layers[id], enabled } } };
 }
 export function parseFilters(search: string): Filters {
   const params = new URLSearchParams(search);
@@ -22,10 +49,6 @@ export function parseFilters(search: string): Filters {
   if (params.has("layers")) {
     const enabled = new Set(params.get("layers")!.split(","));
     LAYER_IDS.forEach(id => { layers[id].enabled = enabled.has(id); });
-  }
-  for (const entry of (params.get("modes") ?? "").split(",")) {
-    const [id, mode] = entry.split(":");
-    if (LAYER_IDS.includes(id as LayerId) && supportsHeatmap(id as LayerId) && ["markers", "heatmap", "both"].includes(mode)) layers[id as LayerId].mode = mode as LayerMode;
   }
   let time: TimeWindow = null;
   const parts = (params.get("t") ?? "").split(",");
@@ -35,22 +58,18 @@ export function parseFilters(search: string): Filters {
   const rawThreshold = params.get("minSignificance");
   const threshold = rawThreshold?.trim() ? Number(rawThreshold) : NaN;
   const minSignificance = Number.isFinite(threshold) && threshold >= 0 ? threshold : DEFAULT_MIN_SIGNIFICANCE;
-  const heatmapLayer = params.get("heatmap") === "earthquake" ? "earthquake" : "wildfire";
-  return { layers, time, minSignificance, heatmapLayer };
+  return { layers, time, minSignificance };
 }
 export function writeFilters(search: string, filters: Filters) {
   const params = new URLSearchParams(search);
   params.set("layers", LAYER_IDS.filter(id => filters.layers[id].enabled).join(","));
   params.set("t", filters.time ? `${filters.time.startIso},${filters.time.endIso}` : "all");
-  const modes = LAYER_IDS.filter(id => supportsHeatmap(id) && filters.layers[id].mode !== "both").map(id => `${id}:${filters.layers[id].mode}`);
-  if (modes.length) params.set("modes", modes.join(",")); else params.delete("modes");
   params.set("minSignificance", String(filters.minSignificance));
-  params.set("heatmap", filters.heatmapLayer);
-  // Retire old weight overrides so shared URLs always use backend-supplied weight.
-  params.delete("weights");
+  // Retire per-layer heatmap settings; zoom level now chooses heatmap vs markers.
+  for (const legacy of ["modes", "heatmap", "weights"]) params.delete(legacy);
   return params.toString();
 }
-export function deriveVisuals(events: Event[], { layers, time, minSignificance, heatmapLayer }: Filters) {
+export function deriveVisuals(events: Event[], { layers, time, minSignificance }: Filters) {
   const start = time ? Date.parse(time.startIso) : -Infinity;
   const end = time ? Date.parse(time.endIso) : Infinity;
   const visible = events.filter(event => {
@@ -58,13 +77,10 @@ export function deriveVisuals(events: Event[], { layers, time, minSignificance, 
     const occurred = Date.parse(event.occurredAt);
     return layer?.enabled && occurred >= start && occurred < end;
   });
-  const markerCandidates = visible.filter(event => event.significance >= minSignificance && (!supportsHeatmap(event.layerId as LayerId) || layers[event.layerId as LayerId].mode !== "heatmap"))
+  const markerCandidates = visible.filter(event => event.significance >= minSignificance)
     .sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id));
   const markers = markerCandidates.slice(0, MAX_MARKERS);
-  // Density retains low-significance events; the threshold/cap only affect markers.
-  const densityLayers = LAYER_IDS.filter(id => supportsHeatmap(id) && layers[id].enabled && layers[id].mode !== "markers" && visible.some(event => event.layerId === id));
-  const activeHeatmapId = densityLayers.includes(heatmapLayer) ? heatmapLayer : densityLayers[0] ?? null;
-  // All layer configs persist, but at most one receives heatmap data.
-  const heatmaps: HeatmapData[] = LAYER_IDS.map(id => ({ id, points: id === activeHeatmapId ? visible.filter(event => event.layerId === id).map(event => ({ lat: event.lat, lng: event.lng, weight: Math.max(0, Number(event[layers[id].weightField]) || 0) })) : [] }));
-  return { visible, markers, heatmaps, activeHeatmapId, markerCandidateCount: markerCandidates.length };
+  // The zoomed-out heatmap is the density of exactly these markers, one unit each.
+  const heatmap: HeatmapPoint[] = markers.map(event => ({ lat: event.lat, lng: event.lng, weight: 1 }));
+  return { visible, markers, heatmap, markerCandidateCount: markerCandidates.length };
 }
