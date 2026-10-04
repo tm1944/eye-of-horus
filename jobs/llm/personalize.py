@@ -169,14 +169,14 @@ def score_event(event: dict, config: dict) -> float:
 def _normalize_row(row: dict) -> dict:
     """Map Snowflake snake_case columns to Event schema camelCase field names."""
     mapping = {
-        "layer_id": "layerId",
-        "source_url": "sourceUrl",
-        "occurred_at": "occurredAt",
-        "updated_at": "updatedAt",
-        "alt_m": "altM",
+        "layer_id":     "layerId",
+        "occurred_at":  "occurredAt",
+        "updated_at":   "updatedAt",
+        "alt_m":        "altM",
         "geo_precision": "geoPrecision",
-        "geo_source": "geoSource",
-        "raw_ref": "rawRef",
+        "geo_source":   "geoSource",
+        "raw_ref":      "rawRef",
+        "canonical_id": "canonicalId",
     }
     return {mapping.get(k, k): v for k, v in row.items()}
 
@@ -205,6 +205,8 @@ def _load_events_snowflake(config: dict) -> list[dict]:
             WHERE layer_id IN ({placeholders})
               AND significance >= %s
               AND occurred_at >= DATEADD(day, -7, CURRENT_TIMESTAMP)
+              AND archived_at IS NULL
+              AND canonical_id IS NULL
             ORDER BY occurred_at DESC
             LIMIT 5000
             """,

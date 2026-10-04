@@ -8,7 +8,7 @@
   "required": [
     "id",
     "source",
-    "sourceUrl",
+    "links",
     "layerId",
     "title",
     "summary",
@@ -27,7 +27,24 @@
   "properties": {
     "id": { "type": "string" },
     "source": { "type": "string" },
-    "sourceUrl": { "type": ["string", "null"], "format": "uri" },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "source"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "source": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      },
+      "description": "One or more source URLs for this event. Multiple entries when deduplication merges events from different sources."
+    },
+    "canonicalId": {
+      "type": "string",
+      "description": "Set on duplicate events to point to the canonical event id that supersedes this one."
+    },
     "layerId": {
       "type": "string",
       "enum": [
@@ -38,19 +55,34 @@
         "terror",
         "finance",
         "humanitarian",
-        "news"
+        "news",
+        "world",
+        "business",
+        "technology",
+        "science",
+        "health",
+        "environment",
+        "crime",
+        "sports",
+        "entertainment",
+        "culture",
+        "fashion",
+        "travel",
+        "food",
+        "education",
+        "media"
       ]
     },
     "title": { "type": "string" },
     "summary": { "type": ["string", "null"] },
     "occurredAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" },
-    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
-    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+    "lat": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
     "altM": { "type": ["number", "null"] },
     "geoPrecision": {
-      "type": "string",
-      "enum": ["point", "city", "region", "country"]
+      "type": ["string", "null"],
+      "enum": ["point", "city", "region", "country", null]
     },
     "geoSource": {
       "type": "string",

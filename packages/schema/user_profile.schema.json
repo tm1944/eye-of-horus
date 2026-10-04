@@ -19,7 +19,22 @@
           "terror",
           "finance",
           "humanitarian",
-          "news"
+          "news",
+          "world",
+          "business",
+          "technology",
+          "science",
+          "health",
+          "environment",
+          "crime",
+          "sports",
+          "entertainment",
+          "culture",
+          "fashion",
+          "travel",
+          "food",
+          "education",
+          "media"
         ]
       },
       "description": "Layer IDs to include. Matches layerId enum in event.schema.json."
