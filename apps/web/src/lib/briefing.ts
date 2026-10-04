@@ -27,6 +27,16 @@ const alert = (value: unknown): Vital | null => {
 };
 const fmt = (value: number, digits = 0) => value.toLocaleString("en", { maximumFractionDigits: digits });
 
+/** Satellite exposure line, or null when this event has not been scored. */
+export function impactLabel(attributes: Record<string, unknown> | null | undefined): string | null {
+  if (!attributes) return null;
+  const klass = text(attributes.impact_class);
+  const people = num(attributes.people_exposed);
+  const radius = num(attributes.radius_km);
+  if (!klass || people === null || radius === null) return null;
+  return `${titleCase(klass)} impact · ${fmt(people)} people within ${fmt(radius)} km · JRC GHSL`;
+}
+
 /**
  * The (up to) three most telling figures for an event, from its category table. News has
  * no structured figures; its keywords appear as chips instead.

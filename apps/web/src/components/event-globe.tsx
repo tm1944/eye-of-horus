@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
-import { CATEGORIES, LABELS, isCurated, type CategoryHeatmap, type CategoryId, type LayerId, type ViewTab } from "@/lib/layers";
+import { CATEGORIES, LABELS, hazardLabel, isCurated, type CategoryHeatmap, type CategoryId, type LayerId, type ViewTab } from "@/lib/layers";
 import type { FeedEvent } from "@/lib/profile";
 import StoryActions, { type Personal } from "@/components/story-actions";
 
@@ -29,7 +29,7 @@ import RelatedEventControls, { relationLabel } from "@/components/related-event-
 import LinkCard from "@/components/link-card";
 import DetailsPanel from "@/components/details-panel";
 import { closeStory, focusStory, hasStory, openStory, storyLeaves, storyRoot, type StoryTree } from "@/lib/story-tree";
-import { rankOf, tourOrder } from "@/lib/briefing";
+import { impactLabel, rankOf, tourOrder } from "@/lib/briefing";
 import ClusterPanel from "@/components/cluster-panel";
 import { Thumbnail, TimeAgo } from "@/components/event-media";
 import { exactTime } from "@/lib/freshness";
@@ -1627,6 +1627,8 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
       onPick={event => { setOpenCluster(null); toggleEvent(event); }} onClose={() => setOpenCluster(null)} />}
     <div className="callouts" aria-label="Visible points of interest">{callouts.map((item, index) => {
       const event = item.event;
+      const impact = event ? impactLabel(event.attributes) : null;
+      const kind = event ? hazardLabel(event.layerId) : null;
       const expanded = expandedCards.has(item.id);
       const active = event ? event.id === selectedEvent?.id || selectedIds.has(event.id) : true;
       const href = event && sourceHref(event.sourceUrl);
@@ -1640,7 +1642,7 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
             event.preventDefault(); event.stopPropagation();
           }
         }}>
-        {expanded && <div className="card-category"><span>{event ? LABELS[event.layerId as LayerId] ?? event.layerId : "location"}</span>{fixture && event && <span className="sample-badge">Sample</span>}</div>}
+        {(expanded || kind) && <div className="card-category"><span>{kind ?? (event ? LABELS[event.layerId as LayerId] ?? event.layerId : "location")}</span>{expanded && fixture && event && <span className="sample-badge">Sample</span>}</div>}
         {/* Thumbnail left, headline and freshness right. Without an image the text takes the row. */}
         <div className="card-headline">
         <Thumbnail src={event?.imageUrl} />
@@ -1657,6 +1659,7 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
         {expanded && <>
         {item.retained && <p className="retained-note">Selected event · hidden by map filters</p>}
         {event && <p className="card-summary">{event.summary ?? "No summary provided."}</p>}
+        {impact && <p className="impact-badge">{impact}</p>}
         <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}</p>
         {event && <RelatedEventControls key={event.id} event={event} allEvents={allEvents}
           links={links.links ? linkIndex.get(event.id) ?? [] : undefined} error={links.error} onVisit={visitEvent} />}

@@ -38,6 +38,7 @@ class DatabaseTests(unittest.TestCase):
         sql = cursor.execute.call_args.args[0]
         self.assertNotIn("LIMIT", sql)
         self.assertIn("e.event_id", sql)
+        self.assertIn("mart.hazard_exposure", sql)
         connection.close.assert_called_once()
 
     def test_connection_failures_do_not_disclose_credentials(self):

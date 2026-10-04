@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const output = ts.transpileModule(readFileSync(new URL('../src/lib/briefing.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
-const { tourOrder, rankOf, vitalSigns, placeLabel, chips, locatorPaths } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
+const { tourOrder, rankOf, vitalSigns, placeLabel, chips, locatorPaths, impactLabel } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 
 const ev = (over = {}) => ({ id: 'e', source: 'gnews', layerId: 'news', significance: 50, lat: 0, lng: 0, attributes: {}, keywords: [], entities: [], ...over });
 
@@ -32,6 +32,10 @@ test('vital signs pick the telling figures per event type and skip what is missi
   [{ value: 'Police', label: 'side A' }, { value: 'Protester', label: 'side B' }, { value: 'India', label: 'location' }]);
  assert.deepEqual(vitalSigns(ev()), [], 'news has no figures');
  assert.deepEqual(vitalSigns(ev({ layerId: 'earthquake', attributes: { magnitude: 'n/a', alert: 'purple' } })), []);
+ assert.equal(impactLabel({ impact_class: 'High', people_exposed: 12000, radius_km: 25 }),
+  'High impact · 12,000 people within 25 km · JRC GHSL');
+ assert.equal(impactLabel({}), null);
+ assert.equal(impactLabel(null), null);
 });
 
 test('place labels and chips come from the data, deduplicated and grouped', () => {

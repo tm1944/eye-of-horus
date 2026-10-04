@@ -518,6 +518,22 @@ a:focus-visible {
   padding: 3px 5px;
 }
 
+/* Satellite exposure: people living inside the hazard radius, from JRC GHSL. */
+.impact-badge {
+  margin: 0 0 12px;
+  text-align: center;
+  color: #e6e4e4;
+  font-size: 12px;
+  letter-spacing: .2px;
+  line-height: 1.45;
+}
+/* In the briefing it is its own centered row, matching the section padding and divider. */
+.details-panel .impact-badge {
+  margin: 0;
+  padding: 10px 18px;
+  border-bottom: 1px solid #555353;
+}
+
 /* Title doubles as a text button: 17px semibold, no button fill or border.
  * Long words may wrap so the title fits within the card. */
 .card-title {
@@ -786,6 +802,9 @@ input:focus-visible {
  * Expansion grows downward at the existing anchor; neighbors are not repacked. */
 .earth-card.is-collapsed {
   padding: 10px 12px;
+}
+.earth-card.is-collapsed .card-category {
+  margin-bottom: 6px;
 }
 .earth-card.is-collapsed .card-title {
   margin: 0;
