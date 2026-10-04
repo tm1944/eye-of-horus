@@ -1,7 +1,7 @@
 "use client";
 import { LAYER_IDS, LABELS, supportsHeatmap, MAX_MARKERS, type DensityLayerId, type LayerId, type Filters, type LayerMode } from "@/lib/layers";
 export default function LayerControls({ filters, onChange, count, markerCount, markerCandidateCount, activeHeatmapId }: { filters: Filters; onChange: (value: Filters) => void; count: number; markerCount: number; markerCandidateCount: number; activeHeatmapId: LayerId | null }) {
-  return <details className="layer-menu">
+  return <details className="layer-menu" open>
     <summary>Layers <span>{LAYER_IDS.filter(id => filters.layers[id].enabled).length}/{LAYER_IDS.length}</span></summary>
     <div className="layer-panel">
       <h2>Map layers</h2><p className="layer-help">{count} events in enabled layers and time range</p>

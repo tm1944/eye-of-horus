@@ -4,7 +4,7 @@
 
 Earth occupies the center of the page. There is no dashboard header, event list, inspector, or permanent connection banner. A compact rotation control and interaction hint remain. Data errors show a retry notice; sample cards are explicitly labeled **Sample**.
 
-The globe canvas uses the full page width. Newly visible cards find a free rectangle near their pin, with 16px clearance from existing cards. Earth does not constrain placement. Once placed, a card keeps its offset from the pin and its dimensions. Its position follows the projected pin as Earth rotates, without repacking or switching sides. Cards avoid each other when first placed but may overlap later if their paths converge. Rotation behind Earth or removal by filtering releases its slot; reappearing cards get a new placement. If no free rectangle fits, the new card waits until space opens instead of moving existing cards or overlapping them. Cards are at most 278px wide. Existing cards are not clamped or repacked during rotation or resizing; they may extend offscreen until hidden and placed again.
+The globe canvas uses the full page width. Newly visible cards find a free rectangle near their pin, with 16px clearance from existing cards. Earth does not constrain placement. Cards initially show only a compact headline. Click the headline (or use Enter/Space) to expand full details; click it again to collapse. Expansion selects the event and preserves the existing pin-relative offset. Card height can change without repacking neighbors, so expanded cards may overlap them. Once placed, a card keeps a world-space anchor and its width. Its position follows a curved projected path as Earth rotates, without repacking or switching sides. Cards avoid each other when first placed but may overlap later if their paths converge. Rotation behind Earth or removal by filtering releases its slot; reappearing cards get a new placement. If no free rectangle fits, the new card waits until space opens instead of moving existing cards or overlapping them. Cards are at most 278px wide. Existing cards are not clamped or repacked during rotation or resizing; they may extend offscreen until hidden and placed again.
 
 Card title: 17px, coordinates: 14px, body: 13px, UTC time: 12px. Bright text sits on opaque dark panels. N/S and E/W clarify coordinate signs. Coordinates are rounded to four decimals **only for display**; state retains the original numbers. Summaries longer than 60px scroll inside the card, without hiding the source or coordinates. Titles wrap. Source links accept HTTP/HTTPS only. Null summaries and source URLs have explicit fallbacks.
 
@@ -19,7 +19,7 @@ Each animation frame:
 1. Convert a callout's geographic coordinates to a surface vector with `getCoords`.
 2. Test whether the surface faces the camera. For the current spherical Earth centered at the origin, the perspective horizon is `surfaceNormal · cameraPosition > globeRadius` (with a 0.5 world-unit margin).
 3. Project with `getScreenCoords(lat, lng, pinAltitude)` and offset into the page's globe container.
-4. Allocate a free rectangle for each newly visible card using `src/lib/card-placement.ts`. Keep pin-relative offsets in a ref across rotation and React updates. Move all existing rectangles to their current projected pins before checking space for newcomers. Release hidden/removed cards before allocating newcomers. Connect the moving pin to the moving card edge midpoint with a `connectorInsetPx` extension under the card. A selected event retained after filtering keeps its card without a pin or connector.
+4. Allocate a free rectangle for each newly visible card using `src/lib/card-placement.ts`. Keep world-space card anchors in a ref across rotation and React updates. Move all existing rectangles to their current projected pins before checking space for newcomers. Release hidden/removed cards before allocating newcomers. Connect the moving pin to the moving card edge midpoint with a `connectorInsetPx` extension under the card. A selected event retained after filtering keeps its card without a pin or connector.
 
 
 The projection loop mutates only DOM positions and visibility. A selected event hidden by map filters retains its card without a pin/connector. It never changes event coordinates and makes **zero network requests**. Its animation frame, media listener, and resize observer are cleaned up on unmount. Cards near the horizon can disappear as Earth turns; pause rotation to read or interact with them.
@@ -135,7 +135,7 @@ The link endpoint's response envelope must also be agreed before use; the fixtur
 - Pause/resume; drag until a marker disappears behind Earth; verify its card and connector disappear too.
 - Click a surface point: verify the card's hemisphere labels, pin tracking, and clear action.
 - Click a source and verify its URL; click a pin/card title and verify selected state.
-- Rotate/zoom/resize and confirm cards track their pins vertically, follow their pins with fixed offsets, may cover Earth, and avoid existing cards on initial placement. Confirm each connector has one straight segment.
+- Rotate/zoom/resize and confirm cards follow curved projected paths from their world-space anchors, may cover Earth, and avoid existing cards on initial placement. Confirm each connector has one straight segment.
 - Scroll in to country scale, select a surface coordinate, and use Reset view to return to the whole Earth.
 - Inspect requests: only initial/retry `/api/events`, assets, and explicitly opened source links.
 - Run `npm run lint` and `npm run build` from `apps/web`.
@@ -186,7 +186,7 @@ Explicit `layers` in an existing URL still overrides defaults. Open `/` without 
 
 Native heatmap bandwidth also controls mesh resolution in the installed three-globe version. Increasing bandwidth from 1.2 to 3 degrees reduces each spherical mesh from approximately 1.10 million to 176 thousand triangles (about 84% fewer). This deliberately broadens smoothing; close fires still accumulate into a cluster but are less individually distinct. The display pixel ratio is capped at 1.5 rather than 2, reducing pixel workload on high-density displays.
 
-Heatmap arrays and accessors retain stable identities across rotation and selection renders, avoiding unnecessary density updates. The color accessor applies depth-write and draw-order settings when three-globe updates a heatmap mesh; the frame loop no longer traverses the scene. Card layout is invalidated by camera controls, resizing, selection changes, and page scrolling. Measurements are batched before position writes, desktop cards move using transforms, and connector endpoints use the computed card positions. A stationary camera skips card layout work.
+Heatmap arrays and accessors retain stable identities across rotation and selection renders, avoiding unnecessary density updates. The color accessor applies depth-write and draw-order settings when three-globe updates a heatmap mesh; the frame loop no longer traverses the scene. Card layout is invalidated by camera controls, resizing, selection changes, and page scrolling. Measurements are batched before position writes, desktop cards move using transforms, and connector endpoints use the computed card positions. A stationary camera skips layout work except during card dragging, elevation animation, or explicit invalidation.
 
 Earlier browser verification covered three simultaneous heatmaps (before density modes were restricted to earthquake and wildfire) and wildfire markers with heatmap, country zoom, and desktop card rails. Tests, lint, and build pass. The geometry reduction is calculated from the installed renderer; no numeric FPS improvement is claimed.
 
@@ -243,3 +243,27 @@ Backend mapping: `technology` is added to `packages/schema/event.schema.json`; i
 The generated land/ice PNG is composited over the animated Rare UI Fluid Orb. See [implementation, attribution, and image prompt](fluid-ocean.md). Oceans are visual only; this change adds no API calls, changes no Event fields, and leaves latitude/longitude selection unchanged.
 
 Unnumbered surface markers use a 1.9° radius (5× the original 0.38°). Numbered HTML pins retain their existing size.
+
+### Country selection, sidebar, and elevation
+
+`page.tsx` owns a local `selectedCountryIds: string[]` independently from the single event/location `Selection`. Clicking a country toggles membership; ocean clicks leave the list unchanged. The left sidebar contains layer controls, each selected country and its loaded POIs, individual remove buttons, and Clear all. On narrow phones the sidebar stacks above the globe. Selection is session memory, not persisted to the URL or backend.
+
+Country membership uses the bundled Natural Earth Polygon/MultiPolygon boundaries, including holes. Selected countries include all their loaded POIs regardless of layer/significance filters. Their union is deduplicated by event ID. No additional backend pages are fetched; simplified coastline geometry limits precision. Clicking a POI in the sidebar prioritizes its floating headline. The existing floating headline cap remains.
+
+Antarctica stays white. Selected land rises to `GLOBE.selectedCountryAltitude` with its borders and markers over `GLOBE.countryAnimationMs` (600ms); deselection lowers it. The native layers share quadratic in/out easing. Numbered pins follow the native marker's current tween altitude. No elevation or country selection is sent to FastAPI; future server queries require an agreed country identifier and boundary policy.
+
+### Dragging headline cards
+
+Drag a headline with mouse or touch to reposition its card. Movement under 5px remains a normal click to expand/collapse; a completed drag suppresses that click. Pointer capture keeps the gesture on the headline rather than rotating the globe. Dragging does not change the Pause/Resume state.
+
+`src/lib/card-anchor.ts` unprojects the drop position onto the POI's camera-depth plane and stores a world-space anchor. Projecting that anchor as the camera orbits produces curved motion. New cards also get world anchors after collision-free initial placement. There is no Earth coverage constraint or continuous collision repacking. Cards can overlap later or after dragging/expansion. Anchors are local UI data, cleared when their POI hides or leaves the callout set; nothing is posted to the backend.
+
+### Continent shading and neutral UI
+
+`src/lib/continent-material.ts` shades country surfaces using their radial normal and camera direction. Only land is darkened near Earth's circular silhouette; the ocean and event palette remain unchanged. `GLOBE.continentEdgeShadeStrength` controls the amount (0.48 default). Antarctica has a white base with the same depth shading. Selected countries retain orange `selectedCountryColor` while raised, with darker orange `selectedCountrySideColor` extrusion walls. Antarctica retains its white cap. Deselecting restores the base colors.
+
+UI panels, controls, borders, inputs, and text use neutral charcoal/gray tones matching the #4e4d4d cards, documented in `globals.css`. These presentation settings make no backend requests.
+
+POIs have `pointsTransitionDuration={0}`: their cylinders keep a constant radius and height. The projection loop reads the country polygon's current native tween elevation and translates the marker base onto that surface; numbered pins and connector origins use the same elevation. There is no independent POI growth animation. This uses three-globe's `__data`/`__currentTargetD` polygon metadata and should be rechecked on library upgrades.
+
+Raised-wall alignment: continent cap and wall materials render both faces. Border paths use the same great-circle contour subdivision as the native country mesh, with native path resampling disabled (`pathResolution=360`). Their groups scale from the current country polygon elevation rather than running a separate path tween. The small configured border clearance remains to prevent z-fighting.

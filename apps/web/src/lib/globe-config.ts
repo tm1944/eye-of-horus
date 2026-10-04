@@ -1,5 +1,11 @@
 /** Visual-only settings. None are sent to FastAPI. Units are explicit below. */
 export const GLOBE = {
+  continentEdgeShadeStrength: 0.48, // 0 = flat land; 1 = black at the circular limb
+  antarcticaColor: "#ffffff",
+  selectedCountryColor: "#ed963e",
+  selectedCountrySideColor: "#9b501f", // darker orange extrusion walls
+  countryAnimationMs: 600, // land and border tween; fixed-size markers follow the surface
+  selectedCountryAltitude: 0.025, // raised country surface, fraction of globe radius
   landColor: "#9ebe8f", // dark forest green; opaque vector country surfaces
   countryBorderColor: "#759763", // country outlines/coastlines; WebGL one-pixel lines
   landAltitude: 0.001, // fraction of globe radius, below heatmaps and markers
