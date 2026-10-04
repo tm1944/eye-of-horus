@@ -51,6 +51,9 @@ SELECT
     WHEN 'flood' THEN (to_jsonb(fl) - 'event_id' - 'footprint')
     WHEN 'volcano' THEN (to_jsonb(vo) - 'event_id' - 'footprint')
     WHEN 'drought' THEN (to_jsonb(dr) - 'event_id' - 'footprint')
+    WHEN 'conflict' THEN (to_jsonb(cf) - 'event_id')
+    WHEN 'protest' THEN (to_jsonb(pr) - 'event_id')
+    WHEN 'strategic_development' THEN (to_jsonb(sd) - 'event_id')
     ELSE '{}'::jsonb
   END AS attributes
 FROM mart.event e
@@ -60,6 +63,9 @@ LEFT JOIN mart.cyclone cy ON cy.event_id = e.event_id
 LEFT JOIN mart.flood fl ON fl.event_id = e.event_id
 LEFT JOIN mart.volcano vo ON vo.event_id = e.event_id
 LEFT JOIN mart.drought dr ON dr.event_id = e.event_id
+LEFT JOIN mart.conflict cf ON cf.event_id = e.event_id
+LEFT JOIN mart.protest pr ON pr.event_id = e.event_id
+LEFT JOIN mart.strategic_development sd ON sd.event_id = e.event_id
 """
 
 

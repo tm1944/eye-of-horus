@@ -56,7 +56,6 @@
         "finance",
         "humanitarian",
         "news",
-<<<<<<< HEAD
         "world",
         "business",
         "technology",
@@ -71,15 +70,14 @@
         "travel",
         "food",
         "education",
-        "media"
-=======
+        "media",
         "cyclone",
         "flood",
         "volcano",
         "drought",
         "famine",
-        "protest"
->>>>>>> ee8820429d1be3bd97b17609a2e4b866f7827c40
+        "protest",
+        "strategic_development"
       ]
     },
     "subtype": { "type": ["string", "null"] },

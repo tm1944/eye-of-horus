@@ -1,6 +1,6 @@
 # Hypothesis Globe
 
-A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
+An interactive globe focused on technology, government, finance, and societal events. Layers toggle on and off. The product is not another news blob. The current UI shows clearly labeled fixture events; source-linked relationships remain a planned feature.
 
 Events already live in the shared TigerData database. A new machine only needs the app installed and a connection string. Do not recreate the schema or reload USGS, GDACS, or FIRMS.
 
