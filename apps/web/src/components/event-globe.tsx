@@ -28,6 +28,7 @@ import { globeClipPlanes } from "@/lib/globe-depth";
 import RelatedEventControls, { relationLabel } from "@/components/related-event-controls";
 import LinkCard from "@/components/link-card";
 import DetailsPanel from "@/components/details-panel";
+import { closeStory, focusStory, hasStory, openStory, storyLeaves, storyRoot, type StoryTree } from "@/lib/story-tree";
 import { rankOf, tourOrder } from "@/lib/briefing";
 import ClusterPanel from "@/components/cluster-panel";
 import { Thumbnail, TimeAgo } from "@/components/event-media";
@@ -78,6 +79,10 @@ function clipToLand(mesh: Mesh, renderOrder: number) {
     material.stencilFunc = EqualStencilFunc;
   }
 }
+// The depth range must hold everything above the surface: the atmosphere and the floating
+// relationship arcs, whose peak (clearance + rise) sits higher. Leaving the arcs out let the
+// near plane cut their tops off when zoomed in. The margin covers the tube and hover halo.
+const DEPTH_EXTENT_ALTITUDE = Math.max(GLOBE.atmosphereAltitude, GLOBE.relatedArcClearance + GLOBE.relatedArcRise) + 0.02;
 // three-globe's fixed globe radius in scene units.
 const GLOBE_UNITS = 100;
 // Shared pin geometry, built along +Z: three-globe orients objects so +Z points away
@@ -204,7 +209,7 @@ function lighten(hex: string, amount: number) {
 }
 // Each country's base color is its average in a satellite image (scripts/build-country-colors.py),
 // brightened for legibility on the dark page.
-const landRelief = { strength: GLOBE.reliefStrength, heightScale: GLOBE.reliefHeightScale, sampleDegrees: GLOBE.reliefFacetDegrees, lightDirection: GLOBE.reliefLightDirection };
+const landRelief = { strength: GLOBE.reliefStrength, heightScale: GLOBE.reliefHeightScale, sampleDegrees: GLOBE.reliefFacetDegrees, lightDirection: GLOBE.reliefLightDirection, slopeSmoothing: GLOBE.reliefSlopeSmoothing, shadeLimit: GLOBE.reliefShadeLimit };
 const satelliteColors = new Map(Object.entries(countryColors as Record<string, string>).map(([id, hex]) => [id, lighten(hex, GLOBE.landLightnessBoost)]));
 const satelliteColor = (id: string) => satelliteColors.get(id) ?? GLOBE.landColor;
 const hexChannels = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
@@ -348,7 +353,7 @@ function disposeArc(arc: Arc) {
   }
 }
 
-export default function EventGlobe({ view, headlines, personal, feed, allEvents, links, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, fixture }: {
+export default function EventGlobe({ view, headlines, personal, feed, allEvents, links, events, linkable, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, fixture }: {
   /** headlines / feed: a curated list as pins with floating cards. explore: every filtered event, clustered. */
   view: ViewTab;
   /** The curated list: the Headlines feed, or My Feed. Map filters do not apply to it. */
@@ -361,6 +366,9 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   /** Every relationship hypothesis, loaded once; undefined links means still loading. */
   links: { links?: EventLink[]; error?: string };
   events: Event[];
+  /** Events a story's connections may reach: the active layers and time range. Neither the country
+   * restriction nor the marker significance cutoff applies; those thin the map, not a story's links. */
+  linkable: Event[];
   selectedCountries: { id: string; name: string; events: Event[] }[];
   onToggleCountry: (id: string) => void;
   heatmaps: CategoryHeatmap[];
@@ -385,8 +393,10 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   // Collapsed cards ride their pin's ring (lib/card-ring.ts) unless the user dragged them
   // off it; `drawn` is each card's last drawn position, for easing and hand-offs.
   const manualCards = useRef(new Set<string>());
-  // Headlines' docked details panel; ring cards stay to its left.
+  // The docked briefing (right); ring cards stay to its left.
   const detailsPanel = useRef<HTMLElement>(null);
+  // Horizontal px the globe is drawn left of the canvas centre (eased; see the tour slide).
+  const viewShift = useRef(0);
   const drawn = useRef(new Map<string, { left: number; top: number }>());
   const drag = useRef<{ id: string; pointerId: number; captureTarget: Element; startX: number; startY: number; left: number; top: number; moved: boolean; fromRing: boolean } | null>(null);
   const dragNeedsUpdate = useRef(false);
@@ -417,10 +427,6 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
     tick();
     return () => cancelAnimationFrame(frame);
   }, [ready]);
-  useEffect(() => {
-    heatmapVisible.current = !zoomedIn;
-    heatmapLayers.current.forEach(layer => { layer.mesh.visible = !zoomedIn; });
-  }, [zoomedIn]);
   useEffect(() => {
     const layers = heatmapLayers.current;
     return () => layers.forEach(layer => {
@@ -482,7 +488,7 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
     });
     const camera = instance.camera() as PerspectiveCamera;
     const updateDepthRange = () => {
-      const { near, far } = globeClipPlanes(camera.position.length(), instance.getGlobeRadius(), GLOBE.atmosphereAltitude);
+      const { near, far } = globeClipPlanes(camera.position.length(), instance.getGlobeRadius(), DEPTH_EXTENT_ALTITUDE);
       if (camera.near === near && camera.far === far) return;
       camera.near = near;
       camera.far = far;
@@ -659,22 +665,43 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   const landMaterial = useCallback((value: object) => landMaterials.get((value as CountryFeature).id)!, [landMaterials]);
   const countryBorderColor = useCallback((path: object) => selectedCountryIds.has((path as typeof borders[number]).countryId) ? "#000000" : borderColors.get(path as typeof borders[number])!, [selectedCountryIds]);
   const polygonAltitude = useCallback((value: object) => selectedCountryIds.has((value as CountryFeature).id) ? GLOBE.selectedCountryAltitude : GLOBE.landAltitude, [selectedCountryIds]);
-  // Explore: a selected event shows its linked events that the filters allow.
-  // Headlines shows no relationships at all (no linked pins, no arcs, no graying).
-  const relationshipEvents = useMemo(() => {
-    if (!selectedEvent || curated) return [];
-    const visible = new Map(events.map(event => [event.id, event]));
-    const linked = (linkIndex.get(selectedEvent.id) ?? []).map(link => visible.get(otherEnd(link, selectedEvent.id)));
-    return [...new Map(linked.filter((event): event is Event => !!event && event.id !== selectedEvent.id).map(event => [event.id, event])).values()];
-  }, [selectedEvent, view, events, linkIndex]);
-  const linkedIds = useMemo(() => new Set(selectedEvent && view === "explore" ? (linkIndex.get(selectedEvent.id) ?? []).map(link => otherEnd(link, selectedEvent.id)) : []), [selectedEvent, view, linkIndex]);
+  // STORY TREE (Explore) — a selected story is the root of a tree (lib/story-tree.ts): its
+  // briefing docks right, its immediate connections float as headline cards on their pins,
+  // and opening one of those branches the tree further. The focused story is the selection; any selection the tree did not
+  // make (a pin, a cluster list, the countries list) starts a new tree.
+  const [storyTree, setStoryTree] = useState<StoryTree<Event> | null>(null);
+  const tree = useMemo(() => view !== "explore" || !selectedEvent ? null
+    : storyTree?.focus === selectedEvent.id ? storyTree : storyRoot(selectedEvent), [view, selectedEvent, storyTree]);
+  // Connected stories in the active layers and time range, wherever they are and however
+  // significant: selected countries and the marker cutoff restrict the map, not a story's connections. Headlines shows no relationships at all.
+  const filteredById = useMemo(() => new Map(linkable.map(event => [event.id, event])), [linkable]);
+  const connectedOf = useCallback((id: string) => (linkIndex.get(id) ?? []).map(link => filteredById.get(otherEnd(link, id)))
+    .filter((event): event is Event => !!event && event.id !== id), [linkIndex, filteredById]);
+  const treeEvents = useMemo(() => tree ? tree.nodes.map(node => node.event) : [], [tree]);
+  const openIds = useMemo(() => new Set(treeEvents.map(event => event.id)), [treeEvents]);
+  // Leaves of every open story (the stories they connect to that are not open themselves).
+  const relationshipEvents = useMemo(() => [...new Map(treeEvents.flatMap(event => connectedOf(event.id))
+    .filter(event => !openIds.has(event.id)).map(event => [event.id, event])).values()], [treeEvents, connectedOf, openIds]);
+  const linkedIds = useMemo(() => new Set(relationshipEvents.map(event => event.id)), [relationshipEvents]);
+  // CONNECTING — a story tree with connections shows only its POI pins: the open stories
+  // and their leaves, with their arcs. Aggregates (clusters, heatmaps) and every other
+  // pin step aside, so no arc can end at a pin hidden inside a cluster.
+  const connecting = !!tree && (relationshipEvents.length > 0 || tree.nodes.length > 1);
+  // Heatmaps show when zoomed out, except while connecting. Hidden, not removed, so their
+  // density need not be recomputed when the selection is cleared.
+  useEffect(() => {
+    const show = !zoomedIn && !connecting;
+    heatmapVisible.current = show;
+    heatmapLayers.current.forEach(layer => { layer.mesh.visible = show; });
+  }, [zoomedIn, connecting]);
   // 3D pins. Headlines: the top events at every zoom. Explore: every filtered event once
-  // zoomed in (the heatmap and clusters stand in for them further out). Either way the
-  // selection and its linked events always keep their pins.
+  // zoomed in (the heatmap and clusters stand in for them further out), or only the
+  // connection's pins while connecting. Either way the selection and its linked events
+  // always keep their pins.
   const displayEvents = useMemo(() => {
-    const base = curated ? headlineEvents : zoomedIn ? [...events, ...selectedEvents] : [];
-    return [...new Map([...(selectedEvent ? [selectedEvent] : []), ...relationshipEvents, ...base].map(event => [event.id, event])).values()];
-  }, [view, headlineEvents, zoomedIn, events, selectedEvents, selectedEvent, relationshipEvents]);
+    const base = curated ? headlineEvents : connecting ? [] : zoomedIn ? [...events, ...selectedEvents] : [];
+    return [...new Map([...(selectedEvent ? [selectedEvent] : []), ...treeEvents, ...relationshipEvents, ...base].map(event => [event.id, event])).values()];
+  }, [curated, headlineEvents, connecting, zoomedIn, events, selectedEvents, selectedEvent, treeEvents, relationshipEvents]);
 
   // A connection card belongs to the selection it was opened from.
   useEffect(() => { setOpenLink(null); }, [selectedEvent?.id]);
@@ -703,18 +730,38 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
     setOpenLink(null);
     onSelect(null);
   }
+  /** Shows a story tree: its focused story becomes the selection (null clears it). */
+  function showTree(next: StoryTree<Event> | null) {
+    setOpenLink(null);
+    setOpenCluster(null);
+    setStoryTree(next);
+    const focus = next?.nodes.find(node => node.event.id === next.focus)?.event;
+    onSelect(focus ? { kind: "event", event: focus } : null);
+  }
+  /** Explore: an open story takes focus, a leaf opens as a branch of the open story it hangs
+   * from (the focused one first); anything else starts a new tree. */
+  function pickStory(event: Event) {
+    if (!tree) { showTree(storyRoot(event)); return; }
+    if (hasStory(tree, event.id)) { showTree(focusStory(tree, event.id)); return; }
+    const parent = [tree.focus, ...openIds].find(id => connectedOf(id).some(item => item.id === event.id));
+    showTree(parent ? openStory(tree, parent, event) : storyRoot(event));
+  }
+  /** Closes the focused story and what was opened from it (the whole tree from the root). */
+  function closeFocus() {
+    if (tree) showTree(closeStory(tree, tree.focus)); else clearSelection();
+  }
   /** One pin at a time: choosing the selected event again deselects it. */
   function toggleEvent(event: Event) {
     setOpenLink(null);
     setOpenCluster(null);
-    if (selectedEvent?.id === event.id) { onSelect(null); return; }
-    onSelect({ kind: "event", event });
+    if (selectedEvent?.id === event.id) { if (tree) closeFocus(); else onSelect(null); return; }
+    if (view === "explore") pickStory(event); else onSelect({ kind: "event", event });
   }
   function visitEvent(target: Event) {
     setOpenLink(null);
     setOpenCluster(null);
     focusMinAltitude.current = GLOBE.relatedFocusAltitude; // the selection effect flies there
-    onSelect({ kind: "event", event: target });
+    if (view === "explore") pickStory(target); else onSelect({ kind: "event", event: target });
   }
 
   function selectCountry(country: CountryFeature) {
@@ -724,40 +771,43 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
     const country = countries.features.find(country => countryContains(country, {lat, lng}));
     if (country) selectCountry(country);
   }
-  // Cards: the selection's details card, plus headline bubbles (headlines view) or the
-  // occasional spotlight (explore view). Card placement hides cards that cannot fit.
+  // Cards: headline bubbles with the selection (headlines view); in Explore, whose selection
+  // is in the docked briefing, the focused story's immediate connections, or else the
+  // occasional spotlight. Placement hides cards that cannot fit.
   const callouts = useMemo<Callout[]>(() => {
-    const bubbles = curated ? headlineEvents : spotlight ? [spotlight] : [];
-    const listed = [...new Map([...(selectedEvent ? [selectedEvent] : []), ...bubbles].map(event => [event.id, event])).values()];
+    const bubbles = curated ? headlineEvents
+      : tree ? storyLeaves(tree, tree.focus, connectedOf(tree.focus)).map(leaf => leaf.event)
+      : spotlight ? [spotlight] : [];
+    const listed = [...new Map([...(selectedEvent && curated ? [selectedEvent] : []), ...bubbles].map(event => [event.id, event])).values()];
     const result = listed.map(event => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: !displayEvents.some(visible => visible.id === event.id) && event.id !== spotlight?.id }));
     return selection?.kind === "location" ? [{ id: "selected-location", ...selection.location, color: GLOBE.colors.selected }, ...result] : result;
-  }, [view, headlineEvents, spotlight, selectedEvent, selection, displayEvents]);
+  }, [view, headlineEvents, tree, connectedOf, spotlight, selectedEvent, selection, displayEvents]);
 
   // With a selection, linked pins keep their color and every other pin turns gray.
   const points = useMemo(() => displayEvents.map(event => ({
     ...event,
     color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId),
     // Headlines only marks the selection; Explore also grays pins unrelated to it.
-    tone: !selectedEvent ? "normal" : event.id === selectedEvent.id ? "selected" : curated ? "normal" : linkedIds.has(event.id) ? "linked" : "dim",
+    tone: !selectedEvent ? "normal" : event.id === selectedEvent.id || openIds.has(event.id) ? "selected" : curated ? "normal" : linkedIds.has(event.id) ? "linked" : "dim",
     // Headline pins ping for attention until something is selected.
     ping: curated && !selectedEvent,
     pingOffset: pingOffset(event.id),
     // Headlines uses large pins throughout; Explore enlarges only the selection.
     scale: curated ? GLOBE.headlinePinScale : event.id === selectedEvent?.id ? GLOBE.pinSelectedScale : 1,
     altitude: GLOBE.landAltitude,
-  })), [displayEvents, selectedIds, selectedEvent, linkedIds, view]);
+  })), [displayEvents, selectedIds, selectedEvent, openIds, linkedIds, view]);
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
     countries.features.find(country => countryContains(country, event))?.id,
   ])), [displayEvents]);
 
-  // ARCS — fan out from the selected pin, the hovered pin, and the arc whose card is open.
+  // ARCS — fan out from the selected pin, the other open stories, the hovered pin, and the arc whose card is open.
   // Both ends must be shown pins, so links to filtered-out events are skipped.
   const pointsRef = useRef(points);
   useEffect(() => { pointsRef.current = points; }, [points]);
   const shownIds = useMemo(() => new Set(points.map(point => point.id)), [points]);
   // Headlines draws no arcs.
-  const desiredArcs = useMemo(() => curated ? [] : arcSpecs([selectedEvent?.id, hoveredPinId, openLink?.origin], linkIndex, shownIds),
-    [view, selectedEvent?.id, hoveredPinId, openLink?.origin, linkIndex, shownIds]);
+  const desiredArcs = useMemo(() => curated ? [] : arcSpecs([selectedEvent?.id, ...openIds, hoveredPinId, openLink?.origin], linkIndex, shownIds),
+    [view, selectedEvent?.id, openIds, hoveredPinId, openLink?.origin, linkIndex, shownIds]);
   useEffect(() => {
     const instance = globe.current;
     if (!ready || !instance) return;
@@ -894,13 +944,14 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   }, [ready]);
 
   // CLUSTERS (explore view) — pins closer than clusterRadiusPx on screen merge into a
-  // numbered bubble, recomputed whenever the camera moves. The selection never clusters.
+  // numbered bubble, recomputed whenever the camera moves. The selection never clusters,
+  // and nothing clusters while connecting (every connection pin stays visible).
   const eventsById = useMemo(() => new Map(allEvents.map(event => [event.id, event])), [allEvents]);
-  const clusterCandidates = useMemo(() => view === "explore"
+  const clusterCandidates = useMemo(() => view === "explore" && !connecting
     ? [...new Map([...events, ...selectedEvents].map(event => [event.id, event])).values()]
       .filter(event => event.id !== selectedEvent?.id)
       .sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id))
-    : [], [view, events, selectedEvents, selectedEvent?.id]);
+    : [], [view, connecting, events, selectedEvents, selectedEvent?.id]);
   const [clusters, setClusters] = useState<PinCluster[]>([]);
   const clusteredIds = useRef(new Set<string>());
   const clusterButtons = useRef(new Map<string, HTMLButtonElement>());
@@ -1008,11 +1059,13 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
       if (event.key !== "Escape") return;
       if (openLink) setOpenLink(null);
       else if (openCluster) setOpenCluster(null);
-      else if (selectedEvent) onSelect(null);
+      else if (selectedEvent) closeFocus();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [openLink, openCluster, selectedEvent, onSelect]);
+    // closeFocus reads the current tree, which changes with the selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openLink, openCluster, selectedEvent, tree, onSelect]);
 
   // HEADLINES BRIEFING — ‹ ›, the arrow keys and the tour step through the headlines from
   // north to south like a feed; each selection flies the camera there (focus effect above).
@@ -1054,6 +1107,39 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
     canvas.addEventListener("wheel", pause, { capture: true, passive: true });
     return () => { canvas.removeEventListener("pointerdown", pause, true); canvas.removeEventListener("wheel", pause, true); };
   }, [tour]);
+  // BRIEFING SLIDE — the globe is drawn in the middle of the space the docked briefing (right)
+  // and Explore's icon rail (left) leave free; the tabs and tour controls slide with it in CSS.
+  // A camera view offset moves the projection, so pins, cards, arcs and picking all follow;
+  // the CSS ocean orb reads viewShift. The shift eases each frame toward its target.
+  useEffect(() => {
+    if (!ready) return;
+    let frame = 0, last = performance.now(), applied = { shift: -1, width: 0, height: 0 };
+    const tick = () => {
+      frame = requestAnimationFrame(tick);
+      const instance = globe.current, canvas = container.current;
+      if (!instance || !canvas) return;
+      const panel = detailsPanel.current?.getBoundingClientRect(), bounds = canvas.getBoundingClientRect();
+      const docked = !!panel && panel.width > 0 && panel.left - bounds.left > bounds.width / 2;
+      // Explore's icon rail is fixed over the left edge (a strip on phones, which covers nothing
+      // beside the globe); the globe centres in the space right of it. Tabs without the rail
+      // ease back, so switching tabs slides the Earth instead of jumping.
+      const rail = document.querySelector(".layer-rail")?.getBoundingClientRect();
+      const covered = rail && rail.height > rail.width ? Math.max(0, rail.right - bounds.left) : 0;
+      const target = ((docked ? panel!.width : 0) - covered) / 2;
+      const now = performance.now();
+      const eased = viewShift.current + (target - viewShift.current) * easeFactor(now - last, GLOBE.briefingSlideMs);
+      last = now;
+      viewShift.current = Math.abs(target - eased) < 0.5 ? target : eased;
+      const { width, height } = bounds;
+      if (applied.shift === viewShift.current && applied.width === width && applied.height === height) return;
+      applied = { shift: viewShift.current, width, height };
+      const camera = instance.camera() as PerspectiveCamera;
+      if (viewShift.current) camera.setViewOffset(width, height, viewShift.current, 0, width, height); else camera.clearViewOffset();
+      instance.controls().dispatchEvent({ type: "change" }); // redraw cards, pins and the orb
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
   // ← → step through the briefing while it is open.
   useEffect(() => {
     if (!curated || !selectedEvent) return;
@@ -1108,10 +1194,10 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
         const cameraObject = instance.camera() as PerspectiveCamera;
         const focal = canvasRect.height / (2 * Math.tan(cameraObject.fov * Math.PI / 360));
         const screenRadius = focal * radius / Math.sqrt(camera.lengthSq() - radius * radius);
-        const centerX = offsetX + canvasRect.width / 2;
+        const centerX = offsetX + canvasRect.width / 2 - viewShift.current;
         const centerY = offsetY + canvasRect.height / 2;
         if (orbSurface.current) {
-          orbSurface.current.style.transform = `translate(-50%, -50%) scale(${2 * screenRadius / GLOBE.orbRenderSize})`;
+          orbSurface.current.style.transform = `translate(calc(-50% - ${viewShift.current}px), -50%) scale(${2 * screenRadius / GLOBE.orbRenderSize})`;
           orbSurface.current.style.visibility = "visible";
         }
         // Borders are built at base altitude and scaled by the *same* live
@@ -1447,7 +1533,8 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   }
 
   return <div className="earth-stage" ref={stage} style={{ "--connector-width": `${GLOBE.connectorWidthPx}px` } as CSSProperties}>
-    {selection?.kind === "event" && view === "explore" && <div className="earth-controls"><button onClick={clearSelection}>Clear selection</button></div>}
+    {tree && selectedEvent && <DetailsPanel key={selectedEvent.id} panelRef={detailsPanel} event={selectedEvent} fixture={fixture} onClose={closeFocus}
+      personal={personal} position={null} rank={{ place: 0, of: 0 }} onPrev={() => {}} onNext={() => {}} onCenter={() => centerOn(selectedEvent)} />}
     {curated && selectedEvent && <DetailsPanel key={selectedEvent.id} panelRef={detailsPanel} event={selectedEvent} fixture={fixture} onClose={clearSelection}
       personal={personal} reasons={view === "feed" ? headlineEvents.find(item => item.id === selectedEvent.id)?.reasons : undefined}
       position={stopIndex >= 0 ? { index: stopIndex, total: tourStops.length } : null}
@@ -1471,7 +1558,7 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
       </p>}
       <button className="feed-reset" onClick={feed.onStartOver} title="Forget interests, saves and history, and pick interests again">Start over</button>
     </>}
-    {/* The tour sits under the feed tabs: a quiet "start" pill, then a small control bar. */}
+    {/* The tour sits at the bottom: a quiet "start" pill, then a small control bar. */}
     {curated && tourStops.length > 0 && (tour === "off"
       ? <button className="tour-start" data-view={view} onClick={startTour}><span aria-hidden="true">▶</span> {view === "feed" ? feed?.section === "saved" ? "Tour my reading list" : "Tour my feed" : "Tour the headlines"}</button>
       : <div className="tour-bar" role="group" aria-label={view === "feed" ? "My Feed tour" : "Headlines tour"} data-view={view}>
@@ -1590,6 +1677,7 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
         x={openLink.x} y={openLink.y} stageWidth={openLink.width} stageHeight={openLink.height}
         onVisit={visitEvent} onClose={closeLink} />;
     })()}
-    <p className="earth-hint">Drag to explore <span>·</span> Scroll to zoom <span>·</span> Click a place</p>
+    {/* Explore only: Headlines and My Feed keep the bottom for the tour controls. */}
+    {!curated && <p className="earth-hint">Drag to explore <span>·</span> Scroll to zoom <span>·</span> Click a place</p>}
   </div>;
 }

@@ -419,10 +419,38 @@ a:focus-visible {
 .briefing-cta:hover { filter: brightness(1.1); }
 
 /* TOUR — a quiet pill to start, then a compact control bar with a dwell-time progress line.
- * Directly under the Headlines | Explore tabs (top: 20px, ~40px tall), centred on them. */
+ * Bottom centre, where Explore shows its "Drag to explore" hint (Headlines and My Feed omit it),
+ * raised enough to clear the map credits even when they wrap beside an open briefing. */
 .tour-start, .tour-bar {
-  position: absolute; top: 68px; left: 50%; transform: translateX(-50%); z-index: 8;
+  position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); z-index: 8;
   background: #363535; color: #f0eeee; box-shadow: 0 4px 16px #0006;
+  transition: left .4s ease;
+}
+/* While the 380px briefing is docked right (a selected card or the tour), the tabs and tour
+ * controls slide to the middle of the space left of it; the globe eases there too
+ * (event-globe.tsx briefing slide). */
+/* Explore: centred over the globe beside the 64px rail (phones put the rail on top). */
+@media (min-width: 481px) {
+  .earth-page[data-tab="explore"] .view-tabs { left: calc(50% + 32px); }
+  .earth-page[data-tab="explore"] .earth-hint { left: 64px; }
+}
+@media (min-width: 701px) {
+  .earth-page[data-tab="explore"] .globe-workspace:has(.details-panel) .view-tabs {
+    left: calc((100% + 64px - min(380px, calc(100% - 32px))) / 2);
+  }
+  .globe-workspace:has(.details-panel) .view-tabs,
+  .globe-workspace:has(.details-panel) .tour-start,
+  .globe-workspace:has(.details-panel) .tour-bar {
+    left: calc((100% - min(380px, calc(100% - 32px))) / 2);
+  }
+  /* The hint line and the map credits keep clear of the panel too. */
+  .globe-workspace:has(.details-panel) .earth-hint {
+    right: min(380px, calc(100% - 32px));
+  }
+  .globe-workspace:has(.details-panel) .data-attribution {
+    right: calc(min(380px, calc(100% - 32px)) + 10px);
+    max-width: calc(100% - min(380px, calc(100% - 32px)) - 20px);
+  }
 }
 .tour-start { padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .tour-start:hover { background: #4e4d4d; }
@@ -780,20 +808,13 @@ input:focus-visible {
   outline-offset: 3px;
 }
 
-/* PAGE LAYOUT — 64px layer icon rail, globe, then a 64px settings icon rail.
- * Both rails stick to the viewport and scroll independently of the globe. */
+/* PAGE LAYOUT — the globe takes the full width in every tab, so switching tabs never
+ * resizes it. Explore's 64px icon rail is fixed over the left edge, and the globe eases
+ * right to centre in the space beside it (event-globe.tsx briefing slide). */
 .earth-page {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 64px;
-  align-items: start;
-}
-/* Headlines has neither rail, so the globe takes the full width. */
-/* Headlines and My Feed have neither rail, so the globe takes the full width. (Explore
- * keeps the three-column grid; any tab without rails must be listed here, or its globe
- * lands in the 64px first column.) */
-.earth-page[data-tab="headlines"],
-.earth-page[data-tab="feed"] {
   grid-template-columns: minmax(0, 1fr);
+  align-items: start;
 }
 .globe-workspace {
   position: relative;
@@ -808,6 +829,7 @@ input:focus-visible {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
+  transition: left .4s ease; /* slides beside the story briefing (see TOUR) */
   z-index: 6;
   display: flex;
   background: #363535;
@@ -842,6 +864,19 @@ input:focus-visible {
   padding: 16px 0;
   background: #363535;
   z-index: 9;
+}
+.layer-rail {
+  position: fixed;
+  left: 0;
+  width: 64px;
+  animation: rail-in .3s ease-out;
+}
+@keyframes rail-in { from { transform: translateX(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .layer-rail { animation: none; } }
+/* Panels (selected countries, significance) sit above the layer categories. */
+.rail-panels {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #5b5959;
 }
 .icon-rail ul {
   list-style: none;
@@ -1018,18 +1053,13 @@ input:focus-visible {
   opacity: .45;
   cursor: default;
 }
-/* Separates one-click actions from panel icons. */
-.settings-rail ul + ul {
-  padding-top: 10px;
-  border-top: 1px solid #5b5959;
-}
 .selected-countries p {
   color: #c6c4c4;
   line-height: 1.5;
 }
 .selected-countries > div {
   border-bottom: 1px solid #747272;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 .selected-countries button {
   background: #4e4d4d;
@@ -1045,14 +1075,18 @@ input:focus-visible {
   align-items: center;
   gap: 8px;
 }
-.selected-countries details {
-  margin-top: 8px;
+/* Headlines from the selected countries: category-coloured summary cards, most
+ * significant first (country-headlines.tsx). */
+.country-headlines {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
 }
-.selected-countries .country-poi {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin-top: 6px;
+.country-headlines-empty {
+  color: #c6c4c4;
+  font-size: 12px;
 }
 /* The entire card is a drag surface, including text and child buttons/links.
  * A small movement threshold preserves clicks; wheel scrolling still works. */
@@ -1073,7 +1107,6 @@ input:focus-visible {
 @media (max-width: 480px) {
   .earth-page {
     display: block;
-    padding-bottom: 52px;
   }
   .icon-rail {
     position: relative;
@@ -1086,26 +1119,23 @@ input:focus-visible {
   .icon-rail ul {
     flex-direction: row;
   }
-  .settings-rail {
-    position: fixed;
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: 0;
+  .layer-rail {
+    width: auto;
+    animation: none;
   }
-  .settings-rail ul + ul {
-    padding: 0 0 0 10px;
-    border-top: 0;
-    border-left: 1px solid #5b5959;
-  }
-  .rail-count {
-    margin: 0 8px 0 0;
+  .rail-panels {
+    margin-right: 8px;
     padding: 0 8px 0 0;
     border-bottom: 0;
     border-right: 1px solid #5b5959;
   }
+  /* Two panels and six categories share the strip: the tiles narrow to fit a phone and the
+   * layer count gives way (partial categories still show their badge). */
+  .rail-count {
+    display: none;
+  }
   .rail-icon {
-    width: 52px;
+    width: 42px;
     height: 52px;
   }
 }
@@ -1188,7 +1218,6 @@ input:focus-visible {
 .feed-sections button[aria-selected="true"] { background: #4e4d4d; color: #fff; border-bottom-color: #ed963e; }
 .feed-sections button:focus-visible { outline: 2px solid #ed963e; outline-offset: -2px; }
 .feed-count { margin-left: 4px; padding: 0 6px; background: #2b2b2b; color: #f0eeee; font-size: 11px; }
-.tour-start[data-view="feed"], .tour-bar[data-view="feed"] { top: 112px; }
 .feed-status {
   position: absolute; top: 160px; left: 50%; transform: translateX(-50%); z-index: 8;
   max-width: min(420px, calc(100% - 48px)); margin: 0; padding: 10px 14px;

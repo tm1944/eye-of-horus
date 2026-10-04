@@ -16,6 +16,8 @@ export const GLOBE = {
   reliefHeightScale: 0.03, // slope exaggeration: full heightmap range (sea level → highest peak) in globe radii
   reliefFacetDegrees: 0.5, // land cap triangle size and elevation sampling spacing: each triangle is one shaded facet; lower = finer, more triangles
   reliefLightDirection: [-0.5, 0.7, 0.5] as const, // camera space, toward the light: upper left, like the orb's bright top
+  reliefSlopeSmoothing: 2, // slope sampling distance in facets; higher smooths rugged ranges (Andes, Himalaya)
+  reliefShadeLimit: 0.3, // soft cap on relief lightening/darkening (±30%) so steep mountains stay gentle
   orbTopColor: "#86bad9", // light blue at the screen-space north/top of the orb (15% darker than #9edbff)
   orbColor: "#072d58", // deep blue at the bottom (15% darker than #083568); fluid motion blends between these
   orbRenderSize: 512, // fixed CSS/backbuffer basis, scaled to the projected globe
@@ -85,6 +87,7 @@ export const GLOBE = {
   maxCallouts: 4, // highest-significance events; selected event takes priority
   headlineCount: 12, // Headlines tab: the top N events overall (map filters do not apply), each with a floating card
   headlinePerCategory: 3, // …taking at most this many from any one sidebar category
+  briefingSlideMs: 130, // easing time constant as the globe slides beside the briefing or rail, or between tabs (~0.4 s; frame-rate independent)
   tourStepMs: 8000, // Headlines tour: each story is shown this long before flying to the next (north to south)
   pinSelectedScale: 1.5, // Explore: the selected pin grows and gains a white halo
   headlinePinScale: 1.5, // Headlines: every pin uses the large size (the selection keeps its halo)

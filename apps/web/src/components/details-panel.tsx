@@ -5,7 +5,7 @@ import { CATEGORY_OF, LABELS, type LayerId } from "@/lib/layers";
 import { eventColor } from "@/lib/globe-config";
 import { exactTime } from "@/lib/freshness";
 import { chips, locatorPaths, placeLabel, vitalSigns, type ChipKind } from "@/lib/briefing";
-import { countryContains } from "@/lib/country-selection";
+import { eventCountry } from "@/lib/country-selection";
 import countries from "@/data/countries.geojson.json";
 import { Thumbnail, TimeAgo } from "@/components/event-media";
 import RailIcon from "@/components/icons";
@@ -70,7 +70,7 @@ export default function DetailsPanel({ event, personal, reasons, fixture, positi
   const category = CATEGORY_OF.get(event.layerId as LayerId);
   const vitals = vitalSigns(event);
   const people = chips(event);
-  const country = useMemo(() => countries.features.find((feature: CountryFeature) => countryContains(feature as never, event)), [event]);
+  const country = useMemo(() => eventCountry(countries.features as CountryFeature[], event), [event]);
   const place = placeLabel(event) ?? (country ? country.properties.name : null);
   const link = sourceLink(event.sourceUrl);
   const lede = event.summary ?? "";

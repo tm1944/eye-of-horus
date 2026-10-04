@@ -119,10 +119,18 @@ export function deriveVisuals(events: Event[], { layers, time, minSignificance }
   const markerCandidates = visible.filter(event => event.significance >= minSignificance)
     .sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id));
   const markers = markerCandidates.slice(0, MAX_MARKERS);
-  // Zoomed-out heatmaps are the density of exactly these markers, one unit each, with
-  // one heatmap per category (in the category's color); empty categories are omitted.
-  const heatmaps: CategoryHeatmap[] = CATEGORIES
+  return { visible, markers, heatmaps: categoryHeatmaps(markers), markerCandidateCount: markerCandidates.length };
+}
+/** Zoomed-out heatmaps are the density of exactly these markers, one unit each, with one
+ * heatmap per category (in the category's color); empty categories are omitted. */
+export function categoryHeatmaps(markers: Event[]): CategoryHeatmap[] {
+  return CATEGORIES
     .map(category => ({ id: category.id, points: markers.filter(event => CATEGORY_OF.get(event.layerId as LayerId) === category.id).map(event => ({ lat: event.lat, lng: event.lng, weight: 1 })) }))
     .filter(heatmap => heatmap.points.length > 0);
-  return { visible, markers, heatmaps, markerCandidateCount: markerCandidates.length };
+}
+/** Keep only markers whose ids are allowed (e.g. events inside selected countries) and
+ * rebuild the heatmaps from them, so clusters, pins and heat outside disappear. */
+export function restrictVisuals<T extends { markers: Event[] }>(visuals: T, allowed: Set<string>) {
+  const markers = visuals.markers.filter(event => allowed.has(event.id));
+  return { ...visuals, markers, heatmaps: categoryHeatmaps(markers) };
 }
