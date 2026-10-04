@@ -58,7 +58,7 @@ export const GLOBE = {
   // One hue family per sidebar category; subcategories are shades of it.
   colors: {
     earthquake: "#ffc38b", wildfire: "#ff9f6b", cyclone: "#ffd9a8", flood: "#f5b26e", volcano: "#ff8a4c", drought: "#e8c08f", environment: "#ffcf96", // hazards
-    conflict: "#fba6bf", terror: "#ff8fa8", crime: "#f7bccd", protest: "#ffa3c4", // security
+    conflict: "#fba6bf", terror: "#ff8fa8", crime: "#f7bccd", protest: "#ffa3c4", strategic_development: "#ffc1d4", // security
     politics: "#e6d09c", world: "#f0dc9e", news: "#d9c48a", media: "#f5e6b8", // politics & world
     finance: "#94e5c9", business: "#7fd9b8", technology: "#80e5ef", science: "#a6f0e0", // economy & tech
     humanitarian: "#d3b9ff", famine: "#c0a3f5", health: "#e0cfff", education: "#b9a8ec", // humanitarian & health

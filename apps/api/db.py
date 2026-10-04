@@ -34,7 +34,7 @@ SELECT
   e.geo_source,
   e.weight,
   e.significance,
-  COALESCE(e.entities, '[]'::jsonb) AS entities,
+  COALESCE(e.keywords, '[]'::jsonb) AS keywords,
   e.raw_ref,
   COALESCE(
     (
@@ -51,6 +51,9 @@ SELECT
     WHEN 'flood' THEN (to_jsonb(fl) - 'event_id' - 'footprint')
     WHEN 'volcano' THEN (to_jsonb(vo) - 'event_id' - 'footprint')
     WHEN 'drought' THEN (to_jsonb(dr) - 'event_id' - 'footprint')
+    WHEN 'conflict' THEN (to_jsonb(cf) - 'event_id')
+    WHEN 'protest' THEN (to_jsonb(pr) - 'event_id')
+    WHEN 'strategic_development' THEN (to_jsonb(sd) - 'event_id')
     ELSE '{}'::jsonb
   END AS attributes
 FROM mart.event e
@@ -60,6 +63,9 @@ LEFT JOIN mart.cyclone cy ON cy.event_id = e.event_id
 LEFT JOIN mart.flood fl ON fl.event_id = e.event_id
 LEFT JOIN mart.volcano vo ON vo.event_id = e.event_id
 LEFT JOIN mart.drought dr ON dr.event_id = e.event_id
+LEFT JOIN mart.conflict cf ON cf.event_id = e.event_id
+LEFT JOIN mart.protest pr ON pr.event_id = e.event_id
+LEFT JOIN mart.strategic_development sd ON sd.event_id = e.event_id
 """
 
 
@@ -146,7 +152,7 @@ def _json_safe(value: Any) -> Any:
 
 
 def _row_to_event(row: dict[str, Any]) -> dict[str, Any]:
-    entities = _json_value(row.get("entities")) or []
+    keywords = _json_value(row.get("keywords")) or []
     tags = _json_value(row.get("tags")) or []
     return _json_safe({
         "id": row["id"],
@@ -165,7 +171,7 @@ def _row_to_event(row: dict[str, Any]) -> dict[str, Any]:
         "geoSource": row["geo_source"],
         "weight": 0 if row.get("weight") is None else row.get("weight"),
         "significance": row["significance"],
-        "entities": entities if isinstance(entities, list) else [],
+        "keywords": keywords if isinstance(keywords, list) else [],
         "rawRef": row.get("raw_ref"),
         "tags": tags if isinstance(tags, list) else [],
         "attributes": _clean_attributes(row.get("attributes")),

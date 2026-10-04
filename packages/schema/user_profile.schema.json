@@ -35,12 +35,14 @@
           "food",
           "education",
           "media",
+          "news",
           "cyclone",
           "flood",
           "volcano",
           "drought",
           "famine",
-          "protest"
+          "protest",
+          "strategic_development"
         ]
       },
       "description": "Layer IDs to include. Matches layerId enum in event.schema.json."
