@@ -123,7 +123,6 @@ Issues are ordered most critical to least critical. Labels mark `critical` / `hi
 - P2 [#14](https://github.com/tm1944/hypothesis-globe/issues/14) 30-row geo and link eval
 - P3 [#15](https://github.com/tm1944/hypothesis-globe/issues/15) Demo script, buyer slide, backup video
 - P3 [#16](https://github.com/tm1944/hypothesis-globe/issues/16) Empty, loading, and error states
-- P3 [#18](https://github.com/tm1944/hypothesis-globe/issues/18) Optional ACLED if the account is already approved
 - P3 [#19](https://github.com/tm1944/hypothesis-globe/issues/19) Optional react-globe.gl swap
 
 ## Demo script
