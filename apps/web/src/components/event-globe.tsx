@@ -3,7 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
-import { CATEGORIES, LABELS, type CategoryHeatmap, type CategoryId, type LayerId, type ViewTab } from "@/lib/layers";
+import { CATEGORIES, LABELS, isCurated, type CategoryHeatmap, type CategoryId, type LayerId, type ViewTab } from "@/lib/layers";
+import type { FeedEvent } from "@/lib/profile";
+import StoryActions, { type Personal } from "@/components/story-actions";
+
+/** My Feed's own controls, shown under the tabs. */
+export type FeedControls = {
+  section: "for-you" | "saved";
+  onSection: (section: "for-you" | "saved") => void;
+  saved: number;
+  loading: boolean;
+  error?: string;
+  onStartOver: () => void;
+};
 import { densityField, heatmapSegments, sphereGrid, type SphereGrid } from "@/lib/heatmap-density";
 import type { Event, EventLink } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
@@ -336,11 +348,15 @@ function disposeArc(arc: Arc) {
   }
 }
 
-export default function EventGlobe({ view, headlines, allEvents, links, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, fixture }: {
-  /** headlines: only the headline feed, as pins with floating cards. explore: every filtered event, clustered. */
+export default function EventGlobe({ view, headlines, personal, feed, allEvents, links, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, fixture }: {
+  /** headlines / feed: a curated list as pins with floating cards. explore: every filtered event, clustered. */
   view: ViewTab;
-  /** The Headlines feed; map filters do not apply to it. */
-  headlines: Event[];
+  /** The curated list: the Headlines feed, or My Feed. Map filters do not apply to it. */
+  headlines: FeedEvent[];
+  /** Save and More/Less like this, when the profile API is available. */
+  personal: Personal | null;
+  /** My Feed's own controls: For you vs Reading list, plus loading and empty states. */
+  feed: FeedControls | null;
   allEvents: Event[];
   /** Every relationship hypothesis, loaded once; undefined links means still loading. */
   links: { links?: EventLink[]; error?: string };
@@ -352,6 +368,8 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
   onSelect: (selection: Selection | null) => void;
   fixture: boolean;
 }) {
+  // Headlines and My Feed share one presentation: pins, ring cards, the briefing and the tour.
+  const curated = isCurated(view);
   // The native sphere keeps ocean picking and far-side occlusion without painting water.
   const oceanDepthMaterial = useMemo(() => new MeshBasicMaterial({ colorWrite: false }), []);
   const orbSurface = useRef<HTMLDivElement>(null);
@@ -644,7 +662,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
   // Explore: a selected event shows its linked events that the filters allow.
   // Headlines shows no relationships at all (no linked pins, no arcs, no graying).
   const relationshipEvents = useMemo(() => {
-    if (!selectedEvent || view === "headlines") return [];
+    if (!selectedEvent || curated) return [];
     const visible = new Map(events.map(event => [event.id, event]));
     const linked = (linkIndex.get(selectedEvent.id) ?? []).map(link => visible.get(otherEnd(link, selectedEvent.id)));
     return [...new Map(linked.filter((event): event is Event => !!event && event.id !== selectedEvent.id).map(event => [event.id, event])).values()];
@@ -654,7 +672,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
   // zoomed in (the heatmap and clusters stand in for them further out). Either way the
   // selection and its linked events always keep their pins.
   const displayEvents = useMemo(() => {
-    const base = view === "headlines" ? headlineEvents : zoomedIn ? [...events, ...selectedEvents] : [];
+    const base = curated ? headlineEvents : zoomedIn ? [...events, ...selectedEvents] : [];
     return [...new Map([...(selectedEvent ? [selectedEvent] : []), ...relationshipEvents, ...base].map(event => [event.id, event])).values()];
   }, [view, headlineEvents, zoomedIn, events, selectedEvents, selectedEvent, relationshipEvents]);
 
@@ -709,7 +727,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
   // Cards: the selection's details card, plus headline bubbles (headlines view) or the
   // occasional spotlight (explore view). Card placement hides cards that cannot fit.
   const callouts = useMemo<Callout[]>(() => {
-    const bubbles = view === "headlines" ? headlineEvents : spotlight ? [spotlight] : [];
+    const bubbles = curated ? headlineEvents : spotlight ? [spotlight] : [];
     const listed = [...new Map([...(selectedEvent ? [selectedEvent] : []), ...bubbles].map(event => [event.id, event])).values()];
     const result = listed.map(event => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: !displayEvents.some(visible => visible.id === event.id) && event.id !== spotlight?.id }));
     return selection?.kind === "location" ? [{ id: "selected-location", ...selection.location, color: GLOBE.colors.selected }, ...result] : result;
@@ -720,12 +738,12 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
     ...event,
     color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId),
     // Headlines only marks the selection; Explore also grays pins unrelated to it.
-    tone: !selectedEvent ? "normal" : event.id === selectedEvent.id ? "selected" : view === "headlines" ? "normal" : linkedIds.has(event.id) ? "linked" : "dim",
+    tone: !selectedEvent ? "normal" : event.id === selectedEvent.id ? "selected" : curated ? "normal" : linkedIds.has(event.id) ? "linked" : "dim",
     // Headline pins ping for attention until something is selected.
-    ping: view === "headlines" && !selectedEvent,
+    ping: curated && !selectedEvent,
     pingOffset: pingOffset(event.id),
     // Headlines uses large pins throughout; Explore enlarges only the selection.
-    scale: view === "headlines" ? GLOBE.headlinePinScale : event.id === selectedEvent?.id ? GLOBE.pinSelectedScale : 1,
+    scale: curated ? GLOBE.headlinePinScale : event.id === selectedEvent?.id ? GLOBE.pinSelectedScale : 1,
     altitude: GLOBE.landAltitude,
   })), [displayEvents, selectedIds, selectedEvent, linkedIds, view]);
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
@@ -738,7 +756,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
   useEffect(() => { pointsRef.current = points; }, [points]);
   const shownIds = useMemo(() => new Set(points.map(point => point.id)), [points]);
   // Headlines draws no arcs.
-  const desiredArcs = useMemo(() => view === "headlines" ? [] : arcSpecs([selectedEvent?.id, hoveredPinId, openLink?.origin], linkIndex, shownIds),
+  const desiredArcs = useMemo(() => curated ? [] : arcSpecs([selectedEvent?.id, hoveredPinId, openLink?.origin], linkIndex, shownIds),
     [view, selectedEvent?.id, hoveredPinId, openLink?.origin, linkIndex, shownIds]);
   useEffect(() => {
     const instance = globe.current;
@@ -998,7 +1016,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
 
   // HEADLINES BRIEFING — ‹ ›, the arrow keys and the tour step through the headlines from
   // north to south like a feed; each selection flies the camera there (focus effect above).
-  const tourStops = useMemo(() => view === "headlines" ? tourOrder(headlineEvents) : [], [view, headlineEvents]);
+  const tourStops = useMemo(() => curated ? tourOrder(headlineEvents) : [], [view, headlineEvents]);
   const stopIndex = selectedEvent ? tourStops.findIndex(event => event.id === selectedEvent.id) : -1;
   const [tour, setTour] = useState<"off" | "playing" | "paused">("off");
   function stepHeadline(delta: number) {
@@ -1018,7 +1036,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
     if (instance) instance.pointOfView({ lat: clampViewLat(target.lat, GLOBE.maxTiltDegrees), lng: target.lng, altitude: instance.pointOfView().altitude }, GLOBE.relatedFocusMs);
   }
   // The tour ends with the briefing (closed or deselected) or when leaving Headlines.
-  useEffect(() => { if (view !== "headlines" || !selectedEvent) setTour("off"); }, [view, selectedEvent]);
+  useEffect(() => { if (!curated || !selectedEvent) setTour("off"); }, [view, selectedEvent]);
   // Playing: advance after each story's dwell time. Manual steps restart the clock.
   useEffect(() => {
     if (tour !== "playing" || !selectedEvent) return;
@@ -1038,9 +1056,10 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
   }, [tour]);
   // ← → step through the briefing while it is open.
   useEffect(() => {
-    if (view !== "headlines" || !selectedEvent) return;
+    if (!curated || !selectedEvent) return;
     const keys = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select")) return;
+      // Leave arrow keys to form fields and to the tab bars, which use them to switch tabs.
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [role=tablist]")) return;
       if (event.key === "ArrowRight") { event.preventDefault(); stepHeadline(1); }
       if (event.key === "ArrowLeft") { event.preventDefault(); stepHeadline(-1); }
     };
@@ -1404,7 +1423,7 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
       return;
     }
     setOpenCluster(null);
-    if (view === "headlines") return; // Headlines is deliberately limited: no country selection
+    if (curated) return; // Headlines is deliberately limited: no country selection
     clickRaycaster.setFromCamera(new Vector2(2 * (event.clientX - bounds.left) / bounds.width - 1, 1 - 2 * (event.clientY - bounds.top) / bounds.height), instance.camera());
     type PickObject = Object3D & { __globeObjType?: string; __data?: unknown };
     for (const hit of clickRaycaster.intersectObjects(instance.scene().children, true)) {
@@ -1429,14 +1448,33 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
 
   return <div className="earth-stage" ref={stage} style={{ "--connector-width": `${GLOBE.connectorWidthPx}px` } as CSSProperties}>
     {selection?.kind === "event" && view === "explore" && <div className="earth-controls"><button onClick={clearSelection}>Clear selection</button></div>}
-    {view === "headlines" && selectedEvent && <DetailsPanel key={selectedEvent.id} panelRef={detailsPanel} event={selectedEvent} fixture={fixture} onClose={clearSelection}
+    {curated && selectedEvent && <DetailsPanel key={selectedEvent.id} panelRef={detailsPanel} event={selectedEvent} fixture={fixture} onClose={clearSelection}
+      personal={personal} reasons={view === "feed" ? headlineEvents.find(item => item.id === selectedEvent.id)?.reasons : undefined}
       position={stopIndex >= 0 ? { index: stopIndex, total: tourStops.length } : null}
       rank={{ place: rankOf(selectedEvent.id, headlineEvents), of: headlineEvents.length }}
       onPrev={() => stepHeadline(-1)} onNext={() => stepHeadline(1)} onCenter={() => centerOn(selectedEvent)} />}
+    {/* My Feed: "For you" (ranked by your profile) or your reading list, under the tabs. */}
+    {view === "feed" && feed && <>
+      <div className="feed-sections" role="tablist" aria-label="My Feed sections" onKeyDown={event => {
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") feed.onSection(feed.section === "saved" ? "for-you" : "saved");
+      }}>
+        <button role="tab" aria-selected={feed.section === "for-you"} tabIndex={feed.section === "for-you" ? 0 : -1} onClick={() => feed.onSection("for-you")}>For you</button>
+        <button role="tab" aria-selected={feed.section === "saved"} tabIndex={feed.section === "saved" ? 0 : -1} onClick={() => feed.onSection("saved")}>
+          Reading list <span className="feed-count">{feed.saved}</span>
+        </button>
+      </div>
+      {(feed.loading || feed.error || headlineEvents.length === 0) && <p className="feed-status" role="status">
+        {feed.loading ? "Finding stories for you…"
+          : feed.error ? feed.error
+          : feed.section === "saved" ? "Nothing saved yet. Use “Save to reading list” on any story, in any tab."
+          : "Nothing matches your interests yet. Try “More like this” on stories you like."}
+      </p>}
+      <button className="feed-reset" onClick={feed.onStartOver} title="Forget interests, saves and history, and pick interests again">Start over</button>
+    </>}
     {/* The tour sits under the feed tabs: a quiet "start" pill, then a small control bar. */}
-    {view === "headlines" && tourStops.length > 0 && (tour === "off"
-      ? <button className="tour-start" onClick={startTour}><span aria-hidden="true">▶</span> Tour the headlines</button>
-      : <div className="tour-bar" role="group" aria-label="Headlines tour">
+    {curated && tourStops.length > 0 && (tour === "off"
+      ? <button className="tour-start" data-view={view} onClick={startTour}><span aria-hidden="true">▶</span> {view === "feed" ? feed?.section === "saved" ? "Tour my reading list" : "Tour my feed" : "Tour the headlines"}</button>
+      : <div className="tour-bar" role="group" aria-label={view === "feed" ? "My Feed tour" : "Headlines tour"} data-view={view}>
         <button onClick={() => stepHeadline(-1)} aria-label="Previous headline">‹</button>
         <button onClick={() => setTour(state => state === "playing" ? "paused" : "playing")} aria-label={tour === "playing" ? "Pause tour" : "Resume tour"}>{tour === "playing" ? "❚❚" : "▶"}</button>
         <button onClick={() => stepHeadline(1)} aria-label="Next headline">›</button>
@@ -1535,8 +1573,9 @@ export default function EventGlobe({ view, headlines, allEvents, links, events, 
         <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}</p>
         {event && <RelatedEventControls key={event.id} event={event} allEvents={allEvents}
           links={links.links ? linkIndex.get(event.id) ?? [] : undefined} error={links.error} onVisit={visitEvent} />}
+        {event && personal && <StoryActions event={event} personal={personal} />}
         {event && <p className="card-time">{exactTime(event.occurredAt)}</p>}
-        <div className="card-footer">{href ? <a href={href} target="_blank" rel="noreferrer">{event!.source.toUpperCase()} ↗</a> : <span>{event?.source.toUpperCase() ?? "Coordinates captured"}</span>}
+        <div className="card-footer">{href ? <a href={href} target="_blank" rel="noreferrer" onClick={() => event && personal?.onSource(event)}>{event!.source.toUpperCase()} ↗</a> : <span>{event?.source.toUpperCase() ?? "Coordinates captured"}</span>}
           {(event ? event.id === selectedEvent?.id : selection?.kind === "location") && <button onClick={clearSelection}>Close</button>}</div>
         </>}
       </article>;

@@ -75,8 +75,14 @@ export function writeFilters(search: string, filters: Filters) {
   return params.toString();
 }
 /** Headlines: a top-stories overview for everyone. Explore: every event your filters allow. */
-export type ViewTab = "headlines" | "explore";
-export const parseTab = (search: string): ViewTab => new URLSearchParams(search).get("tab") === "explore" ? "explore" : "headlines";
+export type ViewTab = "headlines" | "explore" | "feed";
+const TABS: ViewTab[] = ["headlines", "explore", "feed"];
+export const parseTab = (search: string): ViewTab => {
+  const tab = new URLSearchParams(search).get("tab");
+  return TABS.includes(tab as ViewTab) ? tab as ViewTab : "headlines";
+};
+/** Headlines and My Feed are curated lists shown the same way (pins, ring cards, briefing, tour). */
+export const isCurated = (tab: ViewTab) => tab !== "explore";
 export function writeTab(search: string, tab: ViewTab) {
   const params = new URLSearchParams(search);
   if (tab === "headlines") params.delete("tab"); else params.set("tab", tab);

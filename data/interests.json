@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "description": "Onboarding interest catalogue for My Feed. `layers` and `keywords` drive explicit matching; `seed` is embedded (jobs/llm/embed_events.py) to start the taste vector. Regions also match by bounding box [south, north, west, east].",
+  "groups": [
+    { "id": "hazards", "label": "Planet & disasters" },
+    { "id": "security", "label": "Conflict & security" },
+    { "id": "politics", "label": "Politics & world" },
+    { "id": "economy", "label": "Economy & tech" },
+    { "id": "society", "label": "Society & health" },
+    { "id": "culture", "label": "Culture & lifestyle" },
+    { "id": "region", "label": "Places you follow" }
+  ],
+  "interests": [
+    { "id": "earthquakes", "group": "hazards", "label": "Earthquakes", "layers": ["earthquake"], "keywords": ["earthquake", "quake", "seismic", "tsunami"], "seed": "earthquakes, seismic activity, aftershocks, tsunami warnings, magnitude and shaking intensity" },
+    { "id": "wildfires", "group": "hazards", "label": "Wildfires", "layers": ["wildfire"], "keywords": ["wildfire", "bushfire", "blaze", "smoke"], "seed": "wildfires, forest fires, bushfires, smoke and air quality, firefighting and evacuations" },
+    { "id": "storms", "group": "hazards", "label": "Storms & floods", "layers": ["cyclone", "flood"], "keywords": ["cyclone", "hurricane", "typhoon", "flood", "storm"], "seed": "hurricanes, typhoons, cyclones, flooding, extreme rainfall and storm damage" },
+    { "id": "climate", "group": "hazards", "label": "Climate & environment", "layers": ["environment", "drought"], "keywords": ["climate", "emissions", "environment", "drought", "heatwave", "renewable"], "seed": "climate change, emissions policy, extreme weather, heatwaves, drought, renewable energy and the environment" },
+
+    { "id": "conflict", "group": "security", "label": "War & conflict", "layers": ["conflict", "strategic_development"], "keywords": ["war", "military", "strike", "troops", "conflict", "ceasefire"], "seed": "armed conflict, wars, military operations, airstrikes, ceasefires and peace talks" },
+    { "id": "protests", "group": "security", "label": "Protests & unrest", "layers": ["protest"], "keywords": ["protest", "demonstration", "rally", "strike"], "seed": "protests, demonstrations, civil unrest, strikes and social movements" },
+    { "id": "crime", "group": "security", "label": "Crime & justice", "layers": ["crime", "terror"], "keywords": ["crime", "police", "court", "trial", "terror", "attack"], "seed": "crime, policing, courts and trials, terrorism and public safety" },
+
+    { "id": "elections", "group": "politics", "label": "Elections & government", "layers": ["politics"], "keywords": ["election", "vote", "government", "parliament", "president", "minister"], "seed": "elections, voting, governments, parliaments, presidents and prime ministers, policy decisions" },
+    { "id": "geopolitics", "group": "politics", "label": "Diplomacy & geopolitics", "layers": ["world", "politics"], "keywords": ["diplomacy", "summit", "sanctions", "treaty", "foreign"], "seed": "diplomacy, international relations, summits, sanctions, treaties and foreign policy" },
+    { "id": "media", "group": "politics", "label": "Media & press", "layers": ["media", "news"], "keywords": ["media", "journalist", "press", "broadcaster"], "seed": "news media, journalism, press freedom, broadcasters and publishing" },
+
+    { "id": "markets", "group": "economy", "label": "Markets & money", "layers": ["finance"], "keywords": ["market", "stocks", "inflation", "interest rate", "bank", "economy"], "seed": "financial markets, stocks, inflation, interest rates, central banks and the economy" },
+    { "id": "business", "group": "economy", "label": "Business & companies", "layers": ["business"], "keywords": ["company", "business", "startup", "merger", "earnings"], "seed": "companies, business news, startups, mergers and acquisitions, earnings and industry" },
+    { "id": "tech", "group": "economy", "label": "Tech & AI", "layers": ["technology"], "keywords": ["technology", "ai", "artificial intelligence", "software", "chip", "cyber"], "seed": "technology, artificial intelligence, software, semiconductors, cybersecurity and big tech" },
+    { "id": "science", "group": "economy", "label": "Science & space", "layers": ["science"], "keywords": ["science", "research", "space", "nasa", "discovery"], "seed": "science, research discoveries, space exploration, astronomy and NASA missions" },
+
+    { "id": "health", "group": "society", "label": "Health", "layers": ["health"], "keywords": ["health", "disease", "outbreak", "vaccine", "hospital"], "seed": "health, disease outbreaks, vaccines, hospitals, medicine and public health" },
+    { "id": "humanitarian", "group": "society", "label": "Humanitarian & migration", "layers": ["humanitarian", "famine"], "keywords": ["refugee", "migrant", "aid", "famine", "humanitarian"], "seed": "humanitarian crises, refugees and migration, aid, famine and displacement" },
+    { "id": "education", "group": "society", "label": "Education", "layers": ["education"], "keywords": ["school", "university", "education", "students"], "seed": "education, schools, universities, students and teachers" },
+
+    { "id": "football", "group": "culture", "label": "Football", "layers": ["sports"], "keywords": ["football", "soccer", "premier league", "champions league", "goal"], "seed": "football and soccer, Premier League, Champions League, transfers and match results" },
+    { "id": "sports", "group": "culture", "label": "Other sports", "layers": ["sports"], "keywords": ["rugby", "tennis", "basketball", "olympics", "cricket", "f1"], "seed": "sports such as rugby, tennis, basketball, cricket, Formula 1 and the Olympics" },
+    { "id": "film", "group": "culture", "label": "Film, TV & music", "layers": ["entertainment"], "keywords": ["film", "movie", "tv", "music", "celebrity", "album"], "seed": "film, television, streaming, music, celebrities and entertainment" },
+    { "id": "arts", "group": "culture", "label": "Arts & culture", "layers": ["culture", "fashion"], "keywords": ["art", "museum", "culture", "fashion", "book"], "seed": "arts, museums, books, fashion and culture" },
+    { "id": "travel", "group": "culture", "label": "Food & travel", "layers": ["travel", "food"], "keywords": ["travel", "tourism", "food", "restaurant"], "seed": "travel, tourism, destinations, food and restaurants" },
+
+    { "id": "europe", "group": "region", "label": "Europe", "layers": [], "keywords": ["europe", "eu", "uk", "france", "germany", "spain", "italy", "ukraine"], "bbox": [35, 72, -25, 45], "seed": "news from Europe: the European Union, United Kingdom, France, Germany, Spain, Italy, Ukraine" },
+    { "id": "north-america", "group": "region", "label": "North America", "layers": [], "keywords": ["united states", "us", "canada", "mexico", "washington"], "bbox": [14, 72, -170, -50], "seed": "news from North America: the United States, Canada and Mexico" },
+    { "id": "latin-america", "group": "region", "label": "Latin America", "layers": [], "keywords": ["brazil", "argentina", "colombia", "chile", "peru", "venezuela"], "bbox": [-56, 14, -120, -30], "seed": "news from Latin America: Brazil, Argentina, Colombia, Chile, Peru and the Caribbean" },
+    { "id": "middle-east", "group": "region", "label": "Middle East", "layers": [], "keywords": ["israel", "gaza", "iran", "syria", "saudi", "lebanon", "iraq"], "bbox": [12, 42, 25, 63], "seed": "news from the Middle East: Israel, Gaza, Iran, Syria, Lebanon, Iraq and the Gulf states" },
+    { "id": "africa", "group": "region", "label": "Africa", "layers": [], "keywords": ["africa", "nigeria", "kenya", "south africa", "ethiopia", "sudan", "uganda"], "bbox": [-35, 37, -18, 52], "seed": "news from Africa: Nigeria, Kenya, South Africa, Ethiopia, Sudan, Uganda and the Sahel" },
+    { "id": "asia", "group": "region", "label": "Asia", "layers": [], "keywords": ["china", "japan", "india", "korea", "taiwan", "indonesia", "philippines"], "bbox": [-11, 55, 63, 150], "seed": "news from Asia: China, Japan, India, South Korea, Taiwan, Indonesia and Southeast Asia" },
+    { "id": "oceania", "group": "region", "label": "Oceania", "layers": [], "keywords": ["australia", "new zealand", "pacific", "papua"], "bbox": [-50, 0, 110, 180], "seed": "news from Oceania: Australia, New Zealand, Papua New Guinea and the Pacific islands" }
+  ]
+}

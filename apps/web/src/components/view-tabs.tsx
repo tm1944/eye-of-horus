@@ -5,9 +5,10 @@ import type { ViewTab } from "@/lib/layers";
 const TABS: { id: ViewTab; label: string; hint: string }[] = [
   { id: "headlines", label: "Headlines", hint: "Top stories across every category" },
   { id: "explore", label: "Explore", hint: "Every event your filters allow" },
+  { id: "feed", label: "My Feed", hint: "Picked for you from your interests and what you read" },
 ];
 
-/** Top-of-globe tabs: two separate feeds, not a display setting. Arrow keys move between them. */
+/** Top-of-globe tabs: separate feeds, not a display setting. Arrow keys move between them. */
 export default function ViewTabs({ tab, onChange }: { tab: ViewTab; onChange: (tab: ViewTab) => void }) {
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;

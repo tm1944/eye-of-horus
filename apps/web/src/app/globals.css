@@ -788,7 +788,11 @@ input:focus-visible {
   align-items: start;
 }
 /* Headlines has neither rail, so the globe takes the full width. */
-.earth-page[data-tab="headlines"] {
+/* Headlines and My Feed have neither rail, so the globe takes the full width. (Explore
+ * keeps the three-column grid; any tab without rails must be listed here, or its globe
+ * lands in the 64px first column.) */
+.earth-page[data-tab="headlines"],
+.earth-page[data-tab="feed"] {
   grid-template-columns: minmax(0, 1fr);
 }
 .globe-workspace {
@@ -1157,3 +1161,80 @@ input:focus-visible {
 .link-scores dt { color: #bdbbbb; }
 .link-scores dd { margin: 0; text-transform: capitalize; }
 .link-model { margin: 10px 0 0; font-size: 11px; color: #a9a7a7; }
+
+/* ===== MY FEED ===== */
+
+/* Save / More like this / Less like this: in the briefing and Explore's expanded card. */
+.story-actions { display: grid; gap: 8px; }
+.story-actions button { padding: 8px 10px; background: #2f2e2e; color: #f0eeee; font-size: 13px; cursor: pointer; }
+.story-actions button:hover { background: #555353; }
+.story-actions button:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+.story-save[aria-pressed="true"] { background: #3d4a3f; color: #b9f0c9; }
+.story-feedback { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.story-feedback button[aria-pressed="true"]:first-child { background: #3d4a3f; color: #b9f0c9; }
+.story-feedback button[aria-pressed="true"]:last-child { background: #4a3a3a; color: #ffc4c4; }
+.story-note { margin: 0; font-size: 12px; color: #bdbbbb; }
+.earth-card .story-actions { margin-top: 12px; }
+.briefing-reasons { margin: 0; padding-left: 18px; font-size: 13px; color: #e6e4e4; }
+.briefing-reasons li + li { margin-top: 3px; }
+
+/* "For you | Reading list" under the tabs; the tour pill drops below it in My Feed. */
+.feed-sections {
+  position: absolute; top: 68px; left: 50%; transform: translateX(-50%); z-index: 8;
+  display: flex; background: #363535; box-shadow: 0 4px 16px #0006;
+}
+.feed-sections button { padding: 7px 16px; background: none; color: #bdbbbb; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; }
+.feed-sections button:hover { color: #fff; }
+.feed-sections button[aria-selected="true"] { background: #4e4d4d; color: #fff; border-bottom-color: #ed963e; }
+.feed-sections button:focus-visible { outline: 2px solid #ed963e; outline-offset: -2px; }
+.feed-count { margin-left: 4px; padding: 0 6px; background: #2b2b2b; color: #f0eeee; font-size: 11px; }
+.tour-start[data-view="feed"], .tour-bar[data-view="feed"] { top: 112px; }
+.feed-status {
+  position: absolute; top: 160px; left: 50%; transform: translateX(-50%); z-index: 8;
+  max-width: min(420px, calc(100% - 48px)); margin: 0; padding: 10px 14px;
+  background: #363535ee; color: #e6e4e4; font-size: 13px; text-align: center;
+}
+.feed-reset { position: absolute; top: 24px; left: 24px; z-index: 8; padding: 6px 10px; background: #363535; color: #bdbbbb; font-size: 12px; cursor: pointer; }
+.feed-reset:hover { color: #fff; background: #4e4d4d; }
+.feed-reset:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+
+/* WELCOME + INTEREST PICKER — onboarding with text buttons, on the page background. */
+.welcome {
+  min-height: 100dvh; display: grid; place-items: center; padding: 32px 16px;
+  background: radial-gradient(ellipse at 50% 30%, #333 0%, #242424 65%);
+  color: #f0eeee;
+}
+.welcome-card { max-width: 560px; text-align: center; }
+.welcome-kicker { margin: 0 0 10px; color: #ed963e; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.welcome h1 { margin: 0 0 14px; font-size: clamp(28px, 5vw, 44px); line-height: 1.15; }
+.welcome-lede { margin: 0 0 26px; color: #d2d0d0; font-size: 16px; line-height: 1.55; }
+.welcome-cta {
+  display: inline-block; padding: 12px 28px; background: #ed963e; color: #202020;
+  font-size: 15px; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.welcome-cta:hover { filter: brightness(1.08); }
+.welcome-cta:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.welcome-cta:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.welcome-note { margin: 14px 0 0; color: #a9a7a7; font-size: 13px; }
+.interests-card { width: min(760px, 100%); padding-bottom: 96px; }
+.interests-card h1 { text-align: left; }
+.interests-card > .welcome-kicker, .interests-card > .welcome-lede { text-align: left; }
+.interest-group { margin-top: 22px; }
+.interest-group h2 { margin: 0 0 10px; font-size: 13px; color: #bdbbbb; text-transform: uppercase; letter-spacing: 1px; }
+.interest-group h2 small { margin-left: 6px; text-transform: none; letter-spacing: 0; color: #8f8d8d; font-weight: 400; }
+.interest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.interest-chip {
+  padding: 9px 14px; background: #363535; color: #f0eeee; font-size: 14px; cursor: pointer;
+  border: 1px solid #4e4d4d; transition: background .15s, border-color .15s;
+}
+.interest-chip:hover { border-color: var(--chip-color); }
+.interest-chip[aria-pressed="true"] { background: var(--chip-color); border-color: var(--chip-color); color: #202020; font-weight: 600; }
+.interest-chip:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+.interests-error { margin: 18px 0 0; color: #ffb4b4; }
+.interests-footer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: #242424ee; border-top: 1px solid #3a3939; color: #d2d0d0; font-size: 14px;
+}
+@media (prefers-reduced-motion: reduce) { .interest-chip { transition: none; } }

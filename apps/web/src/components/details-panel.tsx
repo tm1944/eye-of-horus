@@ -9,9 +9,14 @@ import { countryContains } from "@/lib/country-selection";
 import countries from "@/data/countries.geojson.json";
 import { Thumbnail, TimeAgo } from "@/components/event-media";
 import RailIcon from "@/components/icons";
+import StoryActions, { type Personal } from "@/components/story-actions";
 
 type Props = {
   event: Event;
+  /** Save and More/Less like this; null without the profile API. */
+  personal: Personal | null;
+  /** My Feed: why this story was picked. */
+  reasons?: string[];
   fixture: boolean;
   /** Position in the tour order (north to south); null hides the stepper. */
   position: { index: number; total: number } | null;
@@ -59,7 +64,7 @@ function Locator({ lat, lng, color }: { lat: number; lng: number; color: string 
  * signs, why it ranks, the lede, where it is, who is involved, then one way out to the source.
  * Headlines shows no relationships, so there is no related-events list here.
  */
-export default function DetailsPanel({ event, fixture, position, rank, onPrev, onNext, onCenter, onClose, panelRef }: Props) {
+export default function DetailsPanel({ event, personal, reasons, fixture, position, rank, onPrev, onNext, onCenter, onClose, panelRef }: Props) {
   const [fullLede, setFullLede] = useState(false);
   const color = eventColor(event.layerId);
   const category = CATEGORY_OF.get(event.layerId as LayerId);
@@ -93,6 +98,13 @@ export default function DetailsPanel({ event, fixture, position, rank, onPrev, o
         <h2 className="briefing-title">{event.title}</h2>
       </div>
     </header>
+
+    {personal && <section className="briefing-section briefing-actions"><StoryActions event={event} personal={personal} /></section>}
+
+    {reasons && reasons.length > 0 && <section className="briefing-section" aria-label="Why it is in your feed">
+      <span className="briefing-label">Why it&apos;s in your feed</span>
+      <ul className="briefing-reasons">{reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+    </section>}
 
     {vitals.length > 0 && <dl className="briefing-vitals">
       {vitals.map(vital => <div key={vital.label} data-tone={vital.tone}>
@@ -132,7 +144,7 @@ export default function DetailsPanel({ event, fixture, position, rank, onPrev, o
     <footer className="briefing-footer">
       <p>{exactTime(event.occurredAt)}</p>
       {link
-        ? <a className="briefing-cta" href={link.href} target="_blank" rel="noreferrer">Read the full story at {link.host} <span aria-hidden="true">↗</span></a>
+        ? <a className="briefing-cta" href={link.href} target="_blank" rel="noreferrer" onClick={() => personal?.onSource(event)}>Read the full story at {link.host} <span aria-hidden="true">↗</span></a>
         : <p className="briefing-source">Source: {event.source.toUpperCase()}</p>}
     </footer>
   </aside>;
