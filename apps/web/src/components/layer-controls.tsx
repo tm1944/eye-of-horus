@@ -33,12 +33,13 @@ export default function LayerRail({ filters, onChange }: { filters: Filters; onC
       })}
     </ul>
     {active && <div id="category-flyout" className="category-flyout" role="group" aria-label={`${active.label} subcategories`} style={flyout.style} {...panelProps}>
-      <label className="flyout-heading" data-enabled={activeState !== "off" || undefined}>
-        <input type="checkbox" checked={activeState === "on"} ref={input => { if (input) input.indeterminate = activeState === "partial"; }}
-          onChange={e => onChange(setCategoryEnabled(filters, active.id, e.target.checked))} />
+      {/* No checkbox here: the heading toggles the whole category, like its rail icon. */}
+      <button type="button" className="flyout-heading" data-enabled={activeState !== "off" || undefined}
+        aria-pressed={activeState === "on" ? true : activeState === "partial" ? "mixed" : false}
+        onClick={() => onChange(setCategoryEnabled(filters, active.id, activeState !== "on"))}>
         <span>{active.label}</span>
         <small>{active.layers.filter(id => filters.layers[id].enabled).length}/{active.layers.length}</small>
-      </label>
+      </button>
       {active.layers.map(id => <div key={id} className="subcategory-row" data-enabled={filters.layers[id].enabled || undefined}>
         <label className="subcategory-toggle">
           <input type="checkbox" checked={filters.layers[id].enabled} onChange={e => onChange(setLayerEnabled(filters, id, e.target.checked))} />
