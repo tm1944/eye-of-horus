@@ -192,7 +192,7 @@ function lighten(hex: string, amount: number) {
 }
 // Each country's base color is its average in a satellite image (scripts/build-country-colors.py),
 // brightened for legibility on the dark page.
-const landRelief = { strength: GLOBE.reliefStrength, heightScale: GLOBE.reliefHeightScale, sampleDegrees: GLOBE.reliefFacetDegrees, lightDirection: GLOBE.reliefLightDirection };
+const landRelief = { strength: GLOBE.reliefStrength, heightScale: GLOBE.reliefHeightScale, sampleDegrees: GLOBE.reliefFacetDegrees, lightDirection: GLOBE.reliefLightDirection, slopeSmoothing: GLOBE.reliefSlopeSmoothing, shadeLimit: GLOBE.reliefShadeLimit };
 const satelliteColors = new Map(Object.entries(countryColors as Record<string, string>).map(([id, hex]) => [id, lighten(hex, GLOBE.landLightnessBoost)]));
 const satelliteColor = (id: string) => satelliteColors.get(id) ?? GLOBE.landColor;
 const hexChannels = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));

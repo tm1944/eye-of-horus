@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const output = ts.transpileModule(readFileSync(new URL('../src/lib/country-selection.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
-const { countryContains } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
+const { countryContains, countryHeadlines } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 const {features} = JSON.parse(readFileSync(new URL('../src/data/countries.geojson.json',import.meta.url)));
 test('real country geometry selects mainland, islands, dateline parts and Antarctica', () => {
  for (const [id,lat,lng] of [['USA',38.9,-77.04],['GBR',51.5,-0.12],['JPN',35.7,139.7],['FJI',-16.5,179.4],['FJI',-16.3,-179.95],['ATA',-85,0]]) {
@@ -17,4 +17,22 @@ test('polygon holes excluded and boundary included',()=>{
  assert(countryContains(country,{lat:2,lng:2}));
  assert(countryContains(country,{lat:0,lng:5}));
  assert(!countryContains(country,{lat:5,lng:5}));
+});
+
+test('country headlines merge selected countries once each, most significant first', () => {
+ const a = { id: 'a', significance: 40 }, b = { id: 'b', significance: 90 }, c = { id: 'c', significance: 90 }, d = { id: 'd', significance: 10 };
+ const result = countryHeadlines([{ name: 'One', events: [a, c, d] }, { name: 'Two', events: [b, a] }]);
+ assert.deepEqual(result.map(item => item.event.id), ['b', 'c', 'a', 'd']);
+ assert.equal(result.find(item => item.event.id === 'a').country, 'One');
+ assert.equal(result.find(item => item.event.id === 'b').country, 'Two');
+ assert.deepEqual(countryHeadlines([]), []);
+});
+
+test('country headlines filter to included events and list connected events first', () => {
+ const ev = (id, significance, layer) => ({ id, significance, layer });
+ const countries = [{ name: 'One', events: [ev('a', 90, 'on'), ev('b', 40, 'on'), ev('c', 80, 'off'), ev('d', 20, 'on')] }];
+ const links = { b: 2, d: 1 };
+ const result = countryHeadlines(countries, { include: e => e.layer === 'on', linkCount: id => links[id] ?? 0 });
+ assert.deepEqual(result.map(item => item.event.id), ['b', 'd', 'a']);
+ assert.deepEqual(result.map(item => item.links), [2, 1, 0]);
 });

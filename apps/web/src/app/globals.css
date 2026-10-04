@@ -1025,7 +1025,7 @@ input:focus-visible {
 }
 .selected-countries > div {
   border-bottom: 1px solid #747272;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 .selected-countries button {
   background: #4e4d4d;
@@ -1041,14 +1041,18 @@ input:focus-visible {
   align-items: center;
   gap: 8px;
 }
-.selected-countries details {
-  margin-top: 8px;
+/* Headlines from the selected countries: category-coloured summary cards, most
+ * significant first (country-headlines.tsx). */
+.country-headlines {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
 }
-.selected-countries .country-poi {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin-top: 6px;
+.country-headlines-empty {
+  color: #c6c4c4;
+  font-size: 12px;
 }
 /* The entire card is a drag surface, including text and child buttons/links.
  * A small movement threshold preserves clicks; wheel scrolling still works. */

@@ -16,6 +16,8 @@ export const GLOBE = {
   reliefHeightScale: 0.03, // slope exaggeration: full heightmap range (sea level → highest peak) in globe radii
   reliefFacetDegrees: 0.5, // land cap triangle size and elevation sampling spacing: each triangle is one shaded facet; lower = finer, more triangles
   reliefLightDirection: [-0.5, 0.7, 0.5] as const, // camera space, toward the light: upper left, like the orb's bright top
+  reliefSlopeSmoothing: 2, // slope sampling distance in facets; higher smooths rugged ranges (Andes, Himalaya)
+  reliefShadeLimit: 0.3, // soft cap on relief lightening/darkening (±30%) so steep mountains stay gentle
   orbTopColor: "#86bad9", // light blue at the screen-space north/top of the orb (15% darker than #9edbff)
   orbColor: "#072d58", // deep blue at the bottom (15% darker than #083568); fluid motion blends between these
   orbRenderSize: 512, // fixed CSS/backbuffer basis, scaled to the projected globe

@@ -7,10 +7,12 @@ import { countryContains } from "@/lib/country-selection";
 import type { Selection } from "@/components/event-globe";
 import LayerRail, { DisplaySettings } from "@/components/layer-controls";
 import { useLayerFilters, useViewTab } from "@/lib/use-layer-filters";
-import { deriveVisuals, headlineFeed, type ViewTab } from "@/lib/layers";
+import { deriveVisuals, headlineFeed, restrictVisuals, type LayerId, type ViewTab } from "@/lib/layers";
 import { GLOBE } from "@/lib/globe-config";
 import GlobeBoundary from "@/components/globe-boundary";
 import SettingsRail from "@/components/settings-rail";
+import CountryHeadlines from "@/components/country-headlines";
+import { indexLinks } from "@/lib/related-events";
 import ViewTabs from "@/components/view-tabs";
 import DataAttribution from "@/components/data-attribution";
 
@@ -55,21 +57,30 @@ export default function Home() {
     const country = countries.features.find(country => country.id === id)!;
     return { id, name: country.properties.name, events: (result?.data.events ?? emptyEvents).filter(event => countryContains(country, event)) };
   }), [selectedCountryIds, result]);
+  // Selecting a country opens the Selected countries panel with its headlines.
+  const [countriesPanelRequest, setCountriesPanelRequest] = useState<{ id: "countries"; key: number } | null>(null);
   function toggleCountry(id: string) {
+    const adding = !selectedCountryIds.includes(id);
     setSelectedCountryIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
+    if (adding) setCountriesPanelRequest(request => ({ id: "countries", key: (request?.key ?? 0) + 1 }));
   }
   // Headlines is deliberately limited: no filter rail, no settings rail, no country
   // selection. Country choices are kept for Explore, which has all the tools.
   const explore = tab === "explore";
+  // Connections per event, for the selected-countries list (same counts as the cluster list).
+  const linkIndex = useMemo(() => indexLinks(links.links ?? []), [links.links]);
+  // With countries selected, Explore shows only what lies inside them: markers, clusters
+  // and heatmaps elsewhere are dropped until the selection is cleared.
+  const shown = useMemo(() => explore && selectedCountries.length
+    ? restrictVisuals(visuals, new Set(selectedCountries.flatMap(country => country.events.map(event => event.id))))
+    : visuals, [explore, selectedCountries, visuals]);
   return <main className="earth-page" data-tab={tab} aria-label="Hypothesis Globe">
     {explore && <LayerRail filters={filters} onChange={update} />}
-    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={headlines} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
-    {explore && <SettingsRail reflowKey={[filters, selectedCountries]} actions={[]} panels={[
-      { id: "countries", label: "Selected countries", badge: selectedCountries.length, active: selectedCountries.length > 0, content: <div className="selected-countries">
-        <button disabled={!selectedCountries.length} onClick={() => setSelectedCountryIds([])}>Clear all</button>
-        {!selectedCountries.length && <p>Click countries on Earth to add them.</p>}
-        {selectedCountries.map(country => <div key={country.id}><div className="country-list-heading"><strong>{country.name} · {country.events.length}</strong><button onClick={() => toggleCountry(country.id)} aria-label={`Remove ${country.name}`}>×</button></div><details><summary>POIs</summary>{country.events.length ? country.events.map(event => <button className="country-poi" key={event.id} onClick={() => setSelection({ kind: "event", event })}>{event.title}</button>) : <p>No loaded POIs.</p>}</details></div>)}
-      </div> },
+    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={headlines} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={shown.markers} heatmaps={shown.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
+    {explore && <SettingsRail reflowKey={[filters, selectedCountries]} openRequest={countriesPanelRequest} actions={[]} panels={[
+      { id: "countries", label: "Selected countries", badge: selectedCountries.length, active: selectedCountries.length > 0, content: <CountryHeadlines countries={selectedCountries}
+        onRemove={toggleCountry} onClear={() => setSelectedCountryIds([])} onPick={event => setSelection({ kind: "event", event })}
+        include={event => !!filters.layers[event.layerId as LayerId]?.enabled} linkCount={id => linkIndex.get(id)?.length ?? 0} /> },
       { id: "significance", label: "Significance", content: <DisplaySettings filters={filters} onChange={update} count={visuals.visible.length} markerCount={visuals.markers.length} markerCandidateCount={visuals.markerCandidateCount} /> },
     ]} />}
     {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
