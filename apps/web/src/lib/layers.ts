@@ -7,16 +7,20 @@ export const CATEGORIES = [
   { id: "economy", label: "Economy & Tech", layers: ["finance", "business", "technology", "science"] },
   { id: "society", label: "Humanitarian & Health", layers: ["humanitarian", "famine", "health", "education"] },
   { id: "culture", label: "Culture & Lifestyle", layers: ["culture", "entertainment", "sports", "fashion", "travel", "food"] },
+  // Last, so Natural Hazards sits at the bottom of the layer rail.
+  { id: "hazards", label: "Natural Hazards", layers: ["earthquake", "wildfire", "cyclone", "flood", "volcano", "drought", "environment"] },
 ] as const;
 export type CategoryId = typeof CATEGORIES[number]["id"];
 export const LAYER_IDS = CATEGORIES.flatMap(category => category.layers);
 export type LayerId = typeof CATEGORIES[number]["layers"][number];
+export const CATEGORY_OF = new Map<LayerId, CategoryId>(CATEGORIES.flatMap(category => category.layers.map(layer => [layer, category.id] as const)));
 export type LayerState = Record<LayerId, { enabled: boolean }>;
 export type TimeWindow = { startIso: string; endIso: string } | null;
 export const MAX_MARKERS = 5000;
 export const DEFAULT_MIN_SIGNIFICANCE = 50;
 export type Filters = { layers: LayerState; time: TimeWindow; minSignificance: number };
 export type HeatmapPoint = { lat: number; lng: number; weight: number };
+export type CategoryHeatmap = { id: CategoryId; points: HeatmapPoint[] };
 export const LABELS: Record<LayerId, string> = {
   earthquake: "Earthquakes", wildfire: "Wildfires", cyclone: "Cyclones", flood: "Floods", volcano: "Volcanoes", drought: "Droughts", environment: "Environment",
   conflict: "Conflict", terror: "Terror", crime: "Crime", protest: "Protests", strategic_development: "Strategic developments",
@@ -25,8 +29,10 @@ export const LABELS: Record<LayerId, string> = {
   humanitarian: "Society", famine: "Famine", health: "Health", education: "Education",
   culture: "Culture", entertainment: "Entertainment", sports: "Sports", fashion: "Fashion", travel: "Travel", food: "Food",
 };
+// Every layer in these categories starts on; all other categories start off.
+export const DEFAULT_CATEGORIES: CategoryId[] = ["security", "politics", "economy"];
 export function defaultLayers(): LayerState {
-  return Object.fromEntries(LAYER_IDS.map(id => [id, { enabled: ["technology", "politics", "finance", "humanitarian"].includes(id) }])) as LayerState;
+  return Object.fromEntries(LAYER_IDS.map(id => [id, { enabled: DEFAULT_CATEGORIES.includes(CATEGORY_OF.get(id)!) }])) as LayerState;
 }
 export type CategoryState = "on" | "off" | "partial";
 export function categoryState(layers: LayerState, id: CategoryId): CategoryState {
@@ -80,7 +86,10 @@ export function deriveVisuals(events: Event[], { layers, time, minSignificance }
   const markerCandidates = visible.filter(event => event.significance >= minSignificance)
     .sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id));
   const markers = markerCandidates.slice(0, MAX_MARKERS);
-  // The zoomed-out heatmap is the density of exactly these markers, one unit each.
-  const heatmap: HeatmapPoint[] = markers.map(event => ({ lat: event.lat, lng: event.lng, weight: 1 }));
-  return { visible, markers, heatmap, markerCandidateCount: markerCandidates.length };
+  // Zoomed-out heatmaps are the density of exactly these markers, one unit each, with
+  // one heatmap per category (in the category's color); empty categories are omitted.
+  const heatmaps: CategoryHeatmap[] = CATEGORIES
+    .map(category => ({ id: category.id, points: markers.filter(event => CATEGORY_OF.get(event.layerId as LayerId) === category.id).map(event => ({ lat: event.lat, lng: event.lng, weight: 1 })) }))
+    .filter(heatmap => heatmap.points.length > 0);
+  return { visible, markers, heatmaps, markerCandidateCount: markerCandidates.length };
 }
