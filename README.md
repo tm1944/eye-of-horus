@@ -1,6 +1,6 @@
 # Hypothesis Globe
 
-A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
+An interactive globe focused on technology, government, finance, and societal events. Layers toggle on and off. The product is not another news blob. The current UI shows clearly labeled fixture events; source-linked relationships remain a planned feature.
 
 The Next.js frontend foundation is in `apps/web`. Start locally with `cd apps/web`, `npm ci`, and `npm run dev`, then open http://localhost:3000. It uses shared fixtures by default. See [frontend setup and FastAPI connection](apps/web/README.md) to connect the local backend. Implementation is split across four teammates; the runbook is [#21](https://github.com/tm1944/hypothesis-globe/issues/21).
 
