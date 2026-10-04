@@ -69,7 +69,7 @@ DATA_MODE=api
 API_BASE_URL=http://127.0.0.1:43124
 ```
 
-Default mode is `fixture`. These variables stay server-side. Never put TigerData, FIRMS, or Gemini credentials in browser configuration. For deployment, `API_BASE_URL` must be reachable from the Next.js server. The browser keeps using relative `/api` URLs.
+Default mode is `fixture`. These variables stay server-side. Never put the database URL or Gemini credentials in browser configuration. For deployment, `API_BASE_URL` must be reachable from the Next.js server. The browser keeps using relative `/api` URLs.
 
 | Browser endpoint | FastAPI endpoint | Current caller / behavior |
 | --- | --- | --- |

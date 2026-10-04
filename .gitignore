@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
 .env.local
+*-credentials.sql
 .DS_Store
 data/snapshots/*.json

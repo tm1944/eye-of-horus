@@ -26,11 +26,11 @@ User preferences are read from `data/user_config.json` at runtime. Shape:
 
 ## 2. Stage 1 — Hard Filters (SQL)
 
-Applied in Snowflake (or in-Python against fixture JSON when `SNOWFLAKE_ACCOUNT` is unset).
+Applied in TigerData (or in Python against fixture JSON when `DATABASE_URL` is unset).
 
 | Filter | Condition |
 | --- | --- |
-| Layer | `layer_id IN user.layers` |
+| Layer | `category IN user.layers` |
 | Significance | `significance >= user.significanceFloor` |
 | Recency | `occurred_at >= NOW() - 7 days` |
 
@@ -169,7 +169,7 @@ If `GOOGLE_API_KEY` is unset or the Gemini call fails, `get_feed_smart` falls ba
 
 | Condition | Behaviour |
 | --- | --- |
-| `SNOWFLAKE_ACCOUNT` unset | Stage 1 runs against `data/fixtures/events.json` |
+| `DATABASE_URL` unset | Stage 1 runs against `data/fixtures/events.json` |
 | `GOOGLE_API_KEY` unset | `get_feed_smart` skips re-ranking; `generate_links` returns fixture links |
 | Empty `coordinates` | `coord_score` returns 0.5 for all events |
 | Empty `keywords` | `keyword_score` returns 0.5 for all events |

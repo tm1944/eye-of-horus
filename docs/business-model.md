@@ -1,8 +1,6 @@
 # Global events globe. Business model and hackathon brief
 
-> Current team decision: TigerData/PostgreSQL replaces Snowflake. The Snowflake-specific setup and constraints below are historical. Use `apps/api/README.md` for the current connection and API contract; coordinate PostgreSQL DDL with Track B.
-
-Operator constraint. The team has free Google API access and free Snowflake API access. Do not drop Snowflake or Google Maps or Gemini to save money. Challenge those vendors only when they hurt weekend speed, live-demo reliability, licensing, or product quality.
+Operator constraint. The team has free Google API access and a TigerData database. Do not drop TigerData or Google Maps or Gemini to save money. Challenge those vendors only when they hurt weekend speed, live-demo reliability, licensing, or product quality.
 
 Later paid path. When credits end, keep the same event schema and move the warehouse bill and the Google Maps or Gemini bill onto a paid project. Do not redesign the product around cost.
 
@@ -63,28 +61,28 @@ A 1 to 2 day hackathon must prove four things only.
 3. One relation card that a judge can check against sources.
 4. A sentence on who would pay and why this is not Liveuamap.
 
-Do not prove Snowflake scale. Do not prove a full news firehose. Do not prove that Gemini discovered a new war.
+Do not prove database scale. Do not prove a full news firehose. Do not prove that Gemini discovered a new war.
 
-## 3. Improved model. Keep Snowflake and Google. Isolate their failure modes.
+## 3. Improved model. Keep TigerData and Google. Isolate their failure modes.
 
-Proposed pipeline. Live news APIs to Snowflake to a Google LLM. That story is fine for judges if the demo still works when one hop dies.
+Proposed pipeline. Live hazard feeds to TigerData to a Google LLM. That story is fine for judges if the demo still works when one hop dies.
 
-### Snowflake. Keep it as the warehouse.
+### TigerData. Keep it as the database.
 
 Do not drop it to save money. The team already has access.
 
-Use it this weekend if a table is writable on Friday night. Store normalized events. One row per event. Fields for source, time, lat, lon, type, confidence, and raw payload.
+Use it this weekend if a table is writable. Store normalized events. One catalog row per event, plus a kind table for the measurements that differ. Fields for source, time, lat, lon, type, and raw payload.
 
-Challenge Snowflake only on speed and reliability.
+Challenge the database only on speed and reliability.
 
-- First-time auth, roles, network policies, and Python or Node drivers can burn half a Saturday.
-- A cold warehouse can stall the first query during a live pitch.
-- A campus firewall can block 443 to Snowflake.
+- First-time auth and the Python driver can burn time on Saturday morning.
+- A paused service can stall the first query during a live pitch.
+- A campus firewall can block the database port.
 - Debugging SQL on a shared account is slower than debugging a local file when the globe is blank.
 
-Demo path. Snowflake is the system of record when the connector is green. The API that feeds the globe must also read a local snapshot. Write that snapshot from Snowflake on a timer. If Snowflake is dark, serve the last good snapshot. Judges see a live map either way.
+Demo path. TigerData is the system of record when `DATABASE_URL` connects. The API that feeds the globe must also read a local snapshot. Write that snapshot after a successful read. If the database is dark, serve the last good snapshot. Judges see a live map either way.
 
-Later enterprise path. Same schema. Streams or tasks. Role-based shares to a government or insurer tenant. Geospatial joins stay in Snowflake. Brief paid note. When the free grant ends, turn on a paid warehouse. Do not rewrite the model.
+Later path. Same schema. Geospatial joins stay in Postgres. When the free grant ends, keep the same tables on a paid TigerData service. Do not rewrite the model.
 
 ### Google Maps. Keep it as the globe.
 
@@ -106,7 +104,7 @@ Challenge Gemini on product quality.
 - Hallucinated coordinates and fake causal links will lose judges and would lose a real buyer.
 - Research finds shallow causal performance, order fallacies, and weak scores on real-world causal extraction. Best reported average F1 on ReCAST was 0.477. ([EMNLP 2024](https://aclanthology.org/2024.emnlp-main.590.pdf), [NeurIPS 2024](https://proceedings.neurips.cc/paper_files/paper/2024/file/af2bb2b2280d36f8842e440b4e275152-Paper-Conference.pdf), [ReCAST](https://arxiv.org/html/2505.18931v1).)
 
-### News APIs. This is the weak hop, not Snowflake.
+### News APIs. This is the weak hop, not the database.
 
 Do not make a commercial news API the core of the weekend build. Developer NewsAPI is for development only. Production Business is $449 per month. Terms forbid republishing copyrighted material and forbid building a competing news database. ([NewsAPI pricing](https://newsapi.org/pricing), [NewsAPI terms](https://newsapi.org/terms).) ReliefWeb, USGS, and FIRMS are the safer weekend sources.
 
@@ -114,7 +112,7 @@ Improved weekend pipeline:
 
 1. Poll USGS and FIRMS on a short timer.
 2. Optionally pull ReliefWeb reports and a small GDELT Project export or GDELT Cloud trial.
-3. Write normalized rows to Snowflake.
+3. Write normalized rows to TigerData.
 4. Mirror to a local snapshot for the globe.
 5. Run Gemini offline on a curated bundle to emit relation cards.
 6. Serve a Next-class or Vite-class web app on Google Maps.
@@ -210,22 +208,22 @@ The card that survives a judge opening both source URLs. The map is table stakes
 - Photorealistic 3D tiles.
 - Wars, terror, and financial shocks as live classifiers.
 - Multiplayer accounts, auth, and billing.
-- Snowflake streams, dbt, and a full semantic layer.
+- A full semantic layer and streaming transforms.
 - Claiming OEM rights on GDELT Cloud.
 
 ## 8. MVP for four students in a weekend
 
-Assume the four already have Google and Snowflake credentials before kickoff.
+Assume the four already have Google and TigerData credentials before kickoff.
 
 **Student A. Globe.** Maps JS, layer toggles, heatmap, marker popups, mobile layout, attribution.
 
-**Student B. Ingest.** USGS and FIRMS into Snowflake. Snapshot writer. Health page that shows last success time.
+**Student B. Ingest.** USGS and FIRMS into TigerData. Snapshot writer. Health page that shows last success time.
 
 **Student C. Relations.** Curated bundle of 10 to 20 events. Gemini batch. Cards with sources and confidence. No live prompt on the critical click.
 
 **Student D. Narrative and fallback.** Script, sample buyer slide, offline snapshot, and a recorded 60-second backup video.
 
-Must-have Friday night. Keys work. One Snowflake table accepts a row. One map load shows a hardcoded USGS point.
+Must-have Friday night. Keys work. One TigerData table accepts a row. One map load shows a hardcoded USGS point.
 
 Must-have Saturday night. Two live layers. One relation card. Snapshot fallback.
 
@@ -238,7 +236,7 @@ If a student is missing. Drop student D’s slide polish last. Never drop the fa
 ### Only the team can decide
 
 - Which student hackathon and which judging rubric.
-- Whether the live demo network can reach Snowflake and Google.
+- Whether the live demo network can reach TigerData and Google.
 - Whether GDELT Cloud trial or raw GDELT Project files are allowed by that event’s rules.
 - Whether they will name a fake company or stay a weekend tool.
 - Whether the first buyer story is NGO, insurer, or campus OSINT club.
@@ -271,6 +269,6 @@ If a student is missing. Drop student D’s slide polish last. Never drop the fa
 - ACLED enterprise list price.
 - Official CanadaBuys dollar figure for W8484-26EK05.
 - Whether the team’s “free Google” grant includes Maps JS, Geocoding, and Gemini or only some of those APIs.
-- Whether the team’s “free Snowflake” grant allows outbound shares to judges’ browsers or only warehouse SQL.
+- Whether the team’s TigerData grant allows the API host to connect, which is the only path the browser needs. The browser never opens the database.
 
 Guess. A four-person weekend that ships USGS plus FIRMS plus three Gemini cards plus a Maps globe will beat a weekend that tries to ingest all world news.

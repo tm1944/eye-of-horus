@@ -2,22 +2,66 @@
 
 A Google Maps globe with heatmaps of significant events. Layers toggle on and off. The product is not another news blob. It fuses open sensors with a small, source-linked hypothesis graph and an explicit unknown state.
 
-Implementation is split across four teammate tracks. Start at the [runbook, #21](https://github.com/tm1944/hypothesis-globe/issues/21).
+Events already live in the shared TigerData database. A new machine only needs the app installed and a connection string. Do not recreate the schema or reload USGS, GDACS, or FIRMS.
 
-The shared schemas, fixtures, and Track C API are implemented. For local API
-setup and tests, see [apps/api/README.md](apps/api/README.md). From `apps/api`,
-install with `pip install -r requirements.txt`, run with
-`uvicorn main:app --reload --host 127.0.0.1 --port 43124`, and test with
-`python -m unittest discover -s tests -v`. Use Python 3.12+ in a virtual environment.
-Leave `DATABASE_URL` unset for fixtures. The protected `/ingest/run` endpoint
-executes a server-configured `INGEST_COMMAND`; Track B must supply the loader.
+## Set up on a new machine
 
-The Next.js frontend foundation is in `apps/web`. Start locally with `cd apps/web`, `npm ci`, and `npm run dev`, then open http://localhost:3000. It uses shared fixtures by default. See [frontend setup and FastAPI connection](apps/web/README.md) to connect the local backend. Implementation is split across four teammates; the runbook is [#21](https://github.com/tm1944/hypothesis-globe/issues/21).
+Node.js 20.9+ and Python 3.12+.
 
+1. Clone the repo and create a gitignored env file at the repo root:
 
-Issues are ordered most critical to least critical. Labels mark `critical` / `high` / `medium` / `low` plus `UI`, `backend`, `data`, `ml`, `demo`, `docs`, `contract`, and `parallel`.
+```bash
+cp .env.example .env
+```
 
-Repo: https://github.com/tm1944/hypothesis-globe
+On Windows PowerShell: `Copy-Item .env.example .env`
+
+2. Put the TigerData URL in `DATABASE_URL`. From a terminal that is logged in (`tiger auth login`):
+
+```bash
+tiger service list
+tiger db uri SERVICE_ID --with-password
+```
+
+Paste the printed `postgresql://...` string into `.env`. Leave `FIRMS_MAP_KEY` blank. That key is only for loading new hotspots, and the database already has its data.
+
+3. Start the API so it reads that database. The frontend expects port 8000.
+
+```bash
+cd apps/api
+python -m venv .venv
+```
+
+Windows: `.venv\Scripts\activate`  
+macOS/Linux: `source .venv/bin/activate`
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+`GET /health` should report `"database": "ok"`. If `DATABASE_URL` is empty, the API serves fixture JSON instead.
+
+4. In a second terminal, from the repo root, start the site and point it at the API:
+
+```bash
+cd apps/web
+npm ci
+cp .env.example .env.local
+```
+
+Set these in `apps/web/.env.local`, then restart Next.js after any change:
+
+```dotenv
+DATA_MODE=api
+API_BASE_URL=http://127.0.0.1:8000
+```
+
+```bash
+npm run dev
+```
+
+Open http://localhost:3000. The browser talks only to `/api` on port 3000. Next.js forwards those calls to FastAPI. Do not put `DATABASE_URL` in the frontend env.
 
 ## Weekend sources
 
@@ -27,35 +71,19 @@ Repo: https://github.com/tm1944/hypothesis-globe
 
 Do not make a commercial news API the core of the demo. NewsAPI and GDELT Cloud restrict republish and resale.
 
-## Local API (fixtures)
-
-Python 3.12+. Leave `DATABASE_URL` unset for fixtures. See `apps/api/README.md` for TigerData, health checks, and `INGEST_SECRET`.
-
-```bash
-cd apps/api
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 127.0.0.1 --port 43124
-curl http://127.0.0.1:43124/health
-curl 'http://127.0.0.1:43124/events?fixture=1'
-```
-
-CORS defaults to the Vite origin `http://127.0.0.1:43123` (override with `CORS_ORIGIN` or `VITE_ORIGIN`).
-
 ## Stack
 
-The current stack uses Next.js, react-globe.gl, FastAPI, Gemini, and TigerData. TigerData replaces Snowflake following the team pivot.
+Google Maps, Gemini, and TigerData stay. Cost is out of scope.
 
 - Next.js App Router + React + TypeScript (installed versions in `apps/web/package.json`)
 - Main screen: `react-globe.gl` + Three.js with spinning Earth, click coordinates, and fixture markers
 - Google Maps + deck.gl remains the original regional-map proposal; heatmaps and arcs are not implemented yet
 - FastAPI for backend data, reached through the Next.js `/api` proxy
-- TigerData/PostgreSQL. Confirm raw.ingest_batch, mart.event, and mart.event_link with Track B.
-
-- Fixture JSON until the warehouse answers
+- TigerData (Postgres + Timescale). `raw.ingest_batch` plus `mart.event` plus one table per event kind
+- Fixture JSON until `DATABASE_URL` is set
 - Gemini `gemini-3.5-flash-lite` extract, `gemini-3.8-flash` links
 
-Access TigerData and Gemini only from the backend. Do not use deprecated Maps HeatmapLayer. Do not start photorealistic 3D this weekend.
+Do not call TigerData or Gemini from the browser. Do not use deprecated Maps HeatmapLayer. Do not start photorealistic 3D this weekend.
 
 ## Four students in parallel
 
@@ -71,6 +99,10 @@ Share schema and fixtures first. Then these tracks do not wait on each other.
 
 Everyone also owns #1. Setup and runbook live on #21.
 
+Repo: https://github.com/tm1944/hypothesis-globe
+
+Issues are ordered most critical to least critical. Labels mark `critical` / `high` / `medium` / `low` plus `UI`, `backend`, `data`, `ml`, `demo`, `docs`, `contract`, and `parallel`.
+
 ## Issues, most critical first
 
 - P0 [#21](https://github.com/tm1944/hypothesis-globe/issues/21) Repo setup and four-track runbook
@@ -78,7 +110,7 @@ Everyone also owns #1. Setup and runbook live on #21.
 - P0 [#1](https://github.com/tm1944/hypothesis-globe/issues/1) Shared Event schema and weekend fixtures
 - P0 [#2](https://github.com/tm1944/hypothesis-globe/issues/2) FastAPI GET /events from fixtures
 - P0 [#3](https://github.com/tm1944/hypothesis-globe/issues/3) Google Maps vector map with one fixture point
-- P0 [#4](https://github.com/tm1944/hypothesis-globe/issues/4) Snowflake DDL and Python connector
+- P0 [#4](https://github.com/tm1944/hypothesis-globe/issues/4) TigerData DDL and Python connector
 - P1 [#5](https://github.com/tm1944/hypothesis-globe/issues/5) Layer toggles and LayerState
 - P1 [#6](https://github.com/tm1944/hypothesis-globe/issues/6) deck.gl heatmap and scatterplot overlay
 - P1 [#7](https://github.com/tm1944/hypothesis-globe/issues/7) USGS ingest plus local snapshot
@@ -108,4 +140,4 @@ The wow moment is a card a judge can open in two real source URLs.
 
 ## Cut list
 
-Real-time social firehoses. Custom models. Photorealistic 3D tiles. Live war, terror, and finance classifiers. Auth and billing. Snowflake streams and dbt. Claiming OEM rights on GDELT Cloud.
+Real-time social firehoses. Custom models. Photorealistic 3D tiles. Live war, terror, and finance classifiers. Auth and billing. Claiming OEM rights on GDELT Cloud.

@@ -8,7 +8,7 @@ get_feed_smart(n)   -- same but with Gemini re-rank when keyword scores are weak
 get_globe_pins(n)   -- top n events spread across the globe for pin display
 
 All functions read user preferences from data/user_config.json.
-Falls back to data/fixtures/events.json when SNOWFLAKE_ACCOUNT is unset.
+Falls back to data/fixtures/events.json when DATABASE_URL is unset.
 
 See docs/personalization_algorithm.md for full algorithm spec.
 """
@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -166,53 +167,16 @@ def score_event(event: dict, config: dict) -> float:
 # Data loading
 # ---------------------------------------------------------------------------
 
-def _normalize_row(row: dict) -> dict:
-    """Map Snowflake snake_case columns to Event schema camelCase field names."""
-    mapping = {
-        "layer_id": "layerId",
-        "source_url": "sourceUrl",
-        "occurred_at": "occurredAt",
-        "updated_at": "updatedAt",
-        "alt_m": "altM",
-        "geo_precision": "geoPrecision",
-        "geo_source": "geoSource",
-        "raw_ref": "rawRef",
-    }
-    return {mapping.get(k, k): v for k, v in row.items()}
+def _load_events_database(config: dict) -> list[dict]:
+    api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
+    from db import load_feed_events
 
-
-def _load_events_snowflake(config: dict) -> list[dict]:
-    import snowflake.connector  # type: ignore
-
-    layers = config.get("layers", [])
-    sig_floor = config.get("significanceFloor", 0)
-    placeholders = ", ".join(["%s"] * len(layers))
-
-    conn = snowflake.connector.connect(
-        account=os.environ["SNOWFLAKE_ACCOUNT"],
-        user=os.environ["SNOWFLAKE_USER"],
-        password=os.environ["SNOWFLAKE_PASSWORD"],
-        database=os.environ.get("SNOWFLAKE_DATABASE", "EVENTS"),
-        schema="MART",
-        warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "EVENTS_XS"),
+    return load_feed_events(
+        list(config.get("layers") or []),
+        float(config.get("significanceFloor") or 0),
     )
-    try:
-        cur = conn.cursor(snowflake.connector.DictCursor)
-        cur.execute(
-            f"""
-            SELECT *
-            FROM EVENT
-            WHERE layer_id IN ({placeholders})
-              AND significance >= %s
-              AND occurred_at >= DATEADD(day, -7, CURRENT_TIMESTAMP)
-            ORDER BY occurred_at DESC
-            LIMIT 5000
-            """,
-            layers + [sig_floor],
-        )
-        return [_normalize_row(dict(row)) for row in cur.fetchall()]
-    finally:
-        conn.close()
 
 
 def _load_events_fixture(config: dict) -> list[dict]:
@@ -227,8 +191,13 @@ def _load_events_fixture(config: dict) -> list[dict]:
 
 
 def _load_events(config: dict) -> list[dict]:
-    if os.environ.get("SNOWFLAKE_ACCOUNT"):
-        return _load_events_snowflake(config)
+    api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
+    from db import database_configured
+
+    if database_configured():
+        return _load_events_database(config)
     return _load_events_fixture(config)
 
 
