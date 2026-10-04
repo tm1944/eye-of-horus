@@ -13,7 +13,8 @@ from fastapi.testclient import TestClient
 
 import main
 import tigerdata_client
-from tigerdata_client import DatabasePing, _row_to_event
+from tigerdata_client import _row_to_event
+from db import DatabasePing
 
 
 class ApiTests(unittest.TestCase):
@@ -85,8 +86,8 @@ class ApiTests(unittest.TestCase):
             fetch.assert_not_called()
 
     def test_live_filter_and_small_limit_preserve_fallback_dataset(self):
-        healthy = DatabasePing("ok", "ok", "2026-10-03T14:00:00Z")
-        dark = DatabasePing("dark", "dark", None, "simulated outage")
+        healthy = DatabasePing("ok", "2026-10-03T14:00:00Z")
+        dark = DatabasePing("dark", None, "simulated outage")
 
         def fetch(*, limit=None):
             return self.events[:limit], healthy
@@ -98,11 +99,11 @@ class ApiTests(unittest.TestCase):
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(None, dark)):
             response = self.client.get("/events")
             self.assertEqual(response.json()["events"], self.events)
-            self.assertEqual(response.json()["sourceStatus"]["tigerdata"], "dark")
+            self.assertEqual(response.json()["sourceStatus"]["database"], "dark")
 
     def test_corrupt_snapshot_falls_back_to_fixtures(self):
         main.SNAPSHOTS_DIR.mkdir()
-        dark = DatabasePing("dark", "dark", None, "simulated outage")
+        dark = DatabasePing("dark", None, "simulated outage")
         for content in ("[", "[{}]", '["invalid event"]'):
             with self.subTest(content=content):
                 main.EVENTS_SNAPSHOT.write_text(content)
@@ -114,12 +115,12 @@ class ApiTests(unittest.TestCase):
     def test_bad_live_rows_do_not_replace_last_good_snapshot(self):
         main.SNAPSHOTS_DIR.mkdir()
         main.EVENTS_SNAPSHOT.write_text(json.dumps(self.events))
-        healthy = DatabasePing("ok", "ok", None)
+        healthy = DatabasePing("ok", None)
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=([{}], healthy)):
             response = self.client.get("/events")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["events"], self.events)
-            self.assertEqual(response.json()["sourceStatus"]["tigerdata"], "error")
+            self.assertEqual(response.json()["sourceStatus"]["database"], "error")
             self.assertEqual(json.loads(main.EVENTS_SNAPSHOT.read_text()), self.events)
 
     def test_health_fails_when_fixture_cache_is_unreadable(self):
@@ -131,16 +132,16 @@ class ApiTests(unittest.TestCase):
 
     def test_outage_without_cache_names_tigerdata(self):
         main.EVENTS_FIXTURE.unlink()
-        dark = DatabasePing("dark", "dark", None, "simulated outage")
+        dark = DatabasePing("dark", None, "simulated outage")
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(None, dark)), patch.object(main, "ping_and_warmup", return_value=dark):
             self.assertFalse(self.client.get("/health").json()["ok"])
             response = self.client.get("/events")
             self.assertEqual(response.status_code, 503)
-            self.assertEqual(response.json()["detail"]["failingSource"], "tigerdata")
+            self.assertEqual(response.json()["detail"]["failingSource"], "database")
 
     def test_fixture_sources_are_not_reported_as_live(self):
         status = self.client.get("/events").json()["sourceStatus"]
-        self.assertEqual(status, {"usgs": "fixture", "firms": "fixture", "tigerdata": "fixture"})
+        self.assertEqual(status, {"usgs": "fixture", "firms": "fixture", "database": "fixture"})
 
     def test_cursor_pages_all_results_and_rejects_changed_data(self):
         first = self.client.get("/events?limit=1").json()
@@ -179,19 +180,31 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json()["status"], "completed")
         self.assertEqual(response.json()["lastIngestAt"], "2026-10-03T15:00:00Z")
 
+    def test_bundled_loader_runs_through_protected_runner(self):
+        import sys
+
+        healthy = DatabasePing("ok", "2026-10-03T16:00:00Z")
+        with patch.dict(os.environ, {"DATABASE_URL": "configured", "INGEST_SECRET": "test-only"}), patch.object(
+            main, "run_ingest"
+        ) as runner, patch.object(main, "ping_and_warmup", return_value=healthy):
+            response = self.client.post("/ingest/run", headers={"X-Ingest-Secret": "test-only"})
+        self.assertEqual(response.status_code, 200)
+        runner.assert_called_once_with(main.REPO_ROOT, default_command=[sys.executable, "-m", "jobs.ingest"])
+        self.assertEqual(response.json()["lastIngestAt"], healthy.last_ingest_at)
+
     def test_health_checks_mart_after_successful_ping(self):
-        healthy = DatabasePing("ok", "ok", None)
-        unavailable = DatabasePing("error", "ok", None, "MART.EVENT missing")
+        healthy = DatabasePing("ok", None)
+        unavailable = DatabasePing("error", None, "MART.EVENT missing")
         with patch.object(main, "ping_and_warmup", return_value=healthy), patch.object(main, "fetch_mart_events", return_value=(None, unavailable)):
             body = self.client.get("/health").json()
         self.assertTrue(body["ok"])
-        self.assertEqual(body["tigerdata"], "error")
+        self.assertEqual(body["database"], "error")
         self.assertEqual(body["dataSource"], "fixture")
         self.assertIn("MART.EVENT", body["detail"])
 
     def test_health_rejects_unusable_mart_with_no_cache(self):
         main.EVENTS_FIXTURE.unlink()
-        healthy = DatabasePing("ok", "ok", None)
+        healthy = DatabasePing("ok", None)
         with patch.object(main, "ping_and_warmup", return_value=healthy), patch.object(main, "fetch_mart_events", return_value=([{}], healthy)):
             body = self.client.get("/health").json()
         self.assertFalse(body["ok"])
@@ -200,19 +213,19 @@ class ApiTests(unittest.TestCase):
     def test_successful_empty_warehouse_remains_empty(self):
         main.SNAPSHOTS_DIR.mkdir()
         main.EVENTS_SNAPSHOT.write_text(json.dumps(self.events))
-        healthy = DatabasePing("ok", "ok", None)
+        healthy = DatabasePing("ok", None)
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=([], healthy)), patch.object(main, "ping_and_warmup", return_value=healthy):
             body = self.client.get("/events").json()
             health = self.client.get("/health").json()
         self.assertEqual(body["events"], [])
-        self.assertEqual(body["sourceStatus"]["tigerdata"], "ok")
+        self.assertEqual(body["sourceStatus"]["database"], "ok")
         self.assertEqual(json.loads(main.EVENTS_SNAPSHOT.read_text()), [])
         self.assertTrue(health["ok"])
         self.assertEqual(health["dataSource"], "warehouse")
 
     def test_live_links_are_cached_for_an_outage(self):
-        healthy = DatabasePing("ok", "ok", None)
-        dark = DatabasePing("dark", "dark", None, "simulated outage")
+        healthy = DatabasePing("ok", None)
+        dark = DatabasePing("dark", None, "simulated outage")
         link = {**self.links[0], "id": "link:live", "rationale": "Warehouse relation"}
         path = f"/events/{self.events[0]['id']}/links"
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(self.events, healthy)), patch.object(main, "fetch_mart_links", return_value=([link], healthy)):
@@ -222,7 +235,7 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(self.client.get(path).json(), [link])
 
     def test_invalid_live_links_use_existing_cache(self):
-        healthy = DatabasePing("ok", "ok", None)
+        healthy = DatabasePing("ok", None)
         path = f"/events/{self.events[0]['id']}/links"
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(self.events, healthy)), patch.object(main, "fetch_mart_links", return_value=([{}], healthy)):
             self.assertEqual(self.client.get(path).json(), self.links)
@@ -234,10 +247,10 @@ class ApiTests(unittest.TestCase):
             "lastIngestAt": "2026-10-03T14:00:00Z",
             "sourceStatus": {"usgs": "ok", "firms": "error"},
         }))
-        healthy = DatabasePing("ok", "ok", None)
+        healthy = DatabasePing("ok", None)
         with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(self.events, healthy)):
             status = self.client.get("/events").json()["sourceStatus"]
-        self.assertEqual(status, {"usgs": "ok", "firms": "error", "tigerdata": "ok"})
+        self.assertEqual(status, {"usgs": "ok", "firms": "error", "database": "ok"})
         self.assertEqual(json.loads(main.SNAPSHOT_META.read_text())["sourceStatus"]["firms"], "error")
 
     def test_corrupt_metadata_does_not_break_health(self):
@@ -256,12 +269,12 @@ class ApiTests(unittest.TestCase):
     def test_outage_health_uses_snapshot_ingest_time(self):
         main.SNAPSHOTS_DIR.mkdir()
         main.SNAPSHOT_META.write_text('{"lastIngestAt":"2026-10-03T14:00:00Z"}')
-        dark = DatabasePing("dark", "dark", None, "simulated outage")
+        dark = DatabasePing("dark", None, "simulated outage")
         with patch.object(main, "ping_and_warmup", return_value=dark):
             body = self.client.get("/health").json()
         self.assertTrue(body["ok"])
         self.assertEqual(body["lastIngestAt"], "2026-10-03T14:00:00Z")
-        self.assertEqual(body["tigerdata"], "dark")
+        self.assertEqual(body["database"], "dark")
 
     def test_connector_warmup_and_ingest_timestamp(self):
         from unittest.mock import MagicMock
@@ -328,7 +341,7 @@ class ApiTests(unittest.TestCase):
 
         connector = MagicMock()
         cursor = connector.connect.return_value.cursor.return_value.__enter__.return_value
-        healthy = DatabasePing("ok", "ok", None)
+        healthy = tigerdata_client.DatabasePing("ok", "ok", None)
         env = {"DATABASE_URL": "postgresql://test-only.invalid/db"}
         with patch.dict(os.environ, env), patch.object(tigerdata_client, "_import_connector", return_value=connector), patch.object(tigerdata_client, "ping_and_warmup", return_value=healthy):
             for table, rows, fetch in (

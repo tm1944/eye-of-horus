@@ -28,6 +28,16 @@ class IngestTests(unittest.TestCase):
         ingest_runner.run_ingest(self.root)
         self.assertEqual((self.root / "completed.txt").read_text(), "done")
 
+    def test_default_command_and_explicit_override(self):
+        default = [sys.executable, "-c", "from pathlib import Path; Path('default.txt').touch()"]
+        ingest_runner.run_ingest(self.root, default_command=default)
+        self.assertTrue((self.root / "default.txt").exists())
+        (self.root / "default.txt").unlink()
+        self.command("from pathlib import Path; Path('override.txt').touch()")
+        ingest_runner.run_ingest(self.root, default_command=default)
+        self.assertFalse((self.root / "default.txt").exists())
+        self.assertTrue((self.root / "override.txt").exists())
+
     def test_missing_or_malformed_configuration(self):
         for value in ("", "not-json", '"shell command"', '[]', '[1]'):
             with self.subTest(value=value):
