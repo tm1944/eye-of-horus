@@ -27,3 +27,26 @@ export function countryBorders(features: { geometry: Geometry }[]): number[][][]
     }));
   });
 }
+
+/** Match the great-circle contour subdivision used by ConicPolygonGeometry. */
+export function borderContour(line: number[][], resolution: number): number[][] {
+  const result: number[][] = [];
+  const radians = Math.PI / 180;
+  const vector = ([lng, lat]: number[]) => [Math.cos(lat*radians)*Math.cos(lng*radians), Math.cos(lat*radians)*Math.sin(lng*radians), Math.sin(lat*radians)];
+  line.forEach((point, index) => {
+    if (index) {
+      const a = vector(line[index-1]), b = vector(point);
+      const angle = Math.acos(Math.max(-1, Math.min(1, a.reduce((sum, value, i) => sum + value*b[i], 0))));
+      if (angle / radians > resolution) {
+        const step = 1 / Math.ceil(angle / radians / resolution);
+        for (let t = step; t < 1; t += step) {
+          const first = Math.sin((1-t)*angle)/Math.sin(angle), second = Math.sin(t*angle)/Math.sin(angle);
+          const [x,y,z] = a.map((value,i) => first*value + second*b[i]);
+          result.push([Math.atan2(y,x)/radians, Math.atan2(z,Math.hypot(x,y))/radians]);
+        }
+      }
+    }
+    result.push(point);
+  });
+  return result;
+}

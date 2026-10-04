@@ -15,7 +15,13 @@
     "geoSource": "native",
     "weight": 6.2,
     "significance": 80,
-    "entities": [{ "type": "place", "text": "Napa", "confidence": 0.9 }],
+    "entities": [
+      {
+        "type": "place",
+        "text": "Napa",
+        "confidence": 0.9
+      }
+    ],
     "rawRef": "RAW.INGEST_BATCH:usgs-fixture-001"
   },
   {
@@ -34,7 +40,13 @@
     "geoSource": "native",
     "weight": 0.82,
     "significance": 55,
-    "entities": [{ "type": "place", "text": "Napa Valley", "confidence": 0.7 }],
+    "entities": [
+      {
+        "type": "place",
+        "text": "Napa Valley",
+        "confidence": 0.7
+      }
+    ],
     "rawRef": "RAW.INGEST_BATCH:firms-fixture-001"
   },
   {
@@ -54,9 +66,917 @@
     "weight": 1,
     "significance": 40,
     "entities": [
-      { "type": "place", "text": "Napa County", "confidence": 0.86 },
-      { "type": "org", "text": "local outlets", "confidence": 0.4 }
+      {
+        "type": "place",
+        "text": "Napa County",
+        "confidence": 0.86
+      },
+      {
+        "type": "org",
+        "text": "local outlets",
+        "confidence": 0.4
+      }
     ],
     "rawRef": "RAW.INGEST_BATCH:gdelt-fixture-001"
+  },
+  {
+    "id": "societal-demo:north-america:technology",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "technology",
+    "title": "[Demo] San Francisco: Open computing platform launch",
+    "summary": "A fictional startup introduces an open computing platform for local businesses. Not a real report.",
+    "occurredAt": "2026-10-03T08:00:00Z",
+    "updatedAt": "2026-10-03T08:00:00Z",
+    "lng": -122.4194,
+    "lat": 37.7749,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 96,
+    "entities": [
+      {
+        "type": "place",
+        "text": "San Francisco",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:north-america:politics",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "politics",
+    "title": "[Demo] Washington: Digital services policy consultation",
+    "summary": "A fictional public consultation considers rules for digital public services. Not a real report.",
+    "occurredAt": "2026-10-03T08:08:00Z",
+    "updatedAt": "2026-10-03T08:08:00Z",
+    "lng": -77.0369,
+    "lat": 38.9072,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 94,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Washington",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:north-america:finance",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "finance",
+    "title": "[Demo] New York: Small-business investment initiative",
+    "summary": "A fictional investment initiative explores funding for small businesses. Not a real report.",
+    "occurredAt": "2026-10-03T08:16:00Z",
+    "updatedAt": "2026-10-03T08:16:00Z",
+    "lng": -74.006,
+    "lat": 40.7128,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 92,
+    "entities": [
+      {
+        "type": "place",
+        "text": "New York",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:north-america:humanitarian",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "humanitarian",
+    "title": "[Demo] Toronto: Community housing and skills forum",
+    "summary": "A fictional community forum discusses housing access and workforce training. Not a real report.",
+    "occurredAt": "2026-10-03T08:24:00Z",
+    "updatedAt": "2026-10-03T08:24:00Z",
+    "lng": -79.3832,
+    "lat": 43.6532,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 90,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Toronto",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:north-america:conflict",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "conflict",
+    "title": "[Demo] Mexico City: Peacebuilding dialogue exercise",
+    "summary": "A fictional mediation exercise explores dialogue and civilian support; no real conflict is alleged. Not a real report.",
+    "occurredAt": "2026-10-03T08:32:00Z",
+    "updatedAt": "2026-10-03T08:32:00Z",
+    "lng": -99.1332,
+    "lat": 19.4326,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 88,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Mexico City",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:north-america:news",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "news",
+    "title": "[Demo] Vancouver: Public-interest journalism forum",
+    "summary": "A fictional newsroom forum discusses access to reliable local reporting. Not a real report.",
+    "occurredAt": "2026-10-03T08:40:00Z",
+    "updatedAt": "2026-10-03T08:40:00Z",
+    "lng": -123.1207,
+    "lat": 49.2827,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 86,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Vancouver",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:south-america:technology",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "technology",
+    "title": "[Demo] São Paulo: Open computing platform launch",
+    "summary": "A fictional startup introduces an open computing platform for local businesses. Not a real report.",
+    "occurredAt": "2026-10-03T09:00:00Z",
+    "updatedAt": "2026-10-03T09:00:00Z",
+    "lng": -46.6333,
+    "lat": -23.5505,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 69,
+    "entities": [
+      {
+        "type": "place",
+        "text": "São Paulo",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:south-america:politics",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "politics",
+    "title": "[Demo] Brasília: Digital services policy consultation",
+    "summary": "A fictional public consultation considers rules for digital public services. Not a real report.",
+    "occurredAt": "2026-10-03T09:08:00Z",
+    "updatedAt": "2026-10-03T09:08:00Z",
+    "lng": -47.8828,
+    "lat": -15.7939,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 72,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Brasília",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:south-america:finance",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "finance",
+    "title": "[Demo] Santiago: Small-business investment initiative",
+    "summary": "A fictional investment initiative explores funding for small businesses. Not a real report.",
+    "occurredAt": "2026-10-03T09:16:00Z",
+    "updatedAt": "2026-10-03T09:16:00Z",
+    "lng": -70.6693,
+    "lat": -33.4489,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 75,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Santiago",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:south-america:humanitarian",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "humanitarian",
+    "title": "[Demo] Bogotá: Community housing and skills forum",
+    "summary": "A fictional community forum discusses housing access and workforce training. Not a real report.",
+    "occurredAt": "2026-10-03T09:24:00Z",
+    "updatedAt": "2026-10-03T09:24:00Z",
+    "lng": -74.0721,
+    "lat": 4.711,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 78,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Bogotá",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:south-america:conflict",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "conflict",
+    "title": "[Demo] Lima: Peacebuilding dialogue exercise",
+    "summary": "A fictional mediation exercise explores dialogue and civilian support; no real conflict is alleged. Not a real report.",
+    "occurredAt": "2026-10-03T09:32:00Z",
+    "updatedAt": "2026-10-03T09:32:00Z",
+    "lng": -77.0428,
+    "lat": -12.0464,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 81,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Lima",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:south-america:news",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "news",
+    "title": "[Demo] Buenos Aires: Public-interest journalism forum",
+    "summary": "A fictional newsroom forum discusses access to reliable local reporting. Not a real report.",
+    "occurredAt": "2026-10-03T09:40:00Z",
+    "updatedAt": "2026-10-03T09:40:00Z",
+    "lng": -58.3816,
+    "lat": -34.6037,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 84,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Buenos Aires",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:europe:technology",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "technology",
+    "title": "[Demo] Berlin: Open computing platform launch",
+    "summary": "A fictional startup introduces an open computing platform for local businesses. Not a real report.",
+    "occurredAt": "2026-10-03T10:00:00Z",
+    "updatedAt": "2026-10-03T10:00:00Z",
+    "lng": 13.405,
+    "lat": 52.52,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 76,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Berlin",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:europe:politics",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "politics",
+    "title": "[Demo] Brussels: Digital services policy consultation",
+    "summary": "A fictional public consultation considers rules for digital public services. Not a real report.",
+    "occurredAt": "2026-10-03T10:08:00Z",
+    "updatedAt": "2026-10-03T10:08:00Z",
+    "lng": 4.3517,
+    "lat": 50.8503,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 79,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Brussels",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:europe:finance",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "finance",
+    "title": "[Demo] London: Small-business investment initiative",
+    "summary": "A fictional investment initiative explores funding for small businesses. Not a real report.",
+    "occurredAt": "2026-10-03T10:16:00Z",
+    "updatedAt": "2026-10-03T10:16:00Z",
+    "lng": -0.1278,
+    "lat": 51.5074,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 82,
+    "entities": [
+      {
+        "type": "place",
+        "text": "London",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:europe:humanitarian",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "humanitarian",
+    "title": "[Demo] Madrid: Community housing and skills forum",
+    "summary": "A fictional community forum discusses housing access and workforce training. Not a real report.",
+    "occurredAt": "2026-10-03T10:24:00Z",
+    "updatedAt": "2026-10-03T10:24:00Z",
+    "lng": -3.7038,
+    "lat": 40.4168,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 85,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Madrid",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:europe:conflict",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "conflict",
+    "title": "[Demo] Vienna: Peacebuilding dialogue exercise",
+    "summary": "A fictional mediation exercise explores dialogue and civilian support; no real conflict is alleged. Not a real report.",
+    "occurredAt": "2026-10-03T10:32:00Z",
+    "updatedAt": "2026-10-03T10:32:00Z",
+    "lng": 16.3738,
+    "lat": 48.2082,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 62,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Vienna",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:europe:news",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "news",
+    "title": "[Demo] Paris: Public-interest journalism forum",
+    "summary": "A fictional newsroom forum discusses access to reliable local reporting. Not a real report.",
+    "occurredAt": "2026-10-03T10:40:00Z",
+    "updatedAt": "2026-10-03T10:40:00Z",
+    "lng": 2.3522,
+    "lat": 48.8566,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 65,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Paris",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:africa:technology",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "technology",
+    "title": "[Demo] Lagos: Open computing platform launch",
+    "summary": "A fictional startup introduces an open computing platform for local businesses. Not a real report.",
+    "occurredAt": "2026-10-03T11:00:00Z",
+    "updatedAt": "2026-10-03T11:00:00Z",
+    "lng": 3.3792,
+    "lat": 6.5244,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 83,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Lagos",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:africa:politics",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "politics",
+    "title": "[Demo] Accra: Digital services policy consultation",
+    "summary": "A fictional public consultation considers rules for digital public services. Not a real report.",
+    "occurredAt": "2026-10-03T11:08:00Z",
+    "updatedAt": "2026-10-03T11:08:00Z",
+    "lng": -0.187,
+    "lat": 5.6037,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 86,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Accra",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:africa:finance",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "finance",
+    "title": "[Demo] Johannesburg: Small-business investment initiative",
+    "summary": "A fictional investment initiative explores funding for small businesses. Not a real report.",
+    "occurredAt": "2026-10-03T11:16:00Z",
+    "updatedAt": "2026-10-03T11:16:00Z",
+    "lng": 28.0473,
+    "lat": -26.2041,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 63,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Johannesburg",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:africa:humanitarian",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "humanitarian",
+    "title": "[Demo] Nairobi: Community housing and skills forum",
+    "summary": "A fictional community forum discusses housing access and workforce training. Not a real report.",
+    "occurredAt": "2026-10-03T11:24:00Z",
+    "updatedAt": "2026-10-03T11:24:00Z",
+    "lng": 36.8219,
+    "lat": -1.2921,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 66,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Nairobi",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:africa:conflict",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "conflict",
+    "title": "[Demo] Addis Ababa: Peacebuilding dialogue exercise",
+    "summary": "A fictional mediation exercise explores dialogue and civilian support; no real conflict is alleged. Not a real report.",
+    "occurredAt": "2026-10-03T11:32:00Z",
+    "updatedAt": "2026-10-03T11:32:00Z",
+    "lng": 38.7469,
+    "lat": 9.032,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 69,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Addis Ababa",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:africa:news",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "news",
+    "title": "[Demo] Cape Town: Public-interest journalism forum",
+    "summary": "A fictional newsroom forum discusses access to reliable local reporting. Not a real report.",
+    "occurredAt": "2026-10-03T11:40:00Z",
+    "updatedAt": "2026-10-03T11:40:00Z",
+    "lng": 18.4241,
+    "lat": -33.9249,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 72,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Cape Town",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:asia:technology",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "technology",
+    "title": "[Demo] Seoul: Open computing platform launch",
+    "summary": "A fictional startup introduces an open computing platform for local businesses. Not a real report.",
+    "occurredAt": "2026-10-03T12:00:00Z",
+    "updatedAt": "2026-10-03T12:00:00Z",
+    "lng": 126.978,
+    "lat": 37.5665,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 64,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Seoul",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:asia:politics",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "politics",
+    "title": "[Demo] New Delhi: Digital services policy consultation",
+    "summary": "A fictional public consultation considers rules for digital public services. Not a real report.",
+    "occurredAt": "2026-10-03T12:08:00Z",
+    "updatedAt": "2026-10-03T12:08:00Z",
+    "lng": 77.209,
+    "lat": 28.6139,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 67,
+    "entities": [
+      {
+        "type": "place",
+        "text": "New Delhi",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:asia:finance",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "finance",
+    "title": "[Demo] Singapore: Small-business investment initiative",
+    "summary": "A fictional investment initiative explores funding for small businesses. Not a real report.",
+    "occurredAt": "2026-10-03T12:16:00Z",
+    "updatedAt": "2026-10-03T12:16:00Z",
+    "lng": 103.8198,
+    "lat": 1.3521,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 70,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Singapore",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:asia:humanitarian",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "humanitarian",
+    "title": "[Demo] Jakarta: Community housing and skills forum",
+    "summary": "A fictional community forum discusses housing access and workforce training. Not a real report.",
+    "occurredAt": "2026-10-03T12:24:00Z",
+    "updatedAt": "2026-10-03T12:24:00Z",
+    "lng": 106.8456,
+    "lat": -6.2088,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 73,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Jakarta",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:asia:conflict",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "conflict",
+    "title": "[Demo] Bangkok: Peacebuilding dialogue exercise",
+    "summary": "A fictional mediation exercise explores dialogue and civilian support; no real conflict is alleged. Not a real report.",
+    "occurredAt": "2026-10-03T12:32:00Z",
+    "updatedAt": "2026-10-03T12:32:00Z",
+    "lng": 100.5018,
+    "lat": 13.7563,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 76,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Bangkok",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:asia:news",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "news",
+    "title": "[Demo] Tokyo: Public-interest journalism forum",
+    "summary": "A fictional newsroom forum discusses access to reliable local reporting. Not a real report.",
+    "occurredAt": "2026-10-03T12:40:00Z",
+    "updatedAt": "2026-10-03T12:40:00Z",
+    "lng": 139.6503,
+    "lat": 35.6762,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 79,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Tokyo",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:oceania:technology",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "technology",
+    "title": "[Demo] Sydney: Open computing platform launch",
+    "summary": "A fictional startup introduces an open computing platform for local businesses. Not a real report.",
+    "occurredAt": "2026-10-03T13:00:00Z",
+    "updatedAt": "2026-10-03T13:00:00Z",
+    "lng": 151.2093,
+    "lat": -33.8688,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 71,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Sydney",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:oceania:politics",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "politics",
+    "title": "[Demo] Canberra: Digital services policy consultation",
+    "summary": "A fictional public consultation considers rules for digital public services. Not a real report.",
+    "occurredAt": "2026-10-03T13:08:00Z",
+    "updatedAt": "2026-10-03T13:08:00Z",
+    "lng": 149.13,
+    "lat": -35.2809,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 74,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Canberra",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:oceania:finance",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "finance",
+    "title": "[Demo] Melbourne: Small-business investment initiative",
+    "summary": "A fictional investment initiative explores funding for small businesses. Not a real report.",
+    "occurredAt": "2026-10-03T13:16:00Z",
+    "updatedAt": "2026-10-03T13:16:00Z",
+    "lng": 144.9631,
+    "lat": -37.8136,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 77,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Melbourne",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:oceania:humanitarian",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "humanitarian",
+    "title": "[Demo] Brisbane: Community housing and skills forum",
+    "summary": "A fictional community forum discusses housing access and workforce training. Not a real report.",
+    "occurredAt": "2026-10-03T13:24:00Z",
+    "updatedAt": "2026-10-03T13:24:00Z",
+    "lng": 153.0251,
+    "lat": -27.4698,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 80,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Brisbane",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:oceania:conflict",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "conflict",
+    "title": "[Demo] Wellington: Peacebuilding dialogue exercise",
+    "summary": "A fictional mediation exercise explores dialogue and civilian support; no real conflict is alleged. Not a real report.",
+    "occurredAt": "2026-10-03T13:32:00Z",
+    "updatedAt": "2026-10-03T13:32:00Z",
+    "lng": 174.7762,
+    "lat": -41.2865,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 83,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Wellington",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "societal-demo:oceania:news",
+    "source": "fictional-demo",
+    "sourceUrl": null,
+    "layerId": "news",
+    "title": "[Demo] Auckland: Public-interest journalism forum",
+    "summary": "A fictional newsroom forum discusses access to reliable local reporting. Not a real report.",
+    "occurredAt": "2026-10-03T13:40:00Z",
+    "updatedAt": "2026-10-03T13:40:00Z",
+    "lng": 174.7633,
+    "lat": -36.8485,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "centroid",
+    "weight": 1,
+    "significance": 86,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Auckland",
+        "confidence": 1
+      }
+    ],
+    "rawRef": null
   }
 ]

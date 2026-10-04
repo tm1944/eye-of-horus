@@ -45,3 +45,14 @@ export async function getEvents(signal?: AbortSignal) {
   }
   throw new Error("Events changed while loading. Retry loading events.");
 }
+
+/** Load backend relationship hypotheses for either end of an event link. */
+export async function getEventLinks(eventId: string, signal?: AbortSignal): Promise<EventLink[]> {
+  const response = await fetch(`/api/events/${encodeURIComponent(eventId)}/links`, { signal, cache: "no-store" });
+  if (!response.ok) throw new Error(`Related events request failed (${response.status}).`);
+  const links: unknown = await response.json();
+  if (!Array.isArray(links) || links.some(link => !link || typeof link.sourceId !== "string" || typeof link.targetId !== "string")) {
+    throw new Error("The backend returned an invalid event links response.");
+  }
+  return links as EventLink[];
+}

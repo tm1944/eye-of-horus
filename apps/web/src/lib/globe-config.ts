@@ -1,5 +1,12 @@
 /** Visual-only settings. None are sent to FastAPI. Units are explicit below. */
 export const GLOBE = {
+  continentEdgeShadeStrength: 0.48, // 0 = flat land; 1 = black at the circular limb
+  antarcticaColor: "#ffffff",
+  hoverCountryColor: "#e6b77e", // hover changes color only, never altitude
+  selectedCountryColor: "#ed963e",
+  selectedCountrySideColor: "#9b501f", // darker orange extrusion walls
+  countryAnimationMs: 600, // land and border tween; fixed-size markers follow the surface
+  selectedCountryAltitude: 0.025, // raised country surface, fraction of globe radius
   landColor: "#9ebe8f", // dark forest green; opaque vector country surfaces
   countryBorderColor: "#759763", // country outlines/coastlines; WebGL one-pixel lines
   landAltitude: 0.001, // fraction of globe radius, below heatmaps and markers
@@ -11,32 +18,49 @@ export const GLOBE = {
   orbMaxFps: 30,
   orbMaxPixelRatio: 1.25,
   initialView: { lat: 30, lng: -110 }, // degrees, east-positive longitude
+  interactionPauseMs: 3000, // resume automatic rotation this long after globe/card input ends
+  relatedFocusMs: 1000, // camera travel time to a linked POI
+  relatedFocusAltitude: 0.9, // minimum camera altitude for linked POIs; preserve wider current views
+  relatedArcColor: "#ff3030", // floating relationship curve
+  relatedArcClearance: 0.07, // both endpoints above even raised countries and markers
+  relatedArcRise: 0.12, // extra height at the middle, in globe radii
+  relatedArcRadius: 0.3, // red tube thickness in Three.js world units
   rotationSpeed: 1, // Three.js OrbitControls speed; 1 ≈ one revolution/minute at 60 fps
   atmosphereColor: "#87c8ef",
   atmosphereAltitude: 0.12, // fraction of globe radius
   ambientLightIntensity: 2.0,
   sunlightIntensity: 1.1,
   maxPixelRatio: 1.5, // limit GPU cost on high-density displays
-  pointRadiusDegrees: 1.9, // unnumbered surface markers; 5× the original 0.38° radius
+  pointRadiusDegrees: 0.63, // unnumbered surface markers; a third of the earlier 1.9° radius
   heatmapBandwidthDegrees: 3, // smoothing radius; also bounds native heatmap mesh detail
   heatmapBaseAltitude: 0.002, // fraction of globe radius
-  heatmapLayerGap: 0.0005, // separate flat shells to avoid intersecting surfaces
-  heatmapMaxOpacity: 0.65, // allows overlapping layer colors to remain visible
+  heatmapMaxOpacity: 0.75, // densest areas keep the land faintly visible
+  heatmapOpacityGain: 1.6, // opacity per unit of normalized density, capped above
+  heatmapLowColor: "#ffd27a", // sparse marker density
+  heatmapHighColor: "#ff4d2e", // dense marker density
+  zoomInThreshold: 0.97, // camera distance / default fit below which markers replace the heatmap
   pointAltitude: 0.016, // fraction of globe radius
-  surfaceFitWidth: 0.43, // projected sphere radius / canvas width
-  surfaceFitHeight: 0.39, // projected sphere radius / canvas height
+  surfaceFitWidth: 0.36, // projected sphere radius / canvas width
+  surfaceFitHeight: 0.34, // projected sphere radius / canvas height
   zoomOutMultiplier: 1.7,
   minZoomAltitude: 0.04, // nearest camera height / globe radius (~255 km on Earth)
   pinToCardDistancePx: 80, // preferred horizontal gap when a card first appears
-  connectorInsetPx: 6, // extend under the card edge to avoid visible seams
-  connectorWidthPx: 8, // CSS pixels, constant as the globe zooms
+  connectorWidthPx: 4, // CSS pixels, constant as the globe zooms
+  cardCenterExclusion: 0.5, // new cards avoid the central half of Earth's visible radius
+  headlineMinScale: 0.88, // 88% at the limb, full size at the front
+  headlineTiltDegrees: 12, // subtle X/Y perspective tilt; expanded/dragged cards stay flat
+  headlinePerspectivePx: 900, // larger values flatten perspective
   cardEdgePaddingPx: 24, // responsive card width margin and retained-selection inset
   maxCallouts: 4, // highest-significance events; selected event takes priority
+  // One hue family per sidebar category; subcategories are shades of it.
   colors: {
-    technology: "#80e5ef",
-    earthquake: "#ffc38b", wildfire: "#ff8d91", news: "#a0d9ff",
-    humanitarian: "#d3b9ff", conflict: "#fba6bf", protest: "#f6c86b", strategic_development: "#9ec1ff", politics: "#e6d09c",
-    terror: "#ffaeae", crime: "#e7a6ff", finance: "#94e5c9", selected: "#ceffe5",
+    earthquake: "#ffc38b", wildfire: "#ff9f6b", cyclone: "#ffd9a8", flood: "#f5b26e", volcano: "#ff8a4c", drought: "#e8c08f", environment: "#ffcf96", // hazards
+    conflict: "#fba6bf", terror: "#ff8fa8", crime: "#f7bccd", protest: "#ffa3c4", strategic_development: "#ffc1d4", // security
+    politics: "#e6d09c", world: "#f0dc9e", news: "#d9c48a", media: "#f5e6b8", // politics & world
+    finance: "#94e5c9", business: "#7fd9b8", technology: "#80e5ef", science: "#a6f0e0", // economy & tech
+    humanitarian: "#d3b9ff", famine: "#c0a3f5", health: "#e0cfff", education: "#b9a8ec", // humanitarian & health
+    culture: "#a0d9ff", entertainment: "#8ccaff", sports: "#b7e3ff", fashion: "#9cc2f5", travel: "#c4e8ff", food: "#86bdf0", // culture & lifestyle
+    selected: "#ceffe5",
   } as Record<string, string>,
 };
 export const eventColor = (layer: string) => GLOBE.colors[layer] ?? "#d3b9ff";
