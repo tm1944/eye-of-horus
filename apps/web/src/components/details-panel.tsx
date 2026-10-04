@@ -4,7 +4,7 @@ import type { Event } from "@/lib/api";
 import { CATEGORY_OF, LABELS, type LayerId } from "@/lib/layers";
 import { eventColor } from "@/lib/globe-config";
 import { exactTime } from "@/lib/freshness";
-import { chips, locatorPaths, placeLabel, vitalSigns, type ChipKind } from "@/lib/briefing";
+import { chips, impactLabel, locatorPaths, placeLabel, satelliteImage, vitalSigns, type ChipKind } from "@/lib/briefing";
 import { eventCountry } from "@/lib/country-selection";
 import countries from "@/data/countries.geojson.json";
 import { Thumbnail, TimeAgo } from "@/components/event-media";
@@ -69,6 +69,8 @@ export default function DetailsPanel({ event, personal, reasons, fixture, positi
   const color = eventColor(event.layerId);
   const category = CATEGORY_OF.get(event.layerId as LayerId);
   const vitals = vitalSigns(event);
+  const impact = impactLabel(event.attributes);
+  const satellite = useMemo(() => satelliteImage(event), [event]);
   const people = chips(event);
   const country = useMemo(() => eventCountry(countries.features as CountryFeature[], event), [event]);
   const place = placeLabel(event) ?? (country ? country.properties.name : null);
@@ -111,6 +113,16 @@ export default function DetailsPanel({ event, personal, reasons, fixture, positi
         <dt>{vital.label}</dt><dd>{vital.value}</dd>
       </div>)}
     </dl>}
+
+    {impact && <p className="impact-badge">{impact}</p>}
+
+    {satellite && <section className="briefing-section briefing-satellite" aria-label="Satellite view">
+      <span className="briefing-label">Satellite view</span>
+      <Thumbnail src={satellite.src} className="briefing-satellite-image" />
+      <p className="briefing-satellite-caption">
+        NASA GIBS · VIIRS true color{satellite.fires ? " + active fires" : ""} · {new Date(`${satellite.date}T00:00:00Z`).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+      </p>
+    </section>}
 
     <section className="briefing-section briefing-rank" aria-label="Why it is a headline">
       <span className="briefing-label">Significance</span>

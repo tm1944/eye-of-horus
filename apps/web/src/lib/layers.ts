@@ -28,6 +28,13 @@ export const LABELS: Record<LayerId, string> = {
   humanitarian: "Society", famine: "Famine", health: "Health", education: "Education",
   culture: "Culture", entertainment: "Entertainment", sports: "Sports", fashion: "Fashion", travel: "Travel", food: "Food",
 };
+/** Singular kind for a natural-hazard card. Null for news and other layers. */
+const HAZARD_KINDS: Partial<Record<LayerId, string>> = {
+  earthquake: "Earthquake", wildfire: "Wildfire", cyclone: "Cyclone", flood: "Flood", volcano: "Volcano", drought: "Drought", environment: "Environment",
+};
+export function hazardLabel(layerId: string): string | null {
+  return HAZARD_KINDS[layerId as LayerId] ?? null;
+}
 // Every layer in these categories starts on; all other categories start off.
 export const DEFAULT_CATEGORIES: CategoryId[] = ["security", "politics", "economy"];
 export function defaultLayers(): LayerState {

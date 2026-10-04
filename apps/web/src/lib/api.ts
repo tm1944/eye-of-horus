@@ -5,6 +5,8 @@ export type Event = Omit<(typeof events)[number], "sourceUrl" | "imageUrl" | "su
   imageUrl: string | null;
   summary: string | null;
   rawRef: string | null;
+  /** Kind-table columns, plus GHSL exposure when the hazard job has scored the event. */
+  attributes?: Record<string, unknown>;
 };
 /** News↔news links store scores in citations; other links store a list. */
 export type LinkScores = { plausibility?: number; evidence?: number; verdict?: string; world_knowledge?: string[] };

@@ -48,17 +48,29 @@ SELECT
     ),
     '[]'::jsonb
   ) AS tags,
-  CASE e.category
-    WHEN 'earthquake' THEN (to_jsonb(eq) - 'event_id' - 'footprint')
-    WHEN 'wildfire' THEN (to_jsonb(wf) - 'event_id' - 'footprint')
-    WHEN 'cyclone' THEN (to_jsonb(cy) - 'event_id' - 'footprint')
-    WHEN 'flood' THEN (to_jsonb(fl) - 'event_id' - 'footprint')
-    WHEN 'volcano' THEN (to_jsonb(vo) - 'event_id' - 'footprint')
-    WHEN 'drought' THEN (to_jsonb(dr) - 'event_id' - 'footprint')
-    WHEN 'conflict' THEN (to_jsonb(cf) - 'event_id')
-    WHEN 'protest' THEN (to_jsonb(pr) - 'event_id')
-    WHEN 'strategic_development' THEN (to_jsonb(sd) - 'event_id')
-    ELSE '{}'::jsonb
+  COALESCE(
+    CASE e.category
+      WHEN 'earthquake' THEN (to_jsonb(eq) - 'event_id' - 'footprint')
+      WHEN 'wildfire' THEN (to_jsonb(wf) - 'event_id' - 'footprint')
+      WHEN 'cyclone' THEN (to_jsonb(cy) - 'event_id' - 'footprint')
+      WHEN 'flood' THEN (to_jsonb(fl) - 'event_id' - 'footprint')
+      WHEN 'volcano' THEN (to_jsonb(vo) - 'event_id' - 'footprint')
+      WHEN 'drought' THEN (to_jsonb(dr) - 'event_id' - 'footprint')
+      WHEN 'conflict' THEN (to_jsonb(cf) - 'event_id')
+      WHEN 'protest' THEN (to_jsonb(pr) - 'event_id')
+      WHEN 'strategic_development' THEN (to_jsonb(sd) - 'event_id')
+      ELSE '{}'::jsonb
+    END,
+    '{}'::jsonb
+  ) || CASE
+    WHEN hx.event_id IS NULL THEN '{}'::jsonb
+    ELSE jsonb_build_object(
+      'people_exposed', hx.people_exposed,
+      'radius_km', hx.radius_km,
+      'impact_score', hx.impact_score,
+      'impact_class', hx.impact_class,
+      'exposure_source', hx.exposure_source
+    )
   END AS attributes
 FROM mart.event e
 LEFT JOIN mart.earthquake eq ON eq.event_id = e.event_id
@@ -70,6 +82,7 @@ LEFT JOIN mart.drought dr ON dr.event_id = e.event_id
 LEFT JOIN mart.conflict cf ON cf.event_id = e.event_id
 LEFT JOIN mart.protest pr ON pr.event_id = e.event_id
 LEFT JOIN mart.strategic_development sd ON sd.event_id = e.event_id
+LEFT JOIN mart.hazard_exposure hx ON hx.event_id = e.event_id
 """
 
 
