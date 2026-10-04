@@ -41,7 +41,7 @@ export default function Home() {
   }
   return <main className="earth-page" aria-label="Hypothesis Globe">
     <LayerRail filters={filters} onChange={update} />
-    <div className="globe-workspace"><GlobeBoundary><EventGlobe allEvents={result?.data.events ?? emptyEvents} selectedCountries={selectedCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmap={visuals.heatmap} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} resetViewKey={resetViewKey} onReadyChange={setGlobeReady} /></GlobeBoundary></div>
+    <div className="globe-workspace"><GlobeBoundary><EventGlobe allEvents={result?.data.events ?? emptyEvents} selectedCountries={selectedCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} resetViewKey={resetViewKey} onReadyChange={setGlobeReady} /></GlobeBoundary></div>
     <SettingsRail reflowKey={[filters, selectedCountries]} actions={[
       { id: "reset", label: "Reset view", icon: "reset", disabled: !globeReady, onClick: () => setResetViewKey(value => value + 1) },
       { id: "rotation", label: rotating ? "Pause rotation" : "Resume rotation", icon: rotating ? "pause" : "play", pressed: rotating, disabled: !globeReady, onClick: () => setRotating(value => !value) },

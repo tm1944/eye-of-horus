@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
-import { LABELS, type LayerId, type HeatmapPoint } from "@/lib/layers";
+import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
+import { CATEGORIES, LABELS, type CategoryHeatmap, type CategoryId, type LayerId } from "@/lib/layers";
+import { densityField, heatmapSegments, sphereGrid, type SphereGrid } from "@/lib/heatmap-density";
 import type { Event } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
 import { cardWorldAnchor } from "@/lib/card-anchor";
@@ -49,8 +50,8 @@ function writeLandStencil<T extends Material>(material: T): T {
   material.stencilZPass = ReplaceStencilOp;
   return material;
 }
-function clipToLand(mesh: Mesh) {
-  mesh.renderOrder = 10;
+function clipToLand(mesh: Mesh, renderOrder: number) {
+  mesh.renderOrder = renderOrder;
   for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
     material.depthWrite = false;
     material.depthTest = false; // the stencil already limits it to visible land, including raised countries
@@ -163,22 +164,70 @@ const borderColors = new Map(borders.map(border => {
   const channels = own.map((channel, index) => Math.round((channel + other[index]) / 2 * (1 - GLOBE.borderDarkness)));
   return [border, `#${channels.map(channel => channel.toString(16).padStart(2, "0")).join("")}`];
 }));
-const heatmapRgb = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
-const heatmapLow = heatmapRgb(GLOBE.heatmapLowColor), heatmapHigh = heatmapRgb(GLOBE.heatmapHighColor);
-// Density 0 is fully transparent; denser areas warm toward the high color. The
-// square root lifts sparse regions so a single dense cluster cannot hide the rest.
-function heatmapRamp(density: number) {
-  const t = Math.sqrt(Math.min(1, Math.max(0, density)));
-  const [red, green, blue] = heatmapLow.map((channel, index) => Math.round(channel + (heatmapHigh[index] - channel) * t));
-  return `rgba(${red},${green},${blue},${Math.min(GLOBE.heatmapMaxOpacity, t * GLOBE.heatmapOpacityGain)})`;
+// HEATMAPS — one mesh per category, colored like its rail icon. Density 0 is transparent
+// and denser areas grow more opaque (the square root lifts sparse regions so one dense
+// cluster cannot hide the rest). All meshes share one sphere grid; a category's density is
+// recomputed only when its own points change, so toggling one category leaves the rest alone.
+const HEATMAP_VERTEX = `
+  attribute float density;
+  varying float vDensity;
+  void main() {
+    vDensity = density;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }`;
+const HEATMAP_FRAGMENT = `
+  uniform vec3 color;
+  uniform float maxOpacity;
+  uniform float gain;
+  varying float vDensity;
+  void main() {
+    float alpha = min(maxOpacity, sqrt(max(vDensity, 0.0)) * gain);
+    if (alpha < 0.004) discard;
+    gl_FragColor = vec4(color, alpha);
+    #include <colorspace_fragment>
+  }`;
+type HeatmapBase = { radius: number; geometry: SphereGeometry; grid: SphereGrid };
+let heatmapBase: HeatmapBase | null = null;
+function sharedHeatmapGrid(globeRadius: number): HeatmapBase {
+  const radius = globeRadius * (1 + GLOBE.heatmapBaseAltitude);
+  if (heatmapBase?.radius !== radius) {
+    const { widthSegments, heightSegments } = heatmapSegments(GLOBE.heatmapBandwidthDegrees);
+    const geometry = new SphereGeometry(radius, widthSegments, heightSegments);
+    geometry.computeBoundingSphere();
+    heatmapBase = { radius, geometry, grid: sphereGrid(geometry.getAttribute("position").array, widthSegments, heightSegments) };
+  }
+  return heatmapBase;
 }
+function createHeatmapMesh(id: CategoryId, base: HeatmapBase) {
+  const geometry = new BufferGeometry();
+  geometry.setIndex(base.geometry.getIndex());
+  geometry.setAttribute("position", base.geometry.getAttribute("position"));
+  geometry.setAttribute("density", new BufferAttribute(new Float32Array(base.grid.lats.length), 1));
+  geometry.boundingSphere = base.geometry.boundingSphere;
+  const index = CATEGORIES.findIndex(category => category.id === id);
+  const material = new ShaderMaterial({
+    vertexShader: HEATMAP_VERTEX,
+    fragmentShader: HEATMAP_FRAGMENT,
+    uniforms: {
+      color: { value: new Color(eventColor(CATEGORIES[index].layers[0])) },
+      maxOpacity: { value: GLOBE.heatmapMaxOpacity },
+      gain: { value: GLOBE.heatmapOpacityGain },
+    },
+    transparent: true,
+  });
+  const mesh = new Mesh(geometry, material);
+  mesh.raycast = () => {}; // never blocks POI or country picking
+  clipToLand(mesh, 10 + index);
+  return mesh;
+}
+const heatmapKey = (heatmap: CategoryHeatmap) => heatmap.points.map(point => `${point.lat},${point.lng},${point.weight}`).join(";");
 
-export default function EventGlobe({ allEvents, events, selectedCountries, onToggleCountry, heatmap, selection, onSelect, rotating, onRotationChange, fixture, resetViewKey, onReadyChange }: {
+export default function EventGlobe({ allEvents, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture, resetViewKey, onReadyChange }: {
   allEvents: Event[];
   events: Event[];
   selectedCountries: { id: string; name: string; events: Event[] }[];
   onToggleCountry: (id: string) => void;
-  heatmap: HeatmapPoint[];
+  heatmaps: CategoryHeatmap[];
   selection: Selection | null;
   onSelect: (selection: Selection | null) => void;
   rotating: boolean;
@@ -210,6 +259,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   // At the default fit or farther out the globe shows only the heatmap; zooming in
   // swaps it for individual markers.
   const [zoomedIn, setZoomedIn] = useState(false);
+  const heatmapLayers = useRef(new Map<CategoryId, { key: string; mesh: Mesh }>());
   const heatmapVisible = useRef(true);
   useEffect(() => onReadyChange(ready), [ready, onReadyChange]);
   useEffect(() => {
@@ -232,15 +282,15 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   }, [ready]);
   useEffect(() => {
     heatmapVisible.current = !zoomedIn;
-    globe.current?.scene().traverse(object => {
-      if ((object as Object3D & { __globeObjType?: string }).__globeObjType === "heatmap") object.visible = !zoomedIn;
+    heatmapLayers.current.forEach(layer => { layer.mesh.visible = !zoomedIn; });
+  }, [zoomedIn]);
+  useEffect(() => {
+    const layers = heatmapLayers.current;
+    return () => layers.forEach(layer => {
+      layer.mesh.removeFromParent();
+      layer.mesh.geometry.dispose();
+      (layer.mesh.material as ShaderMaterial).dispose();
     });
-  }, [zoomedIn, ready]);
-  const heatmapColor = useCallback((layer: object) => {
-    // three-globe binds the mesh before invoking this accessor on data updates.
-    const mesh = (layer as { __threeObjHeatmap?: Mesh }).__threeObjHeatmap;
-    if (mesh) { clipToLand(mesh); mesh.visible = heatmapVisible.current; }
-    return heatmapRamp;
   }, []);
   const [treeRoot, setTreeRoot] = useState<Event | null>(null);
   const [connections, setConnections] = useState<Connection<Event>[]>([]);
@@ -261,7 +311,8 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   useEffect(() => {
     if (!ready || !globe.current) return;
     const instance = globe.current;
-    const shells = [atmosphereShell(instance.getGlobeRadius(), false), atmosphereShell(instance.getGlobeRadius(), true)];
+    const shells = [atmosphereShell(instance.getGlobeRadius(), false)];
+    if (GLOBE.atmosphereRimStrength > 0) shells.push(atmosphereShell(instance.getGlobeRadius(), true));
     shells.forEach(shell => instance.scene().add(shell));
     return () => shells.forEach(shell => {
       instance.scene().remove(shell);
@@ -361,6 +412,35 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const selectedEvents = useMemo(() => [...new Map(selectedCountries.flatMap(country => country.events).map(event => [event.id, event])).values()], [selectedCountries]);
   const selectedIds = useMemo(() => new Set(selectedEvents.map(event => event.id)), [selectedEvents]);
   const rootEvent = treeRoot ?? (selection?.kind === "event" ? selection.event : null);
+  // Add, update or remove category heatmaps; unchanged categories keep their density.
+  useEffect(() => {
+    if (!ready || !globe.current) return;
+    const scene = globe.current.scene();
+    const base = sharedHeatmapGrid(globe.current.getGlobeRadius());
+    const wanted = new Map((rootEvent ? [] : heatmaps).map(heatmap => [heatmap.id, heatmap]));
+    for (const [id, layer] of heatmapLayers.current) {
+      if (wanted.has(id)) continue;
+      scene.remove(layer.mesh);
+      layer.mesh.geometry.dispose();
+      (layer.mesh.material as ShaderMaterial).dispose();
+      heatmapLayers.current.delete(id);
+    }
+    for (const heatmap of wanted.values()) {
+      const key = heatmapKey(heatmap);
+      let layer = heatmapLayers.current.get(heatmap.id);
+      if (layer?.key === key) continue;
+      if (!layer) {
+        layer = { key, mesh: createHeatmapMesh(heatmap.id, base) };
+        layer.mesh.visible = heatmapVisible.current;
+        scene.add(layer.mesh);
+        heatmapLayers.current.set(heatmap.id, layer);
+      }
+      const density = layer.mesh.geometry.getAttribute("density") as BufferAttribute;
+      (density.array as Float32Array).set(densityField(base.grid, heatmap.points, GLOBE.heatmapBandwidthDegrees));
+      density.needsUpdate = true;
+      layer.key = key;
+    }
+  }, [ready, heatmaps, rootEvent]);
   const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
   const [hoveredBorderId, setHoveredBorderId] = useState<string | null>(null);
   const hoverId = hoveredBorderId ?? hoveredCountryId;
@@ -673,7 +753,6 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   }, [ready, callouts, expandedCards, selectedIds, points, pointCountries]);
 
   // Data stays loaded while zoomed in (the mesh is hidden) so zooming out needs no new density pass.
-  const activeHeatmaps = useMemo(() => rootEvent || !heatmap.length ? [] : [{ points: heatmap }], [heatmap, rootEvent]);
 
   function select(item: Callout) {
     onSelect(item.event ? { kind: "event", event: item.event } : { kind: "location", location: { lat: item.lat, lng: item.lng } });
@@ -791,10 +870,6 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
         pathResolution={360} pathTransitionDuration={0}
         onPathHover={path => setHoveredBorderId(path ? (path as typeof borders[number]).countryId : null)}
         showAtmosphere={false} animateIn={false}
-        heatmapsData={activeHeatmaps} heatmapPoints="points"
-        heatmapPointLat="lat" heatmapPointLng="lng" heatmapPointWeight="weight"
-        heatmapColorFn={heatmapColor}
-        heatmapBandwidth={GLOBE.heatmapBandwidthDegrees} heatmapBaseAltitude={GLOBE.heatmapBaseAltitude} heatmapTopAltitude={GLOBE.heatmapBaseAltitude} heatmapsTransitionDuration={0}
         objectsData={points} objectLat="lat" objectLng="lng" objectAltitude="altitude" objectThreeObject={pinObject}
         onGlobeReady={() => {
           const instance = globe.current;

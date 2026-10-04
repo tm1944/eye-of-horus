@@ -1,6 +1,6 @@
 /** Visual-only settings. None are sent to FastAPI. Units are explicit below. */
 export const GLOBE = {
-  continentEdgeShadeStrength: 0.72, // 0 = flat land; 1 = black at the circular limb (1.5× the earlier 0.48); also shades the water orb
+  continentEdgeShadeStrength: 0, // edge darkening for land and water: 0 = none (flat); 1 = black at the circular limb
   hoverCountryColor: "#e6b77e", // hover changes color only, never altitude
   selectedCountryColor: "#ed963e",
   selectedCountrySideColor: "#9b501f", // darker orange extrusion walls
@@ -30,7 +30,7 @@ export const GLOBE = {
   atmosphereAltitude: 0.12, // outer halo thickness, fraction of globe radius
   atmosphereHaloStrength: 1, // 1 = exactly atmosphereColor at the limb, fading to the background
   atmosphereHaloFalloff: 2.2, // higher = halo fades faster into space
-  atmosphereRimStrength: 0.35, // haze over land and water near the limb
+  atmosphereRimStrength: 0, // haze over land and water near the limb; 0 = off (not rendered)
   atmosphereRimFalloff: 3, // higher = haze hugs the edge more tightly
   ambientLightIntensity: 2.0,
   sunlightIntensity: 1.1,
@@ -38,12 +38,10 @@ export const GLOBE = {
   pinHeadRadiusDegrees: 0.315, // pin-shaped markers: sphere head, half the earlier 0.63° marker radius
   pinStemRadiusRatio: 0.25, // stem radius / head radius
   pinStemColor: "#9a9a9a", // neutral gray stems; heads keep their layer color
-  heatmapBandwidthDegrees: 3, // smoothing radius; also bounds native heatmap mesh detail
+  heatmapBandwidthDegrees: 1.5, // smoothing radius = heat spot size (half the earlier 3°); also sets heatmap mesh detail
   heatmapBaseAltitude: 0.002, // fraction of globe radius
   heatmapMaxOpacity: 0.75, // densest areas keep the land faintly visible
   heatmapOpacityGain: 1.6, // opacity per unit of normalized density, capped above
-  heatmapLowColor: "#ffd27a", // sparse marker density
-  heatmapHighColor: "#ff4d2e", // dense marker density
   markerZoomMagnification: 2.07, // markers replace the heatmap once Earth looks this many times larger than the default fit (was ≈1.03)
   surfaceFitWidth: 0.36, // projected sphere radius / canvas width
   surfaceFitHeight: 0.34, // projected sphere radius / canvas height
