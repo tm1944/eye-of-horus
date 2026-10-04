@@ -1,64 +1,48 @@
 # Hypothesis Globe API
 
-Track C FastAPI for issues #2 and #9. Serves `GET /events` from Snowflake MART when
-configured and healthy; otherwise last-good `data/snapshots` or `data/fixtures`.
-Fixture mode needs **zero** Snowflake env.
+Serves `GET /events` from TigerData `mart.event` when `DATABASE_URL` is set and the database answers. Otherwise it serves the last-good `data/snapshots` copy, then `data/fixtures`. Fixture mode needs no database URL.
 
 ## Run
 
-Python 3.12+. Leave `SNOWFLAKE_ACCOUNT` unset for fixtures.
+Python 3.12+. Copy `.env.example` to `.env` at the repo root and leave `DATABASE_URL` empty for fixtures.
 
 ```bash
 cd apps/api
-python3 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload --host 127.0.0.1 --port 43124
 ```
 
-Warm the warehouse before the pitch room fills:
-
 ```bash
 curl http://127.0.0.1:43124/health
-```
-
-## Smoke
-
-```bash
-# Fixture mode (SNOWFLAKE_ACCOUNT unset)
-curl http://127.0.0.1:43124/health
-curl 'http://127.0.0.1:43124/events?fixture=1'
+curl "http://127.0.0.1:43124/events?fixture=1"
 curl http://127.0.0.1:43124/events/usgs:us7000example
 curl http://127.0.0.1:43124/events/usgs:us7000example/links
-
-# Ingest stub (expects 401 without secret)
-curl -i -X POST http://127.0.0.1:43124/ingest/run
-curl -i -X POST http://127.0.0.1:43124/ingest/run \
-  -H "Authorization: Bearer $INGEST_SECRET"
 ```
-
-Bad Snowflake config still serves the globe from cache and names the problem in
-`sourceStatus.snowflake` (`error` or `dark`) plus `/health.detail`.
 
 ## Env
 
+Put secrets in the repo-root `.env`. That file is gitignored.
+
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `CORS_ORIGIN` or `VITE_ORIGIN` | No | Defaults to `http://127.0.0.1:43123` (plus `localhost` twin) |
-| `SNOWFLAKE_ACCOUNT` | No | Unset → fixtures. Set → optional connector path (ping + MART read) |
-| `SNOWFLAKE_USER` | With account | Required when account is set |
-| `SNOWFLAKE_PASSWORD` | With account | Required when account is set |
-| `SNOWFLAKE_WAREHOUSE` | With account | Required when account is set |
-| `SNOWFLAKE_DATABASE` | No | Defaults to `EVENTS` |
-| `SNOWFLAKE_SCHEMA` | No | Defaults to `MART` |
-| `SNOWFLAKE_ROLE` | No | Optional role |
-| `INGEST_SECRET` | For ingest | Shared secret for `POST /ingest/run` (`Authorization: Bearer` or `X-Ingest-Secret`) |
+| `DATABASE_URL` | For live data | TigerData Postgres URL. Unset means fixtures. |
+| `FIRMS_MAP_KEY` | For FIRMS only | USGS and GDACS ingest run without it. |
+| `INGEST_SECRET` | For ingest | Shared secret for `POST /ingest/run`. |
+| `CORS_ORIGIN` or `VITE_ORIGIN` | No | Defaults to `http://127.0.0.1:43123`. |
 
 ## Behavior
 
-- `GET /health` — `SELECT 1` warmup when Snowflake is configured; returns `lastIngestAt` (or `null` in fixture mode), `warehousePing`, and `detail`.
-- `GET /events` — `sourceStatus` for `usgs` / `firms` / `snowflake` (`ok` \| `fixture` \| `error` \| `dark`). Event field names are not reshaped.
-- Snowflake dark or misconfigured → last-good snapshot, else fixtures. Hard `503` only if no cache exists; `failingSource` names the problem.
-- `POST /ingest/run` — auth gate only in this PR. Stub returns `status: noop` until track B loaders land. Do not click during the pitch.
+- `GET /health` runs `SELECT 1` when `DATABASE_URL` is set and returns `database` (`ok`, `fixture`, `error`, or `dark`), `warmupMs`, and `lastIngestAt`.
+- `GET /events` returns `sourceStatus.database`. A dark database falls back to the snapshot, then fixtures. A hard `503` happens only when no cache exists.
+- `POST /ingest/run` requires `INGEST_SECRET`. It loads USGS and GDACS, and FIRMS when `FIRMS_MAP_KEY` is set.
 
-Pinned: `fastapi[standard]==0.142.2`, `snowflake-connector-python==4.7.3`.
+Create the tables after `DATABASE_URL` is filled in:
+
+```bash
+python -m jobs.ingest.apply_schema
+python -m jobs.ingest
+```
+
+Pinned: `fastapi[standard]==0.142.2`, `psycopg[binary]==3.2.13`.

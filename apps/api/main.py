@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -12,10 +13,11 @@ from typing import Any
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from snowflake_client import (
+from db import (
+    database_configured,
+    fetch_links_for_event,
     fetch_mart_events,
     ping_and_warmup,
-    snowflake_account_set,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -166,13 +168,11 @@ def _write_snapshot(events: list[dict[str, Any]], *, last_ingest_at: str | None)
 
 
 def _force_fixtures(fixture_flag: bool) -> bool:
-    return fixture_flag or not snowflake_account_set()
+    return fixture_flag or not database_configured()
 
 
-def _source_status(*, snowflake: str) -> dict[str, str]:
-    # Sensor rows in fixtures/snapshots are treated as healthy weekend feeds.
-    # Track B will flip these to error/dark when live ingest reports failures.
-    return {"usgs": "ok", "firms": "ok", "snowflake": snowflake}
+def _source_status(*, database: str) -> dict[str, str]:
+    return {"usgs": "ok", "firms": "ok", "database": database}
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -223,45 +223,43 @@ def _load_events_for_request(
     """Return (events, sourceStatus, fallbackDetail). Never blanks the globe when cache exists."""
     if _force_fixtures(fixture_flag):
         events, _label = _load_events_cache(prefer_snapshot=False)
-        return events, _source_status(snowflake="fixture"), None
+        return events, _source_status(database="fixture"), None
 
     mart_events, ping = fetch_mart_events(limit=limit)
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
 
     if mart_events is not None:
         _write_snapshot(mart_events, last_ingest_at=last_ingest)
-        return mart_events, _source_status(snowflake="ok"), None
+        return mart_events, _source_status(database="ok"), None
 
-    # Snowflake dark / error / misconfigured → last good snapshot or fixtures.
     try:
         events, label = _load_events_cache(prefer_snapshot=True)
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
         detail = {
             **detail,
-            "failingSource": "snowflake",
-            "snowflakeStatus": ping.status,
-            "snowflakeDetail": ping.detail,
+            "failingSource": "database",
+            "databaseStatus": ping.status,
+            "databaseDetail": ping.detail,
         }
         raise HTTPException(status_code=503, detail=detail) from exc
 
-    snowflake_status = ping.status if ping.status in {"dark", "error"} else "dark"
-    detail = ping.detail or f"Serving {label} after Snowflake {snowflake_status}"
-    return events, _source_status(snowflake=snowflake_status), detail
+    database_status = ping.status if ping.status in {"dark", "error"} else "dark"
+    detail = ping.detail or f"Serving {label} after TigerData {database_status}"
+    return events, _source_status(database=database_status), detail
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    """Warehouse ping + last ingest. Call before the pitch to warm SELECT 1."""
+    """Database ping + last ingest. SELECT 1 runs when DATABASE_URL is set."""
     ping = ping_and_warmup(fetch_last_ingest=True)
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
-    using_fixtures = ping.status == "fixture" or not snowflake_account_set()
+    using_fixtures = ping.status == "fixture" or not database_configured()
     ok = ping.status in {"ok", "fixture"} or _cache_available()
     return {
         "ok": ok,
         "usingFixtures": using_fixtures or ping.status in {"dark", "error"},
-        "snowflake": ping.status,
-        "warehousePing": ping.warehouse_ping,
+        "database": ping.status,
         "warmupMs": ping.warmup_ms,
         "lastIngestAt": last_ingest,
         "detail": ping.detail,
@@ -315,6 +313,10 @@ def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str,
     ids = {event["id"] for event in events}
     if event_id not in ids:
         raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
+    if not _force_fixtures(fixture == 1):
+        stored = fetch_links_for_event(event_id)
+        if stored is not None:
+            return stored
     links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture == 1))
     return [
         link
@@ -352,7 +354,7 @@ def ingest_run(
     authorization: str | None = Header(default=None),
     x_ingest_secret: str | None = Header(default=None, alias="X-Ingest-Secret"),
 ) -> dict[str, Any]:
-    """Protected stub. Track B owns live USGS/FIRMS loaders; this PR only gates auth."""
+    """Run USGS, GDACS, and optional FIRMS ingest when INGEST_SECRET matches."""
     expected = os.environ.get("INGEST_SECRET", "").strip()
     provided = _extract_ingest_secret(authorization, x_ingest_secret)
     authorized = (
@@ -364,13 +366,12 @@ def ingest_run(
     if not authorized:
         raise HTTPException(status_code=401, detail="Unauthorized: valid INGEST_SECRET required")
 
-    # No-op until track B loaders land. Do not click during the pitch.
-    return {
-        "ok": True,
-        "status": "noop",
-        "detail": (
-            "Ingest loaders are not wired in this API slice (track B). "
-            "Auth accepted; no USGS/FIRMS job started."
-        ),
-        "lastIngestAt": _resolved_last_ingest(None),
-    }
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from jobs.ingest.run import run_ingest
+
+    result = run_ingest()
+    if result.get("ok"):
+        _remember_last_ingest(_now_iso())
+    result["lastIngestAt"] = _resolved_last_ingest(None)
+    return result

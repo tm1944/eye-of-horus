@@ -22,11 +22,7 @@ pip install -r jobs/llm/requirements.txt
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `GOOGLE_API_KEY` | For Gemini calls | Without it, `get_feed_smart` skips re-ranking and `generate_links` returns fixture data |
-| `SNOWFLAKE_ACCOUNT` | For live data | Without it, all functions fall back to `data/fixtures/events.json` and `data/fixtures/links.json` |
-| `SNOWFLAKE_USER` | With Snowflake | |
-| `SNOWFLAKE_PASSWORD` | With Snowflake | |
-| `SNOWFLAKE_DATABASE` | Optional | Defaults to `EVENTS` |
-| `SNOWFLAKE_WAREHOUSE` | Optional | Defaults to `EVENTS_XS` |
+| `DATABASE_URL` | For live data | Without it, all functions fall back to `data/fixtures/events.json` and `data/fixtures/links.json` |
 
 ---
 
@@ -99,14 +95,14 @@ Response shape matches `packages/schema/link.schema.json` with the additional `c
 
 These are things we need other team members to confirm so we can update the algorithm. **Please flag any changes in the team channel.**
 
-### Student B (Ingest + Snowflake)
+### Student B (Ingest + TigerData)
 
 | What we assume | What to tell us if it changes |
 | --- | --- |
-| DB columns are snake_case: `layer_id`, `source_url`, `occurred_at`, `updated_at`, `alt_m`, `geo_precision`, `geo_source`, `raw_ref` | If any column is named differently, update `_normalize_row()` in `personalize.py` |
-| `MART.EVENT` has `lat` and `lng` columns | If coordinates are stored under different column names, update `_load_events_snowflake()` |
-| There is a `labels` or `keywords` VARIANT/ARRAY column on `MART.EVENT` that we can match against | Tell us the exact column name — currently falls back to entity text and title tokens only |
-| `MART.EVENT_LINK` exists after `sql/001_init.sql` runs | Run `sql/002_links_update.sql` after 001 to add the `rationale` and `citations` columns |
+| `mart.event.category` is the map layer | The API exposes it as `layerId` |
+| `mart.event` has `lat` and `lng` | Kind tables hold measurements such as magnitude and `max_wind_kmh` |
+| Keywords live in `mart.event_tag` | Scoring still falls back to entity text and title tokens |
+| `mart.event_link` exists after `sql/001_init.sql` | `sql/002_links_update.sql` adds `rationale` and `citations` on an older table |
 
 ### Student C (FastAPI)
 
@@ -133,13 +129,13 @@ These are things we need other team members to confirm so we can update the algo
 | Item | Status | Will be replaced by |
 | --- | --- | --- |
 | `data/user_config.json` default preferences | Placeholder — Napa Valley area | Frontend writes real user selections |
-| `data/fixtures/events.json` | 3 fixture events | Live Snowflake data once Student B's ingest is running |
+| `data/fixtures/events.json` | 3 fixture events | Live TigerData rows once ingest is running |
 | `data/fixtures/links.json` | 1 fixture link | Live Gemini output once `GOOGLE_API_KEY` is set |
 | `keyword_score` labels fallback | Currently matches only entity text + title tokens | Will improve once Student B confirms the `labels`/`keywords` DB column name |
 
 ---
 
-## Running locally (without Snowflake or Gemini keys)
+## Running locally (without a database URL or Gemini key)
 
 ```python
 # From the repo root
