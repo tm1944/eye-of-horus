@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   }
   if (mode !== "api") return NextResponse.json({ error: "DATA_MODE must be fixture or api" }, { status: 500, headers });
   try {
-    const base = (process.env.API_BASE_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+    const base = (process.env.API_BASE_URL ?? "http://127.0.0.1:43124").replace(/\/$/, "");
     const url = `${base}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
     const upstream = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(10000) });
     return new Response(upstream.body, {

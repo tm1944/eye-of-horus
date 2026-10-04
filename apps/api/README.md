@@ -32,7 +32,8 @@ Put secrets in the repo-root `.env`. That file is gitignored.
 | `INGEST_SECRET` | For ingest | Shared secret for `POST /ingest/run`. |
 | `CORS_ORIGIN` or `VITE_ORIGIN` | No | Defaults to `http://127.0.0.1:43123`. |
 
-## Behavior
+Child output is discarded and never returned to the caller. Test the loader
+standalone when diagnosing its failures. Do not trigger ingestion during the pitch.
 
 - `GET /health` runs `SELECT 1` when `DATABASE_URL` is set and returns `database` (`ok`, `fixture`, `error`, or `dark`), `warmupMs`, and `lastIngestAt`.
 - `GET /events` returns `sourceStatus.database`. A dark database falls back to the snapshot, then fixtures. A hard `503` happens only when no cache exists.
