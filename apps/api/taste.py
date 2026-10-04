@@ -28,7 +28,9 @@ FEED_WEIGHTS = {"similarity": 0.55, "interest": 0.20, "significance": 0.15, "fre
 MIN_SIMILARITY = 0.25  # items matching no chosen interest must be at least this close to the taste vector
 PER_CATEGORY = 4
 SIMILAR_REASON = 0.55  # "Like <a story you saved>" when an item is this close to one
-# Templated, non-news rows (e.g. "VIIRS hotspot cluster 1.0, 39.0"); fires still arrive via GDACS.
+# Natural hazards are Explore layers, not My Feed stories (they are not interests either).
+EXCLUDED_CATEGORIES = {"hazards"}
+# Templated, non-news rows (e.g. "VIIRS hotspot cluster 1.0, 39.0").
 EXCLUDED_SOURCES = {"firms"}
 
 LAYER_CATEGORY = {
@@ -144,7 +146,9 @@ def interest_match(event: dict[str, Any], interests: list[dict[str, Any]]) -> tu
 
 
 def feed_candidates(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [event for event in events if event.get("source") not in EXCLUDED_SOURCES]
+    """Stories My Feed may pick from: no templated sources, no natural-hazard layers."""
+    return [event for event in events if event.get("source") not in EXCLUDED_SOURCES
+            and LAYER_CATEGORY.get(event.get("layerId", "")) not in EXCLUDED_CATEGORIES]
 
 
 def centered(vectors: dict[str, np.ndarray], event_ids: set[str]) -> dict[str, np.ndarray]:

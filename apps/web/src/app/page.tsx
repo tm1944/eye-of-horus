@@ -15,6 +15,7 @@ import GlobeBoundary from "@/components/globe-boundary";
 import CountryHeadlines from "@/components/country-headlines";
 import { indexLinks } from "@/lib/related-events";
 import ViewTabs from "@/components/view-tabs";
+import { PRODUCT_NAME, Wordmark } from "@/components/brand";
 import DataAttribution from "@/components/data-attribution";
 import { EyeOfHorusIcon } from "@/components/eye-of-horus";
 
@@ -142,7 +143,8 @@ export default function Home() {
   const shown = useMemo(() => explore && selectedCountries.length
     ? restrictVisuals(visuals, new Set(selectedCountries.flatMap(country => country.events.map(event => event.id))))
     : visuals, [explore, selectedCountries, visuals]);
-  return <main className="earth-page" data-tab={tab} aria-label="Eye of Horus">
+<<<<<<< HEAD
+  return <main className="earth-page" data-tab={tab} aria-label={PRODUCT_NAME}>
     {explore && <LayerRail filters={filters} onChange={update} reflowKey={[filters, selectedCountries]} openRequest={countriesPanelRequest} closeRequest={settingsCloseRequest} panels={[
       { id: "countries", label: "Selected countries", badge: selectedCountries.length, active: selectedCountries.length > 0, content: <CountryHeadlines countries={selectedCountries}
         onRemove={toggleCountry} onClear={() => setSelectedCountryIds([])} onPick={pickCountryHeadline}

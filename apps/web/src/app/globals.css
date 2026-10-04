@@ -1318,3 +1318,27 @@ input:focus-visible {
   background: #242424ee; border-top: 1px solid #3a3939; color: #d2d0d0; font-size: 14px;
 }
 @media (prefers-reduced-motion: reduce) { .interest-chip { transition: none; } }
+
+/* BRAND — "Eye of Horus" (working name): a line-art wedjat beside the name. */
+.wordmark { display: inline-flex; align-items: center; gap: .5em; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.brand-mark { flex: none; }
+/* Globe page: quiet, top-left of the globe area, never in the way of clicks. */
+.globe-wordmark {
+  position: absolute; top: 22px; left: 24px; z-index: 6; pointer-events: none;
+  color: rgba(240, 238, 238, .55); text-shadow: 0 1px 6px #0008;
+}
+.globe-wordmark .brand-mark { color: rgba(237, 150, 62, .75); }
+/* My Feed's "Start over" sits under the wordmark. */
+.feed-reset { top: 58px; }
+/* Landing and interest picker: the name leads, with the eye in the accent colour. */
+.welcome-wordmark { margin-bottom: 22px; color: #f0eeee; letter-spacing: .06em; }
+.welcome-wordmark .brand-mark, .interests-wordmark .brand-mark { color: #ed963e; }
+.interests-wordmark { margin-bottom: 18px; color: #d2d0d0; }
+@media (max-width: 700px) {
+  .globe-wordmark span { display: none; } /* the eye alone, so the tabs keep their room */
+  .globe-wordmark { top: 26px; left: 14px; }
+}
+
+/* STARRY SKY — the real bright-star sky, drifting slowly behind the onboarding pages. */
+.starry-sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.welcome-card, .interests-card { position: relative; z-index: 1; }

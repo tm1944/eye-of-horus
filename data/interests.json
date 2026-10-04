@@ -1,8 +1,7 @@
 {
   "version": 1,
-  "description": "Onboarding interest catalogue for My Feed. `layers` and `keywords` drive explicit matching; `seed` is embedded (jobs/llm/embed_events.py) to start the taste vector. Regions also match by bounding box [south, north, west, east].",
+  "description": "Onboarding interest catalogue for My Feed. `layers` and `keywords` drive explicit matching; `seed` is embedded (jobs/llm/embed_events.py) to start the taste vector. Regions also match by bounding box [south, north, west, east]. Natural hazards are not interests: they are Explore layers, and My Feed leaves them out (apps/api/taste.py).",
   "groups": [
-    { "id": "hazards", "label": "Planet & disasters" },
     { "id": "security", "label": "Conflict & security" },
     { "id": "politics", "label": "Politics & world" },
     { "id": "economy", "label": "Economy & tech" },
@@ -11,11 +10,6 @@
     { "id": "region", "label": "Places you follow" }
   ],
   "interests": [
-    { "id": "earthquakes", "group": "hazards", "label": "Earthquakes", "layers": ["earthquake"], "keywords": ["earthquake", "quake", "seismic", "tsunami"], "seed": "earthquakes, seismic activity, aftershocks, tsunami warnings, magnitude and shaking intensity" },
-    { "id": "wildfires", "group": "hazards", "label": "Wildfires", "layers": ["wildfire"], "keywords": ["wildfire", "bushfire", "blaze", "smoke"], "seed": "wildfires, forest fires, bushfires, smoke and air quality, firefighting and evacuations" },
-    { "id": "storms", "group": "hazards", "label": "Storms & floods", "layers": ["cyclone", "flood"], "keywords": ["cyclone", "hurricane", "typhoon", "flood", "storm"], "seed": "hurricanes, typhoons, cyclones, flooding, extreme rainfall and storm damage" },
-    { "id": "climate", "group": "hazards", "label": "Climate & environment", "layers": ["environment", "drought"], "keywords": ["climate", "emissions", "environment", "drought", "heatwave", "renewable"], "seed": "climate change, emissions policy, extreme weather, heatwaves, drought, renewable energy and the environment" },
-
     { "id": "conflict", "group": "security", "label": "War & conflict", "layers": ["conflict", "strategic_development"], "keywords": ["war", "military", "strike", "troops", "conflict", "ceasefire"], "seed": "armed conflict, wars, military operations, airstrikes, ceasefires and peace talks" },
     { "id": "protests", "group": "security", "label": "Protests & unrest", "layers": ["protest"], "keywords": ["protest", "demonstration", "rally", "strike"], "seed": "protests, demonstrations, civil unrest, strikes and social movements" },
     { "id": "crime", "group": "security", "label": "Crime & justice", "layers": ["crime", "terror"], "keywords": ["crime", "police", "court", "trial", "terror", "attack"], "seed": "crime, policing, courts and trials, terrorism and public safety" },

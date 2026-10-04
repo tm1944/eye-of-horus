@@ -683,7 +683,10 @@ def list_interests() -> dict[str, Any]:
 
 @app.get("/me")
 def get_me() -> dict[str, Any]:
-    return user_state.public(user_state.load(USER_STATE))
+    profile = user_state.public(user_state.load(USER_STATE))
+    # Interests retired from the catalogue (e.g. natural hazards) are no longer offered.
+    known = {item["id"] for item in _catalogue()}
+    return {**profile, "interests": [interest for interest in profile["interests"] if interest in known]}
 
 
 @app.delete("/me")
@@ -729,6 +732,8 @@ def post_interaction(body: InteractionBody) -> dict[str, bool]:
 def my_feed(n: int = Query(default=20, ge=1, le=100), savedOnly: int = Query(default=0, ge=0, le=1)) -> dict[str, Any]:
     """The demo user's feed (ranked by the taste vector), or their reading list."""
     state = user_state.load(USER_STATE)
+    known = {item["id"] for item in _catalogue()}
+    state = {**state, "interests": [interest for interest in state.get("interests") or [] if interest in known]}
     events = _feed_events()
     if savedOnly:
         ranked = taste.reading_list({event["id"]: event for event in events}, state)
