@@ -1,20 +1,60 @@
 "use client";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CATEGORIES, LAYER_IDS, LABELS, MAX_MARKERS, categoryState, setCategoryEnabled, setLayerEnabled, type CategoryId, type Filters } from "@/lib/layers";
 import { eventColor } from "@/lib/globe-config";
 import { useFlyout } from "@/lib/use-flyout";
-import RailIcon from "@/components/icons";
+import RailIcon, { type PanelId } from "@/components/icons";
 
-const flyoutWidth = () => 230;
+export type RailPanel = { id: PanelId; label: string; badge?: number; active?: boolean; content: ReactNode };
+type FlyoutId = CategoryId | PanelId;
+const PANEL_IDS: readonly string[] = ["countries", "significance"] satisfies PanelId[];
+const isPanel = (id: string): id is PanelId => PANEL_IDS.includes(id);
+// The countries panel holds headline cards, so it is the widest.
+const flyoutWidth = (id: FlyoutId) => id === "countries" ? 320 : id === "significance" ? 270 : 230;
 
-/** Left icon rail. Clicking an icon toggles the whole category; hovering shows its
- * name and subcategories in a flyout to the right. */
-export default function LayerRail({ filters, onChange }: { filters: Filters; onChange: (value: Filters) => void }) {
-  const { flyout, open, itemProps, panelProps } = useFlyout<CategoryId>("right", flyoutWidth, filters);
+/** Left icon rail. On top, the panels (selected countries, significance), which open their
+ * controls in a flyout to the right; below a divider, one icon per layer category: clicking
+ * toggles the whole category, hovering shows its name and subcategories. Panels stay
+ * mounted (hidden when inactive) so form and disclosure state survive. */
+export default function LayerRail({ filters, onChange, panels, reflowKey, openRequest, closeRequest }: {
+  filters: Filters;
+  onChange: (value: Filters) => void;
+  panels: RailPanel[];
+  reflowKey: unknown;
+  /** Opens a panel without a hover or click (e.g. when a country is selected); bump `key` to re-open. */
+  openRequest?: { id: PanelId; key: number } | null;
+  /** Bump to close the open flyout (e.g. after a pick inside it). */
+  closeRequest?: number;
+}) {
+  const { flyout, open, close, toggle, itemProps, panelProps } = useFlyout<FlyoutId>("right", flyoutWidth, reflowKey);
+  const items = useRef(new Map<string, HTMLLIElement>());
+  const requested = openRequest?.key;
+  useEffect(() => {
+    if (!openRequest) return;
+    const item = items.current.get(openRequest.id);
+    if (item) open(openRequest.id, item);
+    // Only a new request re-opens; the panel then closes like any other flyout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requested]);
+  useEffect(() => {
+    if (closeRequest) close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeRequest]);
   const enabledCount = LAYER_IDS.filter(id => filters.layers[id].enabled).length;
-  const active = flyout && CATEGORIES.find(category => category.id === flyout.id)!;
+  const active = flyout && !isPanel(flyout.id) ? CATEGORIES.find(category => category.id === flyout.id)! : null;
   const activeState = active && categoryState(filters.layers, active.id);
 
-  return <nav className="icon-rail layer-rail" data-rail aria-label="Map layers">
+  return <nav className="icon-rail layer-rail" data-rail aria-label="Map settings and layers">
+    <ul className="rail-panels">
+      {panels.map(panel => <li key={panel.id} ref={node => { if (node) items.current.set(panel.id, node); else items.current.delete(panel.id); }} {...itemProps(panel.id)}>
+        <button type="button" className="rail-icon" data-state={panel.active ? "on" : "off"} data-open={flyout?.id === panel.id || undefined}
+          aria-expanded={flyout?.id === panel.id} aria-controls={`settings-${panel.id}`} aria-label={panel.label}
+          onClick={e => toggle(panel.id, e.currentTarget.closest("li")!)}>
+          <RailIcon id={panel.id} />
+          {!!panel.badge && <span className="rail-badge">{panel.badge}</span>}
+        </button>
+      </li>)}
+    </ul>
     <span className="rail-count" title="Enabled layers">{enabledCount}<small>/{LAYER_IDS.length}</small></span>
     <ul>
       {CATEGORIES.map(category => {
@@ -32,7 +72,7 @@ export default function LayerRail({ filters, onChange }: { filters: Filters; onC
         </li>;
       })}
     </ul>
-    {active && <div id="category-flyout" className="category-flyout" role="group" aria-label={`${active.label} subcategories`} style={flyout.style} {...panelProps}>
+    {active && <div id="category-flyout" className="category-flyout" role="group" aria-label={`${active.label} subcategories`} style={flyout!.style} {...panelProps}>
       {/* No checkbox here: the heading toggles the whole category, like its rail icon. */}
       <button type="button" className="flyout-heading" data-enabled={activeState !== "off" || undefined}
         aria-pressed={activeState === "on" ? true : activeState === "partial" ? "mixed" : false}
@@ -48,10 +88,16 @@ export default function LayerRail({ filters, onChange }: { filters: Filters; onC
         </label>
       </div>)}
     </div>}
+    <div className="category-flyout settings-flyout" hidden={!flyout || !isPanel(flyout.id)} style={flyout?.style} {...(flyout && isPanel(flyout.id) ? panelProps : {})}>
+      {panels.map(panel => <section key={panel.id} id={`settings-${panel.id}`} hidden={flyout?.id !== panel.id} aria-labelledby={`settings-${panel.id}-title`}>
+        <h2 className="flyout-title" id={`settings-${panel.id}-title`}>{panel.label}</h2>
+        {panel.content}
+      </section>)}
+    </div>
   </nav>;
 }
 
-/** Significance and time settings for the right-hand rail. */
+/** Significance and time settings (a rail panel). */
 export function DisplaySettings({ filters, onChange, count, markerCount, markerCandidateCount }: { filters: Filters; onChange: (value: Filters) => void; count: number; markerCount: number; markerCandidateCount: number }) {
   return <>
     <p className="layer-help">{count} events in enabled layers and time range</p>

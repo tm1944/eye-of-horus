@@ -5,7 +5,7 @@ import ts from 'typescript';
 // Compile this pure module in memory so tests also work on Node 20.9+.
 const source = readFileSync(new URL('../src/lib/layers.ts', import.meta.url), 'utf8');
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
-const { CATEGORIES, CATEGORY_OF, DEFAULT_CATEGORIES, LAYER_IDS, defaultLayers, parseFilters, writeFilters, deriveVisuals, categoryState, setCategoryEnabled, setLayerEnabled, parseTab, writeTab, headlineFeed } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
+const { CATEGORIES, CATEGORY_OF, DEFAULT_CATEGORIES, LAYER_IDS, defaultLayers, parseFilters, writeFilters, deriveVisuals, categoryState, setCategoryEnabled, setLayerEnabled, parseTab, writeTab, headlineFeed, restrictVisuals, categoryHeatmaps, hazardLabel } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 const events = JSON.parse(readFileSync(new URL('./fixtures/events.json', import.meta.url), 'utf8'));
 test('all 30 layers persist; politics, economy and security start fully on, hazards off', () => {
  const layers = defaultLayers();
@@ -135,4 +135,26 @@ test('heatmaps split markers by category, each holding only its own layers', () 
   const expected = result.markers.filter(e => CATEGORY_OF.get(e.layerId) === heatmap.id);
   assert.deepEqual(heatmap.points, expected.map(e => ({ lat: e.lat, lng: e.lng, weight: 1 })));
  }
+});
+
+test('natural-hazard cards name the disaster; other layers do not', () => {
+ assert.equal(hazardLabel('earthquake'), 'Earthquake');
+ assert.equal(hazardLabel('wildfire'), 'Wildfire');
+ assert.equal(hazardLabel('cyclone'), 'Cyclone');
+ assert.equal(hazardLabel('flood'), 'Flood');
+ assert.equal(hazardLabel('volcano'), 'Volcano');
+ assert.equal(hazardLabel('drought'), 'Drought');
+ assert.equal(hazardLabel('environment'), 'Environment');
+ assert.equal(hazardLabel('politics'), null);
+ assert.equal(hazardLabel('conflict'), null);
+});
+test('selected countries restrict markers and rebuild heatmaps from only those events', () => {
+ const visuals = deriveVisuals(events, parseFilters('?layers=politics,finance,technology,conflict,wildfire&minSignificance=0'));
+ const allowed = new Set(visuals.markers.slice(0, 3).map(e => e.id));
+ const restricted = restrictVisuals(visuals, allowed);
+ assert.deepEqual(restricted.markers.map(e => e.id), visuals.markers.filter(e => allowed.has(e.id)).map(e => e.id));
+ assert.deepEqual(restricted.heatmaps, categoryHeatmaps(restricted.markers));
+ assert.equal(restricted.heatmaps.flatMap(h => h.points).length, 3);
+ assert.deepEqual(restrictVisuals(visuals, new Set()).heatmaps, []);
+ assert.equal(visuals.markers.length > 3, true, 'source visuals untouched');
 });

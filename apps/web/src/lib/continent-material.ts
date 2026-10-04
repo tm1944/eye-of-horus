@@ -5,6 +5,8 @@ export type ReliefOptions = {
   heightScale: number; // slope exaggeration: full heightmap range (0→1) in globe radii
   sampleDegrees: number; // heightmap finite-difference spacing; ~the land tessellation keeps facets coarse
   lightDirection: readonly [number, number, number]; // camera space, toward the light
+  slopeSmoothing: number; // slope sampling distance as a multiple of sampleDegrees; larger = smoother terrain
+  shadeLimit: number; // soft cap on how far relief can lighten or darken the color (0.3 = ±30%)
 };
 
 let heightmap: Texture | null = null;
@@ -15,8 +17,10 @@ function reliefTexture() {
 
 /**
  * Camera-facing radial shading: only land darkens near the globe's silhouette.
- * With `relief`, each triangle is also shaded as one flat facet from the elevation at its
- * provoking vertex (low-poly look). Flat ground keeps its base color; slopes lighten or darken.
+ * With `relief`, land is also shaded from elevation slope. Normals are interpolated across
+ * triangles and slopes are sampled over `slopeSmoothing` × the facet spacing, and the
+ * shading change is softly capped, so steep ranges (Andes, Himalaya) shade as smooth
+ * gradients rather than noisy light/dark facets. Flat ground keeps its base color.
  */
 export function continentMaterial(color: string, strength: number, relief?: ReliefOptions) {
   const material = new MeshBasicMaterial({ color, side: DoubleSide });
@@ -28,10 +32,11 @@ export function continentMaterial(color: string, strength: number, relief?: Reli
         reliefMap: { value: reliefTexture() },
         reliefStrength: { value: relief.strength },
         reliefHeightScale: { value: relief.heightScale },
-        reliefStep: { value: relief.sampleDegrees * Math.PI / 180 },
+        reliefStep: { value: relief.sampleDegrees * relief.slopeSmoothing * Math.PI / 180 },
         reliefLight: { value: relief.lightDirection },
+        reliefLimit: { value: relief.shadeLimit },
       });
-      shader.vertexShader = `uniform sampler2D reliefMap;\nuniform float reliefHeightScale;\nuniform float reliefStep;\nflat varying vec3 vReliefNormal;\nflat varying vec3 vReliefRadial;\n${shader.vertexShader}`;
+      shader.vertexShader = `uniform sampler2D reliefMap;\nuniform float reliefHeightScale;\nuniform float reliefStep;\nvarying vec3 vReliefNormal;\nvarying vec3 vReliefRadial;\n${shader.vertexShader}`;
       // three-globe: x = cos(lat) sin(lng), y = sin(lat), z = cos(lat) cos(lng).
       reliefVertex = `
         vec3 reliefUp = normalize(position);
@@ -47,10 +52,12 @@ export function continentMaterial(color: string, strength: number, relief?: Reli
         vec3 reliefObjectNormal = normalize(reliefUp - reliefHeightScale * (reliefEast * reliefEastAxis + reliefNorth * reliefNorthAxis));
         vReliefNormal = normalize(normalMatrix * reliefObjectNormal);
         vReliefRadial = normalize(normalMatrix * reliefUp);`;
-      shader.fragmentShader = `uniform float reliefStrength;\nuniform vec3 reliefLight;\nflat varying vec3 vReliefNormal;\nflat varying vec3 vReliefRadial;\n${shader.fragmentShader}`;
+      shader.fragmentShader = `uniform float reliefStrength;\nuniform vec3 reliefLight;\nuniform float reliefLimit;\nvarying vec3 vReliefNormal;\nvarying vec3 vReliefRadial;\n${shader.fragmentShader}`;
       reliefFragment = `
         vec3 reliefToLight = normalize(reliefLight);
-        gl_FragColor.rgb *= max(0.0, 1.0 + reliefStrength * (dot(vReliefNormal, reliefToLight) - dot(vReliefRadial, reliefToLight)));`;
+        float reliefShade = reliefStrength * (dot(normalize(vReliefNormal), reliefToLight) - dot(normalize(vReliefRadial), reliefToLight));
+        reliefShade = reliefLimit * tanh(reliefShade / reliefLimit); // soft cap: gentle slopes unchanged, peaks never harsh
+        gl_FragColor.rgb *= 1.0 + reliefShade;`;
     }
     shader.vertexShader = `varying vec3 vLandViewPosition;\nvarying vec3 vLandRadialNormal;\n${shader.vertexShader}`
       .replace('#include <project_vertex>', `#include <project_vertex>
@@ -63,6 +70,6 @@ export function continentMaterial(color: string, strength: number, relief?: Reli
         gl_FragColor.rgb *= 1.0 - limbShadeStrength * rim;${reliefFragment}
         #include <tonemapping_fragment>`);
   };
-  material.customProgramCacheKey = () => relief ? 'continent-limb-relief-v1' : 'continent-limb-v1';
+  material.customProgramCacheKey = () => relief ? 'continent-limb-relief-v2' : 'continent-limb-v1';
   return material;
 }

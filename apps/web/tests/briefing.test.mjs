@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const output = ts.transpileModule(readFileSync(new URL('../src/lib/briefing.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } }).outputText;
-const { tourOrder, rankOf, vitalSigns, placeLabel, chips, locatorPaths } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
+const { tourOrder, rankOf, vitalSigns, placeLabel, chips, locatorPaths, impactLabel, satelliteImage } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 
 const ev = (over = {}) => ({ id: 'e', source: 'gnews', layerId: 'news', significance: 50, lat: 0, lng: 0, attributes: {}, keywords: [], entities: [], ...over });
 
@@ -32,6 +32,29 @@ test('vital signs pick the telling figures per event type and skip what is missi
   [{ value: 'Police', label: 'side A' }, { value: 'Protester', label: 'side B' }, { value: 'India', label: 'location' }]);
  assert.deepEqual(vitalSigns(ev()), [], 'news has no figures');
  assert.deepEqual(vitalSigns(ev({ layerId: 'earthquake', attributes: { magnitude: 'n/a', alert: 'purple' } })), []);
+ assert.equal(impactLabel({ impact_class: 'High', people_exposed: 12000, radius_km: 25 }),
+  'High impact · 12,000 people within 25 km · JRC GHSL');
+ assert.equal(impactLabel({}), null);
+ assert.equal(impactLabel(null), null);
+});
+
+test('satellite images frame the hazard on the right day with fires overlaid on wildfires', () => {
+ const now = new Date('2026-10-04T17:00:00Z');
+ const fire = satelliteImage(ev({ layerId: 'wildfire', lat: 0, lng: 10, occurredAt: '2026-10-04T03:00:00Z' }), now);
+ const url = new URL(fire.src);
+ assert.equal(url.origin + url.pathname, 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi');
+ assert.equal(url.searchParams.get('LAYERS'), 'VIIRS_SNPP_CorrectedReflectance_TrueColor,VIIRS_NOAA20_CorrectedReflectance_TrueColor,VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All');
+ assert.equal(fire.fires, true);
+ assert.equal(url.searchParams.get('TIME'), '2026-10-03', 'same-day events use yesterday');
+ const [west, south, east, north] = url.searchParams.get('BBOX').split(',').map(Number);
+ assert.ok(Math.abs(north - 0.3378) < 1e-3 && Math.abs(south + 0.3378) < 1e-3, 'wildfire box spans 37.5 km each way');
+ assert.ok(Math.abs(east - 10.3378) < 1e-3 && Math.abs(west - 9.6622) < 1e-3);
+ assert.equal(fire.date, '2026-10-03');
+ const quake = satelliteImage(ev({ layerId: 'earthquake', lat: 40, lng: 20, occurredAt: '2026-10-01T12:00:00Z' }), now);
+ assert.deepEqual(quake.layers, ['VIIRS_SNPP_CorrectedReflectance_TrueColor', 'VIIRS_NOAA20_CorrectedReflectance_TrueColor']);
+ assert.equal(quake.fires, false);
+ assert.equal(quake.date, '2026-10-01');
+ assert.equal(satelliteImage(ev({ occurredAt: '2026-10-01T12:00:00Z' }), now), null, 'news has no satellite view');
 });
 
 test('place labels and chips come from the data, deduplicated and grouped', () => {
