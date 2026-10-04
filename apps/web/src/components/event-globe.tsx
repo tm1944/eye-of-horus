@@ -683,10 +683,11 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   const relationshipEvents = useMemo(() => [...new Map(treeEvents.flatMap(event => connectedOf(event.id))
     .filter(event => !openIds.has(event.id)).map(event => [event.id, event])).values()], [treeEvents, connectedOf, openIds]);
   const linkedIds = useMemo(() => new Set(relationshipEvents.map(event => event.id)), [relationshipEvents]);
-  // CONNECTING — a story tree with connections shows only its POI pins: the open stories
-  // and their leaves, with their arcs. Aggregates (clusters, heatmaps) and every other
-  // pin step aside, so no arc can end at a pin hidden inside a cluster.
-  const connecting = !!tree && (relationshipEvents.length > 0 || tree.nodes.length > 1);
+  // CONNECTING — an open story tree shows only its POI pins: the open stories and their
+  // leaves, with their arcs (a story without connections is just its own pin). Aggregates
+  // (clusters, heatmaps) and every other pin step aside, so no arc can end at a pin hidden
+  // inside a cluster.
+  const connecting = !!tree;
   // Heatmaps show when zoomed out, except while connecting. Hidden, not removed, so their
   // density need not be recomputed when the selection is cleared.
   useEffect(() => {
