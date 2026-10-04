@@ -1,5 +1,6 @@
 # Global events globe. Weekend architecture
 
+Current product focus: Technology (`technology`), Government & Politics (`politics`), Finance (`finance`), and Society (`humanitarian`) are enabled by default. Technology is a new shared-schema layer ID; Society broadens the humanitarian display grouping to civic and social topics. Natural disasters are optional and off by default. See `apps/web/docs/globe-and-api.md` for the current implementation; the weekend proposal below is historical.
 > Current team decision: TigerData/PostgreSQL replaces Snowflake. The Snowflake-specific setup and constraints below are historical. Use `apps/api/README.md` for the current connection and API contract; coordinate PostgreSQL DDL with Track B.
 
 Globe update: the approved main-screen renderer is now `react-globe.gl` + Three.js, with local Earth imagery, auto-rotation, surface-coordinate selection, and event markers. The original Google Maps/deck.gl proposal below is retained for context, not the current renderer. No geocoding or backend request is needed to select latitude/longitude on the sphere.
@@ -64,7 +65,7 @@ Keep one in-memory Event array on the client. Derive every visual from filters. 
 
 Layer model.
 
-- `layerId` is one of `earthquake`, `wildfire`, `conflict`, `politics`, `terror`, `finance`, `humanitarian`, `news`.
+- `layerId` is one of `technology`, `earthquake`, `wildfire`, `conflict`, `politics`, `terror`, `finance`, `humanitarian`, `news`.
 - Each layer has `enabled`, `mode` (`heatmap` or `markers` or `both`), and `weightField`.
 - Time state is an object with `startIso`, `endIso`, and boolean `play`.
 - Visible events equal `events` filtered by enabled layers and `occurredAt` inside the window.

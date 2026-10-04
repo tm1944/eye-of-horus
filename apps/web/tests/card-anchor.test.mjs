@@ -1,0 +1,21 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { PerspectiveCamera, Vector3 } from 'three';
+import ts from 'typescript';
+const output = ts.transpileModule(readFileSync(new URL('../src/lib/card-anchor.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText.replace('"three"',JSON.stringify(import.meta.resolve('three')));
+const {cardWorldAnchor}=await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
+test('drop round-trips exactly, then follows world projection instead of a flat pin offset',()=>{
+ const camera=new PerspectiveCamera(50,1.5,0.1,2000);
+ camera.position.set(0,0,300); camera.lookAt(0,0,0); camera.updateMatrixWorld();
+ const pin=new Vector3(0,0,100);
+ const anchor=cardWorldAnchor(250,180,900,600,pin,camera);
+ const p=anchor.clone().project(camera);
+ assert(Math.abs((p.x+1)*450-250)<1e-8);assert(Math.abs((1-p.y)*300-180)<1e-8);
+ const offset=p.x-pin.clone().project(camera).x;
+ const radius=anchor.length();
+ camera.position.set(150,0,Math.sqrt(300**2-150**2));camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ const moved=anchor.clone().project(camera);
+ assert(Math.abs(moved.x-pin.clone().project(camera).x-offset)>0.01);
+ assert.equal(anchor.length(),radius);
+});
