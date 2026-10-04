@@ -6,8 +6,6 @@ Each event sits where it happened. Selecting one opens a briefing with its sourc
 
 The project was built for StormHacks 2026 and is aimed at disaster awareness and relief. Its satellite features use only open Earth observation data that anyone can download and read with free Python libraries.
 
-> The repository and folder are still named `hypothesis-globe`, the project's working title.
-
 ## Features
 
 - **Live globe.** A spinning Earth with country shapes, elevation relief, an animated ocean, and a real star backdrop. Event markers are grouped into clusters until you zoom in.
