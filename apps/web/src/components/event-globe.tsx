@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { AlwaysStencilFunc, AmbientLight, CatmullRomCurve3, TubeGeometry, DirectionalLight, EqualStencilFunc, Mesh, MeshBasicMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, Vector2, Vector3, type Material, type Object3D } from "three";
+import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
 import { LABELS, type LayerId, type HeatmapPoint } from "@/lib/layers";
 import type { Event } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
@@ -10,12 +10,13 @@ import { cardWorldAnchor } from "@/lib/card-anchor";
 import { cardsOverlap, placeCard, type CardRect } from "@/lib/card-placement";
 import { countryContains, type CountryFeature } from "@/lib/country-selection";
 import countries from "@/data/countries.geojson.json";
-import { countryBorders, borderContour } from "@/lib/country-borders";
+import countryColors from "@/data/country-colors.json";
+import { neighborBorders, borderContour } from "@/lib/country-borders";
 import { globeClipPlanes } from "@/lib/globe-depth";
 import RelatedEventControls from "@/components/related-event-controls";
 import FluidOrb from "@/components/ui/fluid-orb";
 import { connectTree, pruneBranch, type Connection, floatingArc } from "@/lib/related-events";
-import { GLOBE, eventColor } from "@/lib/globe-config";
+import { GLOBE, PIN, eventColor } from "@/lib/globe-config";
 
 export type Location = { lat: number; lng: number };
 /** Integration hook: these selections are local; they never submit a request. */
@@ -32,7 +33,9 @@ const sourceHref = (value: string | null) => {
 };
 
 // Stable accessors prevent unrelated React renders from recalculating density.
-const borders = countries.features.flatMap(country => countryBorders([country]).map(points => ({ countryId: country.id, points: borderContour(points, GLOBE.landCurvatureDegrees).map(point => ({ lng: point[0], lat: point[1], countryId: country.id })) })));
+// Each country draws its own outline (so it rises with a selected country), split into
+// runs by neighbor so shared borders can take both countries' colors.
+const borders = neighborBorders(countries.features).map(({ countryId, neighborId, points }) => ({ countryId, neighborId, points: borderContour(points, GLOBE.landCurvatureDegrees).map(point => ({ lng: point[0], lat: point[1], countryId })) }));
 const borderLongitude = (point: object) => (point as { lng: number }).lng;
 const borderLatitude = (point: object) => (point as { lat: number }).lat;
 const rendererConfig = { stencil: true }; // land writes a stencil mask that clips the heatmap
@@ -57,6 +60,109 @@ function clipToLand(mesh: Mesh) {
     material.stencilFunc = EqualStencilFunc;
   }
 }
+// three-globe's fixed globe radius in scene units.
+const GLOBE_UNITS = 100;
+// Shared pin geometry, built along +Z: three-globe orients objects so +Z points away
+// from the surface. A gray stem runs from the ground to the colored sphere head.
+const pinStem = new CylinderGeometry(PIN.stemRadius * GLOBE_UNITS, PIN.stemRadius * GLOBE_UNITS, PIN.stemLength * GLOBE_UNITS, 8)
+  .rotateX(Math.PI / 2).translate(0, 0, PIN.stemLength * GLOBE_UNITS / 2);
+const pinHead = new SphereGeometry(PIN.headRadius * GLOBE_UNITS, 16, 12)
+  .translate(0, 0, (PIN.stemLength + PIN.headRadius) * GLOBE_UNITS);
+const pinStemMaterial = new MeshLambertMaterial({ color: GLOBE.pinStemColor });
+const pinHeadMaterials = new Map<string, MeshLambertMaterial>();
+function pinObject(marker: object) {
+  const { color } = marker as { color: string };
+  if (!pinHeadMaterials.has(color)) pinHeadMaterials.set(color, new MeshLambertMaterial({ color }));
+  const pin = new Group();
+  pin.add(new Mesh(pinStem, pinStemMaterial), new Mesh(pinHead, pinHeadMaterials.get(color)!));
+  return pin;
+}
+// ATMOSPHERE — two additive shells. Both work in view space: `facing` is 1 where the
+// surface points at the camera and 0 at the silhouette. Shaders output the plain color
+// with glow as alpha: additive blending already scales color by alpha, and the page
+// then shows mix(background, color, glow) instead of a darkened ring. colorspace_fragment
+// converts three's linear working color back to sRGB so #333333 renders as #333333.
+const ATMOSPHERE_VERTEX = `
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    vNormal = normalize(normalMatrix * normal);
+    vView = normalize(-viewPosition.xyz);
+    gl_Position = projectionMatrix * viewPosition;
+  }`;
+// Front faces just above the surface: haze that thickens toward the limb.
+const ATMOSPHERE_RIM_FRAGMENT = `
+  uniform vec3 color;
+  uniform float strength;
+  uniform float falloff;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
+    float glow = strength * pow(1.0 - facing, falloff);
+    gl_FragColor = vec4(color, glow);
+    #include <colorspace_fragment>
+  }`;
+// Back faces of a larger shell: brightest at Earth's limb, fading to 0 at its own edge.
+// limbFacing is how far the back faces turn away from the camera at Earth's limb.
+const ATMOSPHERE_HALO_FRAGMENT = `
+  uniform vec3 color;
+  uniform float strength;
+  uniform float falloff;
+  uniform float limbFacing;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    float away = clamp(-dot(normalize(vNormal), normalize(vView)) / limbFacing, 0.0, 1.0);
+    float glow = strength * pow(away, falloff);
+    gl_FragColor = vec4(color, glow);
+    #include <colorspace_fragment>
+  }`;
+function atmosphereShell(radius: number, rim: boolean) {
+  const outer = 1 + GLOBE.atmosphereAltitude;
+  const material = new ShaderMaterial({
+    vertexShader: ATMOSPHERE_VERTEX,
+    fragmentShader: rim ? ATMOSPHERE_RIM_FRAGMENT : ATMOSPHERE_HALO_FRAGMENT,
+    uniforms: {
+      color: { value: new Color(GLOBE.atmosphereColor) },
+      strength: { value: rim ? GLOBE.atmosphereRimStrength : GLOBE.atmosphereHaloStrength },
+      falloff: { value: rim ? GLOBE.atmosphereRimFalloff : GLOBE.atmosphereHaloFalloff },
+      limbFacing: { value: Math.sqrt(1 - 1 / outer ** 2) },
+    },
+    side: rim ? FrontSide : BackSide,
+    blending: AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+  });
+  const shell = new Mesh(new SphereGeometry(radius * (rim ? 1 + GLOBE.landAltitude * 1.5 : outer), 96, 64), material);
+  shell.raycast = () => {}; // never blocks POI or country picking
+  shell.renderOrder = rim ? 5 : -5;
+  return shell;
+}
+// Raise HSL lightness in sRGB, keeping hue and saturation.
+function lighten(hex: string, amount: number) {
+  const [r, g, b] = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), lightness = (max + min) / 2, chroma = max - min;
+  const saturation = chroma === 0 ? 0 : chroma / (1 - Math.abs(2 * lightness - 1));
+  const hue = chroma === 0 ? 0 : max === r ? ((g - b) / chroma + 6) % 6 : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
+  const next = Math.min(1, lightness + amount);
+  const c = (1 - Math.abs(2 * next - 1)) * saturation, x = c * (1 - Math.abs(hue % 2 - 1)), m = next - c / 2;
+  const [red, green, blue] = hue < 1 ? [c, x, 0] : hue < 2 ? [x, c, 0] : hue < 3 ? [0, c, x] : hue < 4 ? [0, x, c] : hue < 5 ? [x, 0, c] : [c, 0, x];
+  return `#${[red, green, blue].map(channel => Math.round((channel + m) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+// Each country's base color is its average in a satellite image (scripts/build-country-colors.py),
+// brightened for legibility on the dark page.
+const satelliteColors = new Map(Object.entries(countryColors as Record<string, string>).map(([id, hex]) => [id, lighten(hex, GLOBE.landLightnessBoost)]));
+const satelliteColor = (id: string) => satelliteColors.get(id) ?? GLOBE.landColor;
+const hexChannels = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
+// Shared borders average both countries' land colors; coastlines use the one country.
+// Either way the result is darkened by GLOBE.borderDarkness.
+const borderColors = new Map(borders.map(border => {
+  const [own, other] = [border.countryId, border.neighborId ?? border.countryId].map(id => hexChannels(satelliteColor(id)));
+  const channels = own.map((channel, index) => Math.round((channel + other[index]) / 2 * (1 - GLOBE.borderDarkness)));
+  return [border, `#${channels.map(channel => channel.toString(16).padStart(2, "0")).join("")}`];
+}));
 const heatmapRgb = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
 const heatmapLow = heatmapRgb(GLOBE.heatmapLowColor), heatmapHigh = heatmapRgb(GLOBE.heatmapHighColor);
 // Density 0 is fully transparent; denser areas warm toward the high color. The
@@ -114,7 +220,11 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     let frame = 0;
     const tick = () => {
       const instance = globe.current, fit = fittedDistance.current;
-      if (instance && fit) setZoomedIn(instance.camera().position.length() < fit * GLOBE.zoomInThreshold);
+      if (!instance || !fit) { frame = requestAnimationFrame(tick); return; }
+      // Apparent globe size scales with 1/√(d² − r²); compare it with the default fit.
+      const radius = instance.getGlobeRadius(), distance = instance.camera().position.length();
+      const magnification = Math.sqrt(fit ** 2 - radius ** 2) / Math.sqrt(Math.max(1e-9, distance ** 2 - radius ** 2));
+      setZoomedIn(magnification > GLOBE.markerZoomMagnification);
       frame = requestAnimationFrame(tick);
     };
     tick();
@@ -147,6 +257,18 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     media.addEventListener("change", change);
     return () => { observer.disconnect(); media.removeEventListener("change", change); };
   }, []);
+
+  useEffect(() => {
+    if (!ready || !globe.current) return;
+    const instance = globe.current;
+    const shells = [atmosphereShell(instance.getGlobeRadius(), false), atmosphereShell(instance.getGlobeRadius(), true)];
+    shells.forEach(shell => instance.scene().add(shell));
+    return () => shells.forEach(shell => {
+      instance.scene().remove(shell);
+      shell.geometry.dispose();
+      (shell.material as ShaderMaterial).dispose();
+    });
+  }, [ready]);
 
   useEffect(() => {
     if (!ready || !globe.current) return;
@@ -243,22 +365,22 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
   const [hoveredBorderId, setHoveredBorderId] = useState<string | null>(null);
   const hoverId = hoveredBorderId ?? hoveredCountryId;
   const landMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
-    writeLandStencil(continentMaterial(country.id === "ATA" ? GLOBE.antarcticaColor : GLOBE.landColor, GLOBE.continentEdgeShadeStrength)),
+    writeLandStencil(continentMaterial(satelliteColor(country.id), GLOBE.continentEdgeShadeStrength)),
   ])), []);
   const sideMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
-    continentMaterial(GLOBE.landColor, GLOBE.continentEdgeShadeStrength),
+    continentMaterial(satelliteColor(country.id), GLOBE.continentEdgeShadeStrength),
   ])), []);
   useEffect(() => {
     for (const country of countries.features) {
       const selected = selectedCountryIds.has(country.id);
-      const baseColor = country.id === "ATA" ? GLOBE.antarcticaColor : GLOBE.landColor;
+      const baseColor = satelliteColor(country.id);
       landMaterials.get(country.id)!.color.set(country.id === "ATA" ? baseColor : selected ? GLOBE.selectedCountryColor : country.id === hoverId ? GLOBE.hoverCountryColor : baseColor);
       sideMaterials.get(country.id)!.color.set(selected ? GLOBE.selectedCountrySideColor : baseColor);
     }
   }, [selectedCountryIds, landMaterials, sideMaterials, hoverId]);
   const sideMaterial = useCallback((value: object) => sideMaterials.get((value as CountryFeature).id)!, [sideMaterials]);
   const landMaterial = useCallback((value: object) => landMaterials.get((value as CountryFeature).id)!, [landMaterials]);
-  const countryBorderColor = useCallback((path: object) => selectedCountryIds.has((path as typeof borders[number]).countryId) ? "#000000" : GLOBE.countryBorderColor, [selectedCountryIds]);
+  const countryBorderColor = useCallback((path: object) => selectedCountryIds.has((path as typeof borders[number]).countryId) ? "#000000" : borderColors.get(path as typeof borders[number])!, [selectedCountryIds]);
   const polygonAltitude = useCallback((value: object) => selectedCountryIds.has((value as CountryFeature).id) ? GLOBE.selectedCountryAltitude : GLOBE.landAltitude, [selectedCountryIds]);
   const relationshipEvents = useMemo(() => [...new Map(connections.flatMap(link => [link.source, link.target]).map(event => [event.id, event])).values()], [connections]);
   const displayEvents = useMemo(() => rootEvent ? [...new Map([rootEvent, ...relationshipEvents].map(event => [event.id, event])).values()] : [...new Map([...events, ...selectedEvents, ...relationshipEvents].map(event => [event.id, event])).values()], [events, selectedEvents, relationshipEvents, rootEvent]);
@@ -346,7 +468,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
 
   // Relationship trees always show their markers; otherwise markers wait for zoom-in.
   const showMarkers = zoomedIn || !!rootEvent;
-  const points = useMemo(() => showMarkers ? displayEvents.map((event) => ({ ...event, color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId), altitude: GLOBE.pointAltitude })) : [], [showMarkers, displayEvents, selectedIds]);
+  const points = useMemo(() => showMarkers ? displayEvents.map((event) => ({ ...event, color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId), altitude: GLOBE.landAltitude })) : [], [showMarkers, displayEvents, selectedIds]);
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
     countries.features.find(country => countryContains(country, event))?.id,
   ])), [displayEvents]);
@@ -402,14 +524,14 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
           border.object.scale.setScalar((1 + altitude + GLOBE.borderAltitude - GLOBE.landAltitude) / (1 + GLOBE.borderAltitude));
         }
         for (const point of points) {
-          const marker = point as typeof point & { __threeObjPoint?: Mesh };
-          const mesh = marker.__threeObjPoint;
-          if (!mesh) continue;
+          const marker = point as typeof point & { __threeObjObject?: Object3D };
+          const pin = marker.__threeObjObject;
+          if (!pin) continue;
           const countryId = pointCountries.get(point.id);
           const surfaceAltitude = countryId ? countrySurfaces.get(countryId)?.__currentTargetD?.alt ?? GLOBE.landAltitude : 0;
           const base = instance.getCoords(point.lat, point.lng, surfaceAltitude);
-          mesh.position.set(base.x, base.y, base.z);
-          // Radius and height remain constant; only the base follows the country.
+          pin.position.set(base.x, base.y, base.z);
+          // Pin size and orientation remain constant; only the base follows the country.
         }
         const visible: { item: Callout; x: number; y: number; front: boolean; side: "left" | "right" }[] = [];
         for (const item of callouts) {
@@ -419,7 +541,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
           const front = normal.dot(camera) > radius + 0.5;
           const countryId = pointCountries.get(item.id);
           const surfaceAltitude = countryId ? countrySurfaces.get(countryId)?.__currentTargetD?.alt ?? GLOBE.landAltitude : 0;
-          const altitude = surfaceAltitude + GLOBE.pointAltitude;
+          const altitude = surfaceAltitude + PIN.height;
           const point = instance.getScreenCoords(item.lat, item.lng, altitude);
           const card = cards.current.get(item.id), pin = pins.current.get(item.id), path = paths.current.get(item.id);
           if (!card || !pin || !path) continue;
@@ -563,7 +685,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     const instance = globe.current!;
     const viewport = container.current!.getBoundingClientRect();
     const bounds = stage.current!.getBoundingClientRect();
-    const coords = instance.getCoords(item.lat, item.lng, GLOBE.pointAltitude);
+    const coords = instance.getCoords(item.lat, item.lng, PIN.height);
     return cardWorldAnchor(left - viewport.left + bounds.left, top - viewport.top + bounds.top, viewport.width, viewport.height, coords, instance.camera());
   }
   function startCardDrag(event: ReactPointerEvent<HTMLElement>, item: Callout) {
@@ -627,7 +749,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
       let owner: PickObject | null = hit.object;
       while (owner && !owner.__globeObjType) owner = owner.parent;
       if (!owner) continue;
-      if (owner.__globeObjType === "point") {
+      if (owner.__globeObjType === "object") {
         const point = owner.__data as Event;
         onSelect({ kind: "event", event: point });
         return;
@@ -652,7 +774,7 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
     {selection?.kind === "event" && <div className="earth-controls"><button onClick={clearTree}>Clear selection tree</button></div>}
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location.">
       <div ref={orbSurface} className="earth-orb-surface" aria-hidden="true">
-        <FluidOrb size={GLOBE.orbRenderSize} color={GLOBE.orbColor} topColor={GLOBE.orbTopColor} maxFps={GLOBE.orbMaxFps} maxPixelRatio={GLOBE.orbMaxPixelRatio} />
+        <FluidOrb size={GLOBE.orbRenderSize} color={GLOBE.orbColor} topColor={GLOBE.orbTopColor} maxFps={GLOBE.orbMaxFps} maxPixelRatio={GLOBE.orbMaxPixelRatio} edgeShade={GLOBE.continentEdgeShadeStrength} />
       </div>
       <div className="earth-renderer" onPointerDownCapture={beginGlobePress} onPointerMoveCapture={trackGlobePress}
         onPointerUpCapture={finishGlobePress} onPointerCancelCapture={() => { globePress.current = null; }}
@@ -668,13 +790,12 @@ export default function EventGlobe({ allEvents, events, selectedCountries, onTog
         pathPointAlt={GLOBE.borderAltitude} pathColor={countryBorderColor} pathStroke={null}
         pathResolution={360} pathTransitionDuration={0}
         onPathHover={path => setHoveredBorderId(path ? (path as typeof borders[number]).countryId : null)}
-        atmosphereColor={GLOBE.atmosphereColor} atmosphereAltitude={GLOBE.atmosphereAltitude} animateIn={false}
+        showAtmosphere={false} animateIn={false}
         heatmapsData={activeHeatmaps} heatmapPoints="points"
         heatmapPointLat="lat" heatmapPointLng="lng" heatmapPointWeight="weight"
         heatmapColorFn={heatmapColor}
         heatmapBandwidth={GLOBE.heatmapBandwidthDegrees} heatmapBaseAltitude={GLOBE.heatmapBaseAltitude} heatmapTopAltitude={GLOBE.heatmapBaseAltitude} heatmapsTransitionDuration={0}
-        pointsData={points} pointLat="lat" pointLng="lng" pointColor="color"
-        pointRadius={GLOBE.pointRadiusDegrees} pointAltitude="altitude" pointsTransitionDuration={0}
+        objectsData={points} objectLat="lat" objectLng="lng" objectAltitude="altitude" objectThreeObject={pinObject}
         onGlobeReady={() => {
           const instance = globe.current;
           if (!instance) return;

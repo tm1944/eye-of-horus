@@ -1,7 +1,8 @@
 /*
  * GLOBAL UI STYLES
  *
- * Shapes: border-radius controls rounded corners; 50% creates circular pins/orb.
+ * Shapes: the UI is boxy — square corners and no outline borders. Only the ocean orb
+ * (Earth itself) is round; thin dividers and the card's pin-color accent remain.
  * Sizes: px = CSS pixels; % = parent-relative; vw = viewport width;
  *        dvh = dynamic viewport height. Padding/margin pairs mean vertical / horizontal.
  * Colors: #RRGGBB is opaque; #RGBA and #RRGGBBAA include transparency.
@@ -33,6 +34,14 @@ body {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Boxy controls: no browser-default borders or rounding on buttons and fields. */
+button,
+input,
+select {
+  border: 0;
+  border-radius: 0;
 }
 
 /* Buttons inherit the surrounding type and text color. */
@@ -98,13 +107,11 @@ a:focus-visible {
   z-index: 5;
 }
 
-/* Rounded pill controls: 24px corners, charcoal fill, gray border, and 14px text.
+/* Boxy controls: square corners, charcoal fill, and 14px text.
  * Padding is vertical then horizontal (12px 20px); width follows the label. */
 .earth-controls button,
 .data-error button {
-  border: 1px solid #777575;
   background: #4e4d4d;
-  border-radius: 24px;
   padding: 12px 20px;
   font-size: 14px;
 }
@@ -165,7 +172,7 @@ a:focus-visible {
   z-index: 3;
 }
 
-/* Circular 28px numbered pin: white 2px rim, dark text, and translucent shadow.
+/* Square 28px numbered pin: dark text and translucent shadow.
  * --pin-color comes from the event layer palette in lib/globe-config.ts.
  * Positions are projected from globe coordinates in event-globe.tsx. */
 .earth-pin {
@@ -175,8 +182,6 @@ a:focus-visible {
   width: 28px;
   height: 28px;
   padding: 0;
-  border-radius: 50%;
-  border: 2px solid #fff;
   background: var(--pin-color);
   color: #202020;
   box-shadow: 0 0 0 5px #20202066, 0 2px 10px #0008;
@@ -190,7 +195,7 @@ a:focus-visible {
   box-shadow: 0 0 0 8px #ffffff33;
 }
 
-/* EVENT CARDS — 278px desktop width, boxier 4px corners, gray surface.
+/* EVENT CARDS — 278px desktop width, square corners, gray surface.
  * The 3px left edge uses the event color; padding is 17px vertical / 18px horizontal.
  * Visible cards follow pins with fixed offsets; rear-facing cards release their slot.
  * New cards avoid existing cards but may cover Earth; paths may overlap later without repacking. */
@@ -198,19 +203,13 @@ a:focus-visible {
   width: min(278px, calc(100vw - 48px));
   position: absolute;
   z-index: 4;
-  border: 1px solid #747272;
   border-left: 3px solid var(--pin-color);
   background: #4e4d4d;
   overflow: auto;
-  border-radius: 4px;
   padding: 17px 18px;
   box-shadow: 0 12px 40px #0004;
 }
 
-/* Selection colors every card border with the event accent. */
-.earth-card.is-selected {
-  border-color: var(--pin-color);
-}
 
 /* Compact uppercase category row: 11px bold text in the event color. */
 .card-category {
@@ -225,14 +224,12 @@ a:focus-visible {
   text-transform: uppercase;
 }
 
-/* Small rectangular badge: 4px corners, gray outline, pale text, 3px / 5px padding. */
+/* Small square badge: pale text, 3px / 5px padding. */
 .sample-badge {
   color: #e0dede;
   font-size: 10px;
   letter-spacing: .3px;
-  border: 1px solid #858282;
   padding: 3px 5px;
-  border-radius: 4px;
 }
 
 /* Title doubles as a text button: 17px semibold, no button fill or border.
@@ -308,11 +305,9 @@ a:focus-visible {
   font-size: 13px;
 }
 
-/* Compact outlined action: 4px corners and 4px / 8px padding. */
+/* Compact square action with 4px / 8px padding. */
 .card-footer button {
   background: none;
-  border: 1px solid #858282;
-  border-radius: 4px;
   padding: 4px 8px;
   font-size: 12px;
 }
@@ -335,7 +330,7 @@ a:focus-visible {
   pointer-events: none;
 }
 
-/* Error toast: muted red surface/border, 10px corners, centered 16px above the bottom.
+/* Error toast: muted red surface, square corners, centered 16px above the bottom.
  * Width is 90% of the viewport, capped at 520px; sits above the cards. */
 .data-error {
   position: fixed;
@@ -344,8 +339,6 @@ a:focus-visible {
   transform: translateX(-50%);
   z-index: 6;
   background: #2b2021;
-  border: 1px solid #b68b8b;
-  border-radius: 10px;
   padding: 12px;
   font-size: 14px;
   width: min(90vw, 520px);
@@ -405,12 +398,10 @@ a:focus-visible {
   overflow-wrap: anywhere;
 }
 
-/* Time action uses a small outlined rectangle with 4px corners. */
+/* Time action is a small square button. */
 .time-summary button {
   margin-top: 8px;
   background: #4e4d4d;
-  border: 1px solid #858282;
-  border-radius: 4px;
   padding: 6px;
 }
 
@@ -456,14 +447,12 @@ input:focus-visible {
   font-size: 13px;
 }
 
-/* Full-width fields: 8px padding, 4px corners, gray border, blue-charcoal fill, white text. */
+/* Full-width fields: 8px padding, square corners, charcoal fill, white text. */
 .render-controls input,
 .render-controls select {
   width: 100%;
   background: #4e4d4d;
   color: #fff;
-  border: 1px solid #858282;
-  border-radius: 4px;
   padding: 8px;
   font: inherit;
 }
@@ -546,8 +535,9 @@ input:focus-visible {
 }
 
 /* ICON RAILS — the left rail has one icon per layer category, the right rail one per
- * settings panel. Off icons are muted; active icons sit on a lighter gray tile (layer
- * icons in their category color). Hover opens a fixed flyout toward the globe. */
+ * settings panel. Icon tiles span the full rail width with no gaps; off icons are muted,
+ * active icons sit on a lighter gray tile (layer icons in their category color). Hover
+ * opens a fixed flyout flush against the rail. Rails have no edge line against the globe. */
 .icon-rail {
   position: sticky;
   top: 0;
@@ -555,17 +545,11 @@ input:focus-visible {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
   padding: 16px 0;
   background: #363535;
   z-index: 9;
-}
-.layer-rail {
-  border-right: 1px solid #747272;
-}
-.settings-rail {
-  border-left: 1px solid #747272;
 }
 .icon-rail ul {
   list-style: none;
@@ -573,11 +557,12 @@ input:focus-visible {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 .rail-count {
+  margin: 0 12px;
   font-size: 13px;
   font-weight: 600;
+  text-align: center;
   color: #e0dede;
   padding-bottom: 8px;
   border-bottom: 1px solid #5b5959;
@@ -591,10 +576,8 @@ input:focus-visible {
   position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  width: 100%;
+  aspect-ratio: 1; /* square tiles, as wide as the rail */
   background: none;
   color: #9a9898;
   cursor: pointer;
@@ -615,12 +598,9 @@ input:focus-visible {
 .rail-icon[data-state]:not([data-state="off"])[data-open] {
   background: #686666;
 }
-.rail-icon[data-open] {
-  border-color: #8a8787;
-}
 .rail-icon:focus-visible {
   outline: 2px solid #eeeeee;
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 /* Partial categories show how many subcategories are on. */
 .rail-badge {
@@ -630,7 +610,6 @@ input:focus-visible {
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
   background: #242424;
   color: #e0dede;
   font-size: 9px;
@@ -641,37 +620,44 @@ input:focus-visible {
   position: fixed;
   z-index: 20;
   overflow-y: auto;
-  padding: 8px;
+  padding: 0;
   background: #363535;
-  border: 1px solid #8a8787;
-  border-radius: 8px;
   box-shadow: 0 12px 40px #0008;
   font-size: 13px;
 }
-/* The flyout heading names the hovered icon and toggles the whole category. */
+/* The flyout heading names the hovered icon and toggles the whole category. Heading and
+ * row highlights span the flyout edge to edge. */
 .flyout-heading {
+  width: 100%;
+  background: none;
+  text-align: left;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px;
-  margin-bottom: 6px;
-  border-radius: 5px;
+  gap: 12px; /* matches the 12px left padding so the name centers exactly */
+  padding: 10px 12px;
   border-bottom: 1px solid #5b5959;
   font-weight: 600;
   cursor: pointer;
 }
+.flyout-heading:hover {
+  background: #444343;
+}
 .flyout-heading[data-enabled] {
   background: #5d5b5b;
 }
+.flyout-heading[data-enabled]:hover {
+  background: #686666;
+}
+/* The name fills the space left of the x/y count and is centered within it. */
 .flyout-heading span {
   flex: 1;
+  text-align: center;
 }
 .flyout-heading small {
   font-size: 11px;
   font-weight: 400;
   color: #c6c4c4;
 }
-.flyout-heading input,
 .subcategory-toggle input {
   width: 16px;
   height: 16px;
@@ -681,15 +667,7 @@ input:focus-visible {
 .category-dot {
   width: 9px;
   height: 9px;
-  border-radius: 50%;
   flex-shrink: 0;
-}
-.subcategory-row {
-  border-radius: 5px;
-  padding: 2px 0;
-}
-.subcategory-row + .subcategory-row {
-  margin-top: 2px;
 }
 .subcategory-row:hover {
   background: #444343;
@@ -704,26 +682,23 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 6px 8px;
+  padding: 8px 12px;
   cursor: pointer;
 }
 .subcategory-row select {
   display: block;
-  margin: 0 8px 6px 33px;
-  width: calc(100% - 41px);
+  margin: 0 12px 8px 37px;
+  width: calc(100% - 49px);
   padding: 4px;
   background: #4e4d4d;
-  border: 1px solid #858282;
-  border-radius: 4px;
   color: #fff;
   font: inherit;
   font-size: 12px;
 }
-.flyout-heading:focus-within,
+.flyout-heading:focus-visible,
 .subcategory-toggle:focus-within {
   outline: 2px solid #eeeeee;
   outline-offset: -2px;
-  border-radius: 5px;
 }
 
 /* SETTINGS FLYOUT — the active panel's title, then its controls. */
@@ -766,8 +741,6 @@ input:focus-visible {
 }
 .selected-countries button {
   background: #4e4d4d;
-  border: 1px solid #777575;
-  border-radius: 4px;
   padding: 5px 8px;
 }
 .selected-countries button:disabled {
@@ -803,35 +776,30 @@ input:focus-visible {
 .earth-card[data-dragging="true"], .earth-card[data-dragging="true"] * {
   cursor: grabbing;
 }
-/* Phones: the layer rail becomes a strip across the top and the settings rail a
- * strip fixed to the bottom; flyouts open toward the globe. */
+/* Phones: the layer rail becomes a 52px strip across the top and the settings rail a
+ * strip fixed to the bottom; tiles fill the strip height and flyouts open toward the globe. */
 @media (max-width: 480px) {
   .earth-page {
     display: block;
-    padding-bottom: 57px;
+    padding-bottom: 52px;
   }
   .icon-rail {
     position: relative;
     height: auto;
     flex-direction: row;
     justify-content: center;
-    padding: 8px;
+    align-items: center;
+    padding: 0 8px;
   }
   .icon-rail ul {
     flex-direction: row;
-    gap: 4px;
-  }
-  .layer-rail {
-    border-right: 0;
-    border-bottom: 1px solid #747272;
   }
   .settings-rail {
     position: fixed;
+    top: auto;
     left: 0;
     right: 0;
     bottom: 0;
-    border-left: 0;
-    border-top: 1px solid #747272;
   }
   .settings-rail ul + ul {
     padding: 0 0 0 10px;
@@ -839,13 +807,14 @@ input:focus-visible {
     border-left: 1px solid #5b5959;
   }
   .rail-count {
+    margin: 0 8px 0 0;
     padding: 0 8px 0 0;
     border-bottom: 0;
     border-right: 1px solid #5b5959;
   }
   .rail-icon {
-    width: 40px;
-    height: 40px;
+    width: 52px;
+    height: 52px;
   }
 }
 
@@ -855,7 +824,7 @@ input:focus-visible {
 .card-related h3 { font-size: 14px; margin: 0 0 6px; }
 .card-related h3 span { color: #d2d0d0; font-size: 11px; font-weight: 400; }
 .card-related p { font-size: 12px; color: #d2d0d0; }
-.card-related button { display: block; width: 100%; margin-top: 6px; padding: 8px; text-align: left; background: #393838; color: #fff; border: 1px solid #898686; border-radius: 3px; font-size: 13px; line-height: 1.4; cursor: pointer; }
+.card-related button { display: block; width: 100%; margin-top: 6px; padding: 8px; text-align: left; background: #393838; color: #fff; font-size: 13px; line-height: 1.4; cursor: pointer; }
 .card-related button:hover { background: #605d5d; }
 .card-related button:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
 
@@ -864,5 +833,5 @@ input:focus-visible {
 .related-event-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 6px; }
 .card-connections h4 { font-size: 12px; margin: 10px 0 4px; color: #d2d0d0; }
 .card-related .connection-toggle { text-align: center; padding: 6px 2px; }
-.card-related .connection-toggle[aria-pressed="true"] { border-color: #ed963e; color: #ffd4a7; background: #563c28; }
+.card-related .connection-toggle[aria-pressed="true"] { color: #ffd4a7; background: #563c28; }
 .card-related button:disabled { opacity: .45; cursor: default; }

@@ -13,6 +13,8 @@ export type FluidOrbProps = React.ComponentProps<'div'> & {
   topColor?: string
   maxFps?: number
   maxPixelRatio?: number
+  /** Darkening toward the rim: 0 = flat; 1 = black at the edge. */
+  edgeShade?: number
 }
 
 const VERT = `
@@ -33,6 +35,7 @@ uniform vec2 u_resolution;
 uniform float u_time;
 uniform vec3 u_color;
 uniform vec3 u_topColor;
+uniform float u_edgeShade;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -80,6 +83,11 @@ void main() {
   float shade = clamp(g + (f - 0.5) * 0.35 * anchor, 0.0, 1.0);
   vec3 col = mix(u_topColor, u_color, smoothstep(0.0, 1.0, shade));
 
+  // Same limb shading as the land: the surface facing away from the viewer darkens.
+  float radius = min(1.0, distance(uv, vec2(0.5)) * 2.0);
+  float facing = sqrt(1.0 - radius * radius);
+  col *= 1.0 - u_edgeShade * (1.0 - smoothstep(0.0, 0.65, facing));
+
   float edge = 1.0 - smoothstep(0.49, 0.5, distance(uv, vec2(0.5)));
 
   gl_FragColor = vec4(col * edge, edge);
@@ -115,6 +123,7 @@ const FluidOrb = ({
   topColor = '#9edbff',
   maxFps = 30,
   maxPixelRatio = 1.25,
+  edgeShade = 0,
   className,
   style,
   ...props
@@ -165,6 +174,7 @@ const FluidOrb = ({
     const uTime = gl.getUniformLocation(program, 'u_time')
     gl.uniform3f(gl.getUniformLocation(program, 'u_color'), ...hexToRgb(color))
     gl.uniform3f(gl.getUniformLocation(program, 'u_topColor'), ...hexToRgb(topColor))
+    gl.uniform1f(gl.getUniformLocation(program, 'u_edgeShade'), edgeShade)
 
     const dpr = Math.min(window.devicePixelRatio || 1, maxPixelRatio)
     const px = Math.round(size * dpr)
@@ -204,7 +214,7 @@ const FluidOrb = ({
       gl.deleteShader(frag)
       gl.deleteBuffer(buffer)
     }
-  }, [size, color, topColor, maxFps, maxPixelRatio])
+  }, [size, color, topColor, maxFps, maxPixelRatio, edgeShade])
 
   return (
     <div

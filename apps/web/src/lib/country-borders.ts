@@ -50,3 +50,32 @@ export function borderContour(line: number[][], resolution: number): number[][] 
   });
   return result;
 }
+
+export type NeighborBorder = { countryId: string; neighborId: string | null; points: number[][] };
+const edgeKey = (a: number[], b: number[]) => {
+  const [p, q] = [a, b].map(point => `${point[0].toFixed(6)},${point[1].toFixed(6)}`).sort();
+  return `${p}|${q}`;
+};
+
+/** Each country's outline split into runs that share one neighbor; coastlines have none.
+ * Neighbors share exact source vertices, so an undirected edge identifies the pair. */
+export function neighborBorders(features: { id: string; geometry: Geometry }[]): NeighborBorder[] {
+  const owners = new Map<string, Set<string>>();
+  const lines = features.map(feature => ({ id: feature.id, lines: countryBorders([feature]) }));
+  for (const { id, lines: outline } of lines) for (const line of outline) for (let index = 1; index < line.length; index++) {
+    const key = edgeKey(line[index - 1], line[index]);
+    if (!owners.has(key)) owners.set(key, new Set());
+    owners.get(key)!.add(id);
+  }
+  return lines.flatMap(({ id, lines: outline }) => outline.flatMap(line => {
+    const runs: NeighborBorder[] = [];
+    for (let index = 1; index < line.length; index++) {
+      // Array.from, not spread: tests transpile this module to ES5, where Set spread is empty.
+      const neighborId = Array.from(owners.get(edgeKey(line[index - 1], line[index]))!).find(owner => owner !== id) ?? null;
+      const run = runs.at(-1);
+      if (run && run.neighborId === neighborId) run.points.push(line[index]);
+      else runs.push({ countryId: id, neighborId, points: [line[index - 1], line[index]] });
+    }
+    return runs;
+  }));
+}

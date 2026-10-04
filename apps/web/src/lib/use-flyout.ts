@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent, type MouseEvent } from "react";
 
 const CLOSE_DELAY_MS = 140; // lets the pointer cross from an icon into its flyout
-const GAP_PX = 6;
+const GAP_PX = 0; // flyouts touch their rail
 const EDGE_PX = 8;
 const LABEL_WIDTH_PX = 160; // assumed width of auto-sized labels when clamping to the screen
 
