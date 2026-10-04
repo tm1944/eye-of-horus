@@ -33,8 +33,10 @@ GDACS_URL = (
     "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
     "?eventlist=EQ,TC,FL,VO,DR,WF&alertlevel=Green;Orange;Red&fromDate={start}&toDate={end}"
 )
+# Day range 2: a 1-day window is the last 24 hours, and VIIRS NRT often
+# stops on the previous calendar day, which comes back as a header-only CSV.
 FIRMS_URL = (
-    "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{key}/VIIRS_SNPP_NRT/{west},{south},{east},{north}/1"
+    "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{key}/VIIRS_SNPP_NRT/{west},{south},{east},{north}/2"
 )
 FIRMS_TILE_DEGREES = 10
 FIRMS_CAP = 5000
