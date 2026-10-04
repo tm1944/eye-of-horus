@@ -15,14 +15,14 @@ export default function SettingsRail({ actions, panels, reflowKey }: { actions: 
   const { flyout, toggle, itemProps, panelProps } = useFlyout<string>("left", flyoutWidth, reflowKey);
   const activeAction = actions.find(action => flyout?.id === `action:${action.id}`);
   return <nav className="icon-rail settings-rail" data-rail aria-label="View and filter settings">
-    <ul>
+    {actions.length > 0 && <ul>
       {actions.map(action => <li key={action.id} {...itemProps(`action:${action.id}`)}>
         <button type="button" className="rail-icon" data-state={action.pressed ? "on" : "off"} aria-pressed={action.pressed}
           aria-label={action.label} disabled={action.disabled} onClick={action.onClick}>
           <RailIcon id={action.icon} />
         </button>
       </li>)}
-    </ul>
+    </ul>}
     <ul>
       {panels.map(panel => <li key={panel.id} {...itemProps(panel.id)}>
         <button type="button" className="rail-icon" data-state={panel.active ? "on" : "off"} data-open={flyout?.id === panel.id || undefined}

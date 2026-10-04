@@ -85,6 +85,7 @@ def _map_news_to_event(news_event: dict) -> dict:
         'title': news_event['title'],
         'summary': news_event.get('summary'),
         'info_url': info_url,
+        'image_url': news_event.get('imageUrl'),
         'occurred_at': _to_iso(news_event.get('occurredAt')),
         'updated_at': None,
         'ended_at': None,
@@ -103,12 +104,12 @@ def _map_news_to_event(news_event: dict) -> dict:
 
 _EVENT_UPSERT = """
 INSERT INTO mart.event (
-  event_id, source, source_event_id, category, subtype, title, summary, info_url,
+  event_id, source, source_event_id, category, subtype, title, summary, info_url, image_url,
   occurred_at, updated_at, ended_at, lng, lat, alt_m, geo_precision, geo_source,
   significance, weight, country_iso3, keywords, raw_ref
 ) VALUES (
   %(event_id)s, %(source)s, %(source_event_id)s, %(category)s, %(subtype)s,
-  %(title)s, %(summary)s, %(info_url)s, %(occurred_at)s, %(updated_at)s,
+  %(title)s, %(summary)s, %(info_url)s, %(image_url)s, %(occurred_at)s, %(updated_at)s,
   %(ended_at)s, %(lng)s, %(lat)s, %(alt_m)s, %(geo_precision)s, %(geo_source)s,
   %(significance)s, %(weight)s, %(country_iso3)s, %(keywords)s::jsonb, %(raw_ref)s
 )
@@ -118,6 +119,8 @@ ON CONFLICT (source, source_event_id) DO UPDATE SET
   title = EXCLUDED.title,
   summary = EXCLUDED.summary,
   info_url = EXCLUDED.info_url,
+  -- Keep a backfilled image when a re-upload has none.
+  image_url = COALESCE(EXCLUDED.image_url, mart.event.image_url),
   occurred_at = EXCLUDED.occurred_at,
   updated_at = EXCLUDED.updated_at,
   ended_at = EXCLUDED.ended_at,

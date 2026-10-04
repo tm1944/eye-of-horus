@@ -136,12 +136,75 @@ a:focus-visible {
   color: #cccccc;
   font-size: 13px;
   pointer-events: none;
+  /* Above the WebGL globe and its atmosphere (z-index 1), and every overlay on the stage. */
+  z-index: 10;
 }
 
 /* Hint separators use a darker blue-gray and 9px horizontal spacing. */
 .earth-hint span {
   margin: 0 9px;
   color: #aaaaaa;
+}
+
+/* DATA ATTRIBUTION — small corner credits, as on most web maps; below the hint line. */
+.data-attribution {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  max-width: calc(100% - 20px);
+  color: rgba(255, 255, 255, .5);
+  font-size: 10.5px;
+  line-height: 1.4;
+  text-align: right;
+  z-index: 11; /* above the hint line, which the open list may cover on phones */
+}
+.data-attribution p {
+  margin: 0;
+}
+.data-attribution a {
+  color: rgba(255, 255, 255, .7);
+  text-decoration: none;
+}
+.data-attribution a:hover,
+.data-attribution a:focus-visible {
+  color: #ffffff;
+  text-decoration: underline;
+}
+.data-attribution-group + .data-attribution-group::before {
+  content: "|";
+  margin: 0 7px;
+  color: rgba(255, 255, 255, .3);
+}
+.data-attribution-toggle {
+  display: none;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Narrow screens: a "Data sources" toggle opens the credits as a stacked list. */
+@media (max-width: 900px) {
+  .data-attribution-toggle {
+    display: inline;
+  }
+  .data-attribution p {
+    display: none;
+  }
+  .data-attribution[data-open] p {
+    display: block;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: #242424;
+  }
+  .data-attribution-group {
+    display: block;
+  }
+  .data-attribution-group + .data-attribution-group::before {
+    content: none;
+  }
 }
 
 /* CONNECTOR LINES — full-stage SVG, behind pins/cards; it never captures clicks. */
@@ -194,6 +257,201 @@ a:focus-visible {
 .earth-pin:hover {
   box-shadow: 0 0 0 8px #ffffff33;
 }
+
+/* CLUSTERS (explore view) — round numbered bubbles for pins that sit close together on
+ * screen, positioned by event-globe.tsx. Round, unlike the square headline pins. */
+.clusters {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.earth-cluster {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: 15px;
+  background: #2b2b2b;
+  color: #f0eeee;
+  border: 2px solid var(--pin-color);
+  box-shadow: 0 2px 10px #0009;
+  font-size: 12px;
+  font-weight: 800;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity .2s, filter .2s;
+}
+.earth-cluster:hover { box-shadow: 0 0 0 6px #ffffff33; }
+.earth-cluster:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+/* With a selection: clusters holding a linked event stand out; the rest fade to gray. */
+.earth-cluster.is-linked { background: var(--pin-color); color: #202020; }
+.earth-cluster.is-dim { filter: grayscale(1); opacity: .55; }
+
+/* Summary cards for one cluster's events; picking one selects it. */
+.cluster-panel {
+  position: absolute; z-index: 8; overflow: auto;
+  padding: 12px 14px; background: #3f3e3e; color: #f0eeee; box-shadow: 0 8px 28px #000a;
+}
+.cluster-panel-header { display: flex; align-items: center; font-size: 12px; font-weight: 700; color: #d2d0d0; text-transform: uppercase; letter-spacing: 1px; }
+.cluster-panel-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.summary-card {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  padding: 8px 10px; background: #2f2e2e; color: #fff; border-left: 3px solid var(--pin-color);
+}
+.summary-card-text { display: grid; gap: 3px; min-width: 0; flex: 1; }
+
+/* ARTICLE THUMBNAILS — rendered only after the image has fully loaded (event-media.tsx),
+ * so there is never a broken icon or empty box; without one, the text takes the row. */
+.thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  background: #2f2e2e;
+  animation: thumb-in .25s ease-out;
+}
+.thumb-small { width: 44px; height: 44px; }
+@keyframes thumb-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .thumb { animation: none; } }
+
+/* DETAILS PANEL (Headlines) — the selected story, docked right instead of expanding its card.
+ * Above the cards and connectors; ring cards are laid out to its left. */
+.details-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  width: min(380px, calc(100% - 32px));
+  overflow-y: auto;
+  background: #3f3e3e;
+  color: #f0eeee;
+  border-left: 3px solid var(--pin-color);
+  box-shadow: -8px 0 28px #0008;
+  animation: details-in .22s ease-out;
+}
+@keyframes details-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .details-panel { animation: none; } }
+/* Briefing layout, top to bottom: stepper, hero, vital signs, significance, lede, place,
+ * people & places, then one call to action. Sections are separated by hairlines. */
+.briefing-nav {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px; background: #353434ee; font-size: 12px; color: #d2d0d0;
+}
+.briefing-nav button { background: none; color: #f0eeee; font-size: 18px; line-height: 1; padding: 4px 10px; cursor: pointer; }
+.briefing-nav button:hover { background: #555353; }
+.briefing-nav button:focus-visible, .briefing-center:focus-visible, .briefing-cta:focus-visible, .briefing-more:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+.briefing-close { margin-left: auto; }
+
+/* Hero: a category-coloured band with its icon, the photo fading in over it once loaded,
+ * and the headline on a dark gradient. Fixed shape, so nothing jumps either way. */
+.briefing-hero { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #2f2e2e; }
+.briefing-hero-band {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pin-color) 55%, #2f2e2e), #2f2e2e 75%);
+  color: color-mix(in srgb, var(--pin-color) 70%, #fff);
+}
+.briefing-hero-band .rail-svg { width: 72px; height: 72px; opacity: .5; }
+.briefing-hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: thumb-in .35s ease-out; }
+.briefing-hero-text {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 18px 14px;
+  background: linear-gradient(transparent, #000c 55%);
+}
+.briefing-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 11px; color: #e0dede; letter-spacing: .5px; }
+.briefing-chip { color: #202020; font-weight: 700; padding: 2px 7px; text-transform: uppercase; }
+.briefing-title { margin: 0; font-size: 19px; line-height: 1.3; color: #fff; text-shadow: 0 1px 8px #000a; }
+
+/* Vital signs: the three numbers that matter for this kind of event. */
+.briefing-vitals { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); margin: 0; border-bottom: 1px solid #555353; }
+.briefing-vitals div { padding: 12px 14px; border-right: 1px solid #555353; min-width: 0; }
+.briefing-vitals div:last-child { border-right: 0; }
+.briefing-vitals dd { margin: 0 0 2px; font-size: 18px; font-weight: 700; color: #fff; overflow-wrap: anywhere; }
+.briefing-vitals dt { order: 2; font-size: 11px; color: #bdbbbb; text-transform: uppercase; letter-spacing: .5px; }
+.briefing-vitals div { display: flex; flex-direction: column-reverse; }
+.briefing-vitals [data-tone="green"] dd { color: #7fd99b; }
+.briefing-vitals [data-tone="orange"] dd { color: #ffb066; }
+.briefing-vitals [data-tone="red"] dd { color: #ff7070; }
+
+.briefing-section { padding: 14px 18px; border-bottom: 1px solid #555353; }
+.briefing-label { display: block; margin-bottom: 6px; font-size: 11px; color: #bdbbbb; text-transform: uppercase; letter-spacing: 1px; }
+.briefing-rank { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+.briefing-rank .briefing-label { margin: 0; }
+.briefing-meter { height: 6px; background: #555353; }
+.briefing-meter span { display: block; height: 100%; background: var(--pin-color); }
+.briefing-rank strong { font-size: 16px; }
+.briefing-rank small { font-size: 11px; color: #bdbbbb; font-weight: 400; }
+.briefing-lede p { margin: 0; font-size: 15px; line-height: 1.55; color: #ecebeb; }
+.briefing-more { margin-top: 6px; padding: 0; background: none; color: #ffd4a7; font-size: 12px; cursor: pointer; }
+
+/* Place: a small globe centred on the event, beside the place name and a re-centre button. */
+.briefing-place { display: flex; align-items: center; gap: 14px; }
+.briefing-place-name { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+.briefing-coords { margin: 0 0 8px; font-size: 11px; color: #bdbbbb; }
+.briefing-center { padding: 5px 10px; background: #2f2e2e; color: #f0eeee; font-size: 12px; cursor: pointer; }
+.briefing-center:hover { background: #555353; }
+.locator { flex: none; }
+.locator-sea { fill: #26303a; }
+.locator-land { fill: #5d6863; stroke: #7d8a84; stroke-width: .4; }
+.locator-coast { fill: none; stroke: #7d8a84; stroke-width: .6; }
+.locator-rim { fill: none; stroke: #6f7b84; stroke-width: 1; }
+.locator-pulse { fill: none; stroke-width: 1.5; transform-origin: center; animation: locator-pulse 2.4s ease-out infinite; }
+@keyframes locator-pulse { from { transform: scale(.4); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+
+/* People & places: typed chips (display only). */
+.briefing-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.briefing-tags li { display: flex; align-items: center; gap: 5px; padding: 3px 8px; background: #2f2e2e; font-size: 12px; }
+.briefing-tags li span { font-size: 9px; color: #bdbbbb; }
+.briefing-tags [data-kind="person"] span { color: #ffd4a7; }
+.briefing-tags [data-kind="organization"] span { color: #94e5c9; }
+.briefing-tags [data-kind="actor"] span { color: #fba6bf; }
+.briefing-tags [data-kind="place"] span { color: #a0d9ff; }
+
+.briefing-footer { padding: 14px 18px 20px; }
+.briefing-footer p { margin: 0 0 10px; font-size: 12px; color: #bdbbbb; }
+.briefing-cta {
+  display: block; padding: 11px 14px; text-align: center; font-weight: 600;
+  background: var(--pin-color); color: #202020; text-decoration: none;
+}
+.briefing-cta:hover { filter: brightness(1.1); }
+
+/* TOUR — a quiet pill to start, then a compact control bar with a dwell-time progress line.
+ * Directly under the Headlines | Explore tabs (top: 20px, ~40px tall), centred on them. */
+.tour-start, .tour-bar {
+  position: absolute; top: 68px; left: 50%; transform: translateX(-50%); z-index: 8;
+  background: #363535; color: #f0eeee; box-shadow: 0 4px 16px #0006;
+}
+.tour-start { padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tour-start:hover { background: #4e4d4d; }
+.tour-start span { color: #ed963e; margin-right: 4px; }
+.tour-bar { display: flex; align-items: center; gap: 2px; padding: 4px; overflow: hidden; }
+.tour-bar button { background: none; color: #f0eeee; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+.tour-bar button:hover { background: #4e4d4d; }
+.tour-start:focus-visible, .tour-bar button:focus-visible { outline: 2px solid #ed963e; outline-offset: -2px; }
+.tour-status { padding: 0 8px; font-size: 12px; color: #d2d0d0; white-space: nowrap; }
+.tour-progress { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: #ed963e; transform-origin: left; animation: tour-progress linear forwards; }
+.tour-progress[data-state="paused"] { animation-play-state: paused; opacity: .5; }
+@keyframes tour-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .locator-pulse { animation: none; opacity: .6; }
+  .briefing-hero-image { animation: none; }
+}/* Narrow screens: a bottom sheet instead of a side panel. */
+@media (max-width: 700px) {
+  .details-panel { top: auto; left: 0; width: auto; max-height: 60%; border-left: 0; border-top: 3px solid var(--pin-color); box-shadow: 0 -8px 28px #0008; }
+}
+
+/* Card headline row: thumbnail left; title with its freshness line right. */
+.card-headline { display: flex; align-items: flex-start; gap: 10px; }
+.card-headline-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.time-ago { font-size: 11px; color: #bdbbbb; }
+.summary-card:hover { background: #555353; }
+.summary-card:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+.summary-card-title { font-size: 13px; line-height: 1.35; }
+.summary-card-meta { font-size: 11px; color: #bdbbbb; }
+.summary-card-meta strong { color: #ff8080; font-weight: 600; }
 
 /* EVENT CARDS — 278px desktop width, square corners, gray surface.
  * The 3px left edge uses the event color; padding is 17px vertical / 18px horizontal.
@@ -529,10 +787,40 @@ input:focus-visible {
   grid-template-columns: 64px minmax(0, 1fr) 64px;
   align-items: start;
 }
+/* Headlines has neither rail, so the globe takes the full width. */
+.earth-page[data-tab="headlines"] {
+  grid-template-columns: minmax(0, 1fr);
+}
 .globe-workspace {
+  position: relative;
   min-width: 0;
   overflow: hidden;
 }
+
+/* FEED TABS — Headlines | Explore, centred over the globe in the rails' charcoal.
+ * The selected tab takes the lighter tile and a warm underline. */
+.view-tabs {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  background: #363535;
+  box-shadow: 0 4px 16px #0006;
+}
+.view-tabs button {
+  padding: 10px 22px;
+  background: none;
+  color: #bdbbbb;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.view-tabs button:hover { color: #fff; }
+.view-tabs button[aria-selected="true"] { background: #4e4d4d; color: #fff; border-bottom-color: #ed963e; }
+.view-tabs button:focus-visible { outline: 2px solid #ed963e; outline-offset: -2px; }
 
 /* ICON RAILS — the left rail has one icon per layer category, the right rail one per
  * settings panel. Icon tiles span the full rail width with no gaps; off icons are muted,

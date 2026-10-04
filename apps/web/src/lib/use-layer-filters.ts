@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { parseFilters, writeFilters, type Filters } from "./layers";
+import { parseFilters, parseTab, writeFilters, writeTab, type Filters, type ViewTab } from "./layers";
 const changeEvent = "globe-filters-changed";
 function subscribe(notify: () => void) {
   window.addEventListener("popstate", notify);
@@ -24,4 +24,14 @@ export function useLayerFilters() {
     window.dispatchEvent(new Event(changeEvent));
   }
   return { filters, update };
+}
+/** The Headlines / Explore tab, kept in the URL so reloads and shared links keep it. */
+export function useViewTab() {
+  const search = useSyncExternalStore(subscribe, snapshot, () => "");
+  const tab = parseTab(search);
+  function setTab(next: ViewTab) {
+    window.history.pushState(null, "", `${window.location.pathname}?${writeTab(window.location.search, next)}${window.location.hash}`);
+    window.dispatchEvent(new Event(changeEvent));
+  }
+  return { tab, setTab };
 }

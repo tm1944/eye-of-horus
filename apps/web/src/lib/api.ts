@@ -1,6 +1,8 @@
 import type { events, links } from "./fixtures";
-export type Event = Omit<(typeof events)[number], "sourceUrl" | "summary" | "rawRef"> & {
+export type Event = Omit<(typeof events)[number], "sourceUrl" | "imageUrl" | "summary" | "rawRef"> & {
   sourceUrl: string | null;
+  /** Article thumbnail, loaded directly from the publisher; null when none is known. */
+  imageUrl: string | null;
   summary: string | null;
   rawRef: string | null;
 };

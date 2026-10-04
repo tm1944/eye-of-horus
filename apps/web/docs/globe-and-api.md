@@ -24,7 +24,7 @@ Each animation frame:
 
 The projection loop mutates only DOM positions and visibility. A selected event hidden by map filters retains its card without a pin/connector. It never changes event coordinates and makes **zero network requests**. Its animation frame, media listener, and resize observer are cleaned up on unmount. Cards near the horizon can disappear as Earth turns; pause rotation to read or interact with them.
 
-Globe and card clicks, dragging, and wheel/pinch zoom pause automatic rotation immediately. It resumes 3 seconds after the last interaction ends (`GLOBE.interactionPauseMs`); holding a pointer keeps it paused until release. Hover alone does not pause it. The Pause/Resume button controls the persistent preference: a manual pause never expires, and Resume starts rotation immediately. Reduced-motion users start manually paused with inertial damping disabled. Interaction listeners and pending timers are cleaned up on unmount. This behavior is local UI state and makes no backend requests. Clicking a source opens its URL in a new tab.
+Globe and card clicks, dragging, wheel/pinch zoom, and key presses inside the globe stop automatic rotation immediately. Hover alone does not. Rotation restarts `GLOBE.idleResumeMs` (10 s) after the last interaction: it eases from still to `rotationSpeed` over `spinUpMs` while tilt and zoom ease back to `initialView.lat` and the default fit over `viewReturnMs`. A held pointer, a selected event or location, an open connection card, or an open cluster list holds the view, so rotation never resumes under them; the countdown starts once they close. Selecting an event or location flies the camera to center it at the current zoom (linked-pin visits keep `relatedFocusAltitude` as a minimum). The camera stays upright: it tilts toward or away from the viewer by at most `maxTiltDegrees` (45°) and never rolls; centering clamps to that range. Switching between Headlines and Explore skips the idle wait: rotation starts (or keeps its speed) and tilt and zoom ease back at once. There are no pause or reset buttons. Reduced-motion users never get automatic rotation or view return, and inertial damping is disabled. Interaction listeners and pending timers are cleaned up on unmount. This behavior is local UI state and makes no backend requests. Clicking a source opens its URL in a new tab.
 
 ## Visual configuration
 
@@ -33,8 +33,11 @@ Globe and card clicks, dragging, and wheel/pinch zoom pause automatic rotation i
 | Setting | Default | Meaning / units |
 | --- | --- | --- |
 | `initialView` | 30, -110 | Initial latitude/longitude in degrees; positive longitude is east |
-| `interactionPauseMs` | 3000 | Delay after globe/card interaction before automatic rotation resumes |
-| `rotationSpeed` | 1 | OrbitControls speed; 1 is approximately one orbit/minute at 60fps |
+| `idleResumeMs` | 10000 | Idle time after the last globe/card interaction before rotation restarts |
+| `spinUpMs` | 4000 | Rotation eases from still to full speed over this long |
+| `viewReturnMs` | 4000 | Tilt and zoom ease back to the default view over this long |
+| `maxTiltDegrees` | 45 | Largest tilt toward or away from the viewer; no sideways roll |
+| `rotationSpeed` | 0.5 | OrbitControls speed; 1 is approximately one orbit/minute at 60fps |
 | `atmosphereColor` | #87c8ef | Atmosphere color |
 | `atmosphereAltitude` | 0.12 | Fraction of globe radius |
 | `ambientLightIntensity` | 2.0 | Three.js ambient intensity, chosen for readable terrain |
@@ -53,7 +56,7 @@ Globe and card clicks, dragging, and wheel/pinch zoom pause automatic rotation i
 | `maxCallouts` | 4 | Maximum card candidates including a selected surface point |
 | `colors` | by layer | Pin, connector, and card-accent colors |
 
-The perspective fit uses the actual camera field of view: focal pixels = canvas height / (2 × tan(FOV/2)); distance = sqrt(radius² + (focalPixels × radius / desiredScreenRadius)²). Resizing recomputes the fit while preserving the current zoom-to-fit ratio within the zoom limits. Reset view restores the initial latitude/longitude and whole-Earth fit, without changing rotation. None of these visual settings belong in the backend Event contract.
+The perspective fit uses the actual camera field of view: focal pixels = canvas height / (2 × tan(FOV/2)); distance = sqrt(radius² + (focalPixels × radius / desiredScreenRadius)²). Resizing recomputes the fit while preserving the current zoom-to-fit ratio within the zoom limits. Idle rotation eases tilt and zoom back to the initial latitude and whole-Earth fit. None of these visual settings belong in the backend Event contract.
 
 ## Current frontend/backend boundary
 
@@ -137,7 +140,7 @@ The link endpoint's response envelope must also be agreed before use; the fixtur
 - Click a surface point: verify the card's hemisphere labels, pin tracking, and clear action.
 - Click a source and verify its URL; click a pin/card title and verify selected state.
 - Rotate/zoom/resize and confirm cards follow curved projected paths from their world-space anchors, may cover Earth, and avoid existing cards on initial placement. Confirm each connector has one straight segment.
-- Scroll in to country scale, select a surface coordinate, and use Reset view to return to the whole Earth.
+- Scroll in to country scale, then leave the globe idle for 10 s: it eases back to the whole Earth while rotation spins up.
 - Inspect requests: only initial/retry `/api/events` pages, assets, and explicitly opened source links.
 - Run `npm run lint` and `npm run build` from `apps/web`.
 
@@ -255,7 +258,7 @@ Antarctica stays white. Selected land rises to `GLOBE.selectedCountryAltitude` w
 
 ### Dragging headline cards
 
-Drag a headline with mouse or touch to reposition its card. Movement under 5px remains a normal click to expand/collapse; a completed drag suppresses that click. Pointer capture keeps the gesture on the headline rather than rotating the globe. Dragging does not change the Pause/Resume state.
+Drag a headline with mouse or touch to reposition its card. Movement under 5px remains a normal click to expand/collapse; a completed drag suppresses that click. Pointer capture keeps the gesture on the headline rather than rotating the globe. Dragging counts as a globe interaction and restarts the idle countdown.
 
 `src/lib/card-anchor.ts` unprojects the drop position onto the POI's camera-depth plane and stores a world-space anchor. Projecting that anchor as the camera orbits produces curved motion. New cards also get world anchors after collision-free initial placement. There is no Earth coverage constraint or continuous collision repacking. Cards can overlap later or after dragging/expansion. Anchors are local UI data, cleared when their POI hides or leaves the callout set; nothing is posted to the backend.
 
@@ -290,7 +293,7 @@ Card placement update: new cards (including expanded related-event cards) must f
 Whole-card dragging: all areas of headlines and expanded cards now start a drag, including text, padding, links, and related-event buttons. Moving at least 5px repositions the card; the following click is cancelled in the article's capture handler so it cannot open a source, navigate to a related POI, or toggle expansion. Pointer capture stays on the originally pressed child to preserve ordinary clicks. Text selection and native link dragging are disabled within cards. Touch gestures drag the card; mouse/trackpad wheel scrolling still scrolls its content. Coordinates and backend data are unchanged.
 
 
-Default framing now uses `surfaceFitWidth: 0.46` and `surfaceFitHeight: 0.44`, making Earth about 7–13% larger depending on the viewport. Reset view uses the same fit. Automatic card placement also samples 24 positions around Earth's perimeter to use corner space; outside-Earth candidates still win, overlaps remain forbidden, and existing cards stay put. Explicitly expanded cards remain mounted across related-event navigation, retaining their positions and connection controls. They may exceed the normal automatic headline cap but still wait for a free rectangle before becoming visible. Connection state is an in-memory directed list of source/target Event references; `setConnection` and `clearSourceConnections` are the UI controls to adapt to real EventLink IDs later. No new API calls or schema changes.
+Default framing now uses `surfaceFitWidth: 0.46` and `surfaceFitHeight: 0.44`, making Earth about 7–13% larger depending on the viewport. Idle view return uses the same fit. Automatic card placement also samples 24 positions around Earth's perimeter to use corner space; outside-Earth candidates still win, overlaps remain forbidden, and existing cards stay put. Explicitly expanded cards remain mounted across related-event navigation, retaining their positions and connection controls. They may exceed the normal automatic headline cap but still wait for a free rectangle before becoming visible. Connection state is an in-memory directed list of source/target Event references; `setConnection` and `clearSourceConnections` are the UI controls to adapt to real EventLink IDs later. No new API calls or schema changes.
 
 Headline perspective: collapsed cards scale from 100% near Earth's front to 88% near its limb, with up to 12° of X/Y tilt and 900px CSS perspective. Expanded, retained, and actively dragged cards stay flat at full size. `headlineMinScale`, `headlineTiltDegrees`, and `headlinePerspectivePx` tune this visual effect. Layout uses untransformed dimensions, so scaling cannot feed back into card sizing or placement. The transform pivots at the headline center, keeping its connector endpoint fixed.
 

@@ -74,6 +74,34 @@ export function writeFilters(search: string, filters: Filters) {
   for (const legacy of ["modes", "heatmap", "weights"]) params.delete(legacy);
   return params.toString();
 }
+/** Headlines: a top-stories overview for everyone. Explore: every event your filters allow. */
+export type ViewTab = "headlines" | "explore";
+export const parseTab = (search: string): ViewTab => new URLSearchParams(search).get("tab") === "explore" ? "explore" : "headlines";
+export function writeTab(search: string, tab: ViewTab) {
+  const params = new URLSearchParams(search);
+  if (tab === "headlines") params.delete("tab"); else params.set("tab", tab);
+  return params.toString();
+}
+/**
+ * The Headlines feed ignores map filters: the most significant events overall, at most
+ * `perCategory` from any one category so no single category crowds out the rest. If the
+ * cap leaves slots empty (few categories have events), the next most significant fill them.
+ */
+export function headlineFeed(events: Event[], count: number, perCategory: number) {
+  const ranked = [...events].sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id));
+  const taken = new Map<CategoryId, number>();
+  const picked: Event[] = [];
+  for (const event of ranked) {
+    const category = CATEGORY_OF.get(event.layerId as LayerId);
+    if (!category || (taken.get(category) ?? 0) >= perCategory) continue;
+    taken.set(category, (taken.get(category) ?? 0) + 1);
+    picked.push(event);
+    if (picked.length === count) return picked;
+  }
+  const chosen = new Set(picked.map(event => event.id));
+  return [...picked, ...ranked.filter(event => !chosen.has(event.id)).slice(0, count - picked.length)]
+    .sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id));
+}
 export function deriveVisuals(events: Event[], { layers, time, minSignificance }: Filters) {
   const start = time ? Date.parse(time.startIso) : -Infinity;
   const end = time ? Date.parse(time.endIso) : Infinity;

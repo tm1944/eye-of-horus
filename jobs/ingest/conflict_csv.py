@@ -18,6 +18,10 @@ def main() -> None:
         with conn.transaction():
             with conn.cursor() as cur:
                 result = load_conflict_csv(cur)
+        # Each row links to a news article; use its image as the card thumbnail.
+        from jobs.ingest.images import fill_missing_images
+
+        result["images"] = fill_missing_images(conn, sources=("conflict_csv",), log=lambda _line: None)
     print(json.dumps(result, indent=2))
     if result.get("status") != "ok":
         raise SystemExit(1)

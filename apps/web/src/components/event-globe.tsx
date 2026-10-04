@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { AdditiveBlending, AlwaysStencilFunc, AmbientLight, BackSide, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, DirectionalLight, EqualStencilFunc, FrontSide, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Raycaster, ReplaceStencilOp, ShaderMaterial, SphereGeometry, TubeGeometry, Vector2, Vector3, type Material, type Object3D } from "three";
-import { CATEGORIES, LABELS, type CategoryHeatmap, type CategoryId, type LayerId } from "@/lib/layers";
+import { CATEGORIES, LABELS, type CategoryHeatmap, type CategoryId, type LayerId, type ViewTab } from "@/lib/layers";
 import { densityField, heatmapSegments, sphereGrid, type SphereGrid } from "@/lib/heatmap-density";
 import type { Event, EventLink } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
-import { cardWorldAnchor } from "@/lib/card-anchor";
 import { cardsOverlap, placeCard, type CardRect } from "@/lib/card-placement";
 import { countryContains, type CountryFeature } from "@/lib/country-selection";
 import countries from "@/data/countries.geojson.json";
@@ -16,9 +15,18 @@ import { neighborBorders, borderContour } from "@/lib/country-borders";
 import { globeClipPlanes } from "@/lib/globe-depth";
 import RelatedEventControls, { relationLabel } from "@/components/related-event-controls";
 import LinkCard from "@/components/link-card";
+import DetailsPanel from "@/components/details-panel";
+import { rankOf, tourOrder } from "@/lib/briefing";
+import ClusterPanel from "@/components/cluster-panel";
+import { Thumbnail, TimeAgo } from "@/components/event-media";
+import { exactTime } from "@/lib/freshness";
+import { easeFactor, hangsBelow, layoutRingCards, ringAnchor, type Rect, type RingCard } from "@/lib/card-ring";
+import { angularSpread, clusterScreenPins, pickSpotlight, spreadAltitude, type PinCluster, type ScreenPin } from "@/lib/pin-clusters";
 import FluidOrb from "@/components/ui/fluid-orb";
 import { arcSpecs, floatingArc, growProgress, indexLinks, otherEnd, pickTarget, retractProgress, type ArcSpec, type Hit, type Pick } from "@/lib/related-events";
 import { GLOBE, PIN, eventColor } from "@/lib/globe-config";
+import { canSpin, clampViewLat, spinUpFrame, type View } from "@/lib/idle-spin";
+import { alignStarField, createStarField } from "@/lib/star-field";
 
 export type Location = { lat: number; lng: number };
 /** Integration hook: these selections are local; they never submit a request. */
@@ -26,10 +34,6 @@ export type Selection = { kind: "location"; location: Location } | { kind: "even
 type Callout = Location & { id: string; color: string; event?: Event; retained?: boolean };
 
 const coordinate = (value: number, latitude: boolean) => `${Math.abs(value).toFixed(4)}° ${latitude ? value < 0 ? "S" : "N" : value < 0 ? "W" : "E"}`;
-const eventTime = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Time unavailable" : new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", hour12: false }).format(date) + " UTC";
-};
 const sourceHref = (value: string | null) => {
   try { const url = new URL(value ?? ""); return ["http:", "https:"].includes(url.protocol) ? url.href : null; } catch { return null; }
 };
@@ -71,14 +75,47 @@ const pinStem = new CylinderGeometry(PIN.stemRadius * GLOBE_UNITS, PIN.stemRadiu
 const pinHead = new SphereGeometry(PIN.headRadius * GLOBE_UNITS, 16, 12)
   .translate(0, 0, (PIN.stemLength + PIN.headRadius) * GLOBE_UNITS);
 const pinStemMaterial = new MeshLambertMaterial({ color: GLOBE.pinStemColor });
+const pinDimStemMaterial = new MeshLambertMaterial({ color: GLOBE.pinDimStemColor });
 const pinHeadMaterials = new Map<string, MeshLambertMaterial>();
+// The selected pin's halo: a soft white shell around its head.
+const pinHalo = new SphereGeometry(PIN.headRadius * GLOBE_UNITS * 1.9, 20, 14)
+  .translate(0, 0, (PIN.stemLength + PIN.headRadius) * GLOBE_UNITS);
+const pinHaloMaterial = new MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.35, depthWrite: false });
+// Headlines ping: a head-sized glow centred on the head, scaled up and faded each period
+// by animatePings. Each pin gets its own material because opacity differs per pin.
+const pingGeometry = new SphereGeometry(PIN.headRadius * GLOBE_UNITS, 16, 12);
+const pings = new Set<Mesh>();
+type PinTone = "normal" | "selected" | "linked" | "dim";
 function pinObject(marker: object) {
-  const { color } = marker as { color: string };
+  const { color: layerColor, tone, ping, pingOffset, scale } = marker as { color: string; tone: PinTone; ping: boolean; pingOffset: number; scale: number };
+  const color = tone === "dim" ? GLOBE.pinDimColor : layerColor;
   if (!pinHeadMaterials.has(color)) pinHeadMaterials.set(color, new MeshLambertMaterial({ color }));
   const pin = new Group();
-  pin.add(new Mesh(pinStem, pinStemMaterial), new Mesh(pinHead, pinHeadMaterials.get(color)!));
+  pin.add(new Mesh(pinStem, tone === "dim" ? pinDimStemMaterial : pinStemMaterial), new Mesh(pinHead, pinHeadMaterials.get(color)!));
+  if (tone === "selected") pin.add(new Mesh(pinHalo, pinHaloMaterial));
+  pin.scale.setScalar(scale);
+  if (ping) {
+    const glow = new Mesh(pingGeometry, new MeshBasicMaterial({ color: lighten(layerColor, 0.15), transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending }));
+    glow.position.set(0, 0, (PIN.stemLength + PIN.headRadius) * GLOBE_UNITS);
+    glow.raycast = () => {}; // the ping never changes what a click hits
+    glow.userData.pingOffset = pingOffset;
+    pin.add(glow);
+    pings.add(glow);
+  }
   return pin;
 }
+/** Advance every ping; drop pings whose pin three-globe has removed. */
+function animatePings(now: number, reduced: boolean) {
+  for (const glow of pings) {
+    if (!glow.parent?.parent) { pings.delete(glow); (glow.material as Material).dispose(); continue; }
+    const phase = ((now + glow.userData.pingOffset) % GLOBE.pinPingPeriodMs) / GLOBE.pinPingPeriodMs;
+    glow.visible = !reduced;
+    glow.scale.setScalar(1 + (GLOBE.pinPingMaxScale - 1) * phase);
+    (glow.material as MeshBasicMaterial).opacity = GLOBE.pinPingOpacity * (1 - phase) ** 2;
+  }
+}
+// Stable per-event stagger so headline pins never pulse in unison.
+const pingOffset = (id: string) => [...id].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 7) % GLOBE.pinPingPeriodMs;
 // ATMOSPHERE — two additive shells. Both work in view space: `facing` is 1 where the
 // surface points at the camera and 0 at the silhouette. Shaders output the plain color
 // with glow as alpha: additive blending already scales color by alpha, and the page
@@ -155,6 +192,7 @@ function lighten(hex: string, amount: number) {
 }
 // Each country's base color is its average in a satellite image (scripts/build-country-colors.py),
 // brightened for legibility on the dark page.
+const landRelief = { strength: GLOBE.reliefStrength, heightScale: GLOBE.reliefHeightScale, sampleDegrees: GLOBE.reliefFacetDegrees, lightDirection: GLOBE.reliefLightDirection };
 const satelliteColors = new Map(Object.entries(countryColors as Record<string, string>).map(([id, hex]) => [id, lighten(hex, GLOBE.landLightnessBoost)]));
 const satelliteColor = (id: string) => satelliteColors.get(id) ?? GLOBE.landColor;
 const hexChannels = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
@@ -298,7 +336,11 @@ function disposeArc(arc: Arc) {
   }
 }
 
-export default function EventGlobe({ allEvents, links, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture, resetViewKey, onReadyChange }: {
+export default function EventGlobe({ view, headlines, allEvents, links, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, fixture }: {
+  /** headlines: only the headline feed, as pins with floating cards. explore: every filtered event, clustered. */
+  view: ViewTab;
+  /** The Headlines feed; map filters do not apply to it. */
+  headlines: Event[];
   allEvents: Event[];
   /** Every relationship hypothesis, loaded once; undefined links means still loading. */
   links: { links?: EventLink[]; error?: string };
@@ -308,12 +350,7 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   heatmaps: CategoryHeatmap[];
   selection: Selection | null;
   onSelect: (selection: Selection | null) => void;
-  rotating: boolean;
-  onRotationChange: (rotating: boolean) => void;
   fixture: boolean;
-  /** Increment to return the camera to the initial fitted view. */
-  resetViewKey: number;
-  onReadyChange: (ready: boolean) => void;
 }) {
   // The native sphere keeps ocean picking and far-side occlusion without painting water.
   const oceanDepthMaterial = useMemo(() => new MeshBasicMaterial({ colorWrite: false }), []);
@@ -323,9 +360,17 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   const globe = useRef<GlobeMethods | undefined>(undefined);
   const fittedDistance = useRef<number | null>(null);
   const cards = useRef(new Map<string, HTMLElement>());
-  const cardPlacements = useRef(new Map<string, CardRect & { offsetX: number; offsetY: number }>());
-  const cardAnchors = useRef(new Map<string, Vector3>());
-  const drag = useRef<{ id: string; pointerId: number; captureTarget: Element; startX: number; startY: number; left: number; top: number; moved: boolean } | null>(null);
+  // `shown` is where the card is actually drawn after being kept inside the visible area.
+  const cardPlacements = useRef(new Map<string, CardRect & { offsetX: number; offsetY: number; shown?: { left: number; top: number } }>());
+  // Last projected pin position per card, so a moved card can re-measure its offset.
+  const pinScreen = useRef(new Map<string, { x: number; y: number }>());
+  // Collapsed cards ride their pin's ring (lib/card-ring.ts) unless the user dragged them
+  // off it; `drawn` is each card's last drawn position, for easing and hand-offs.
+  const manualCards = useRef(new Set<string>());
+  // Headlines' docked details panel; ring cards stay to its left.
+  const detailsPanel = useRef<HTMLElement>(null);
+  const drawn = useRef(new Map<string, { left: number; top: number }>());
+  const drag = useRef<{ id: string; pointerId: number; captureTarget: Element; startX: number; startY: number; left: number; top: number; moved: boolean; fromRing: boolean } | null>(null);
   const dragNeedsUpdate = useRef(false);
   const globePress = useRef<{ id: number; x: number; y: number; maxDistance: number; tolerance: number } | null>(null);
   const clickRaycaster = useMemo(() => new Raycaster(), []);
@@ -339,10 +384,6 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   const [zoomedIn, setZoomedIn] = useState(false);
   const heatmapLayers = useRef(new Map<CategoryId, { key: string; mesh: Mesh }>());
   const heatmapVisible = useRef(true);
-  useEffect(() => onReadyChange(ready), [ready, onReadyChange]);
-  useEffect(() => {
-    if (resetViewKey && globe.current && fittedDistance.current) globe.current.pointOfView({ ...GLOBE.initialView, altitude: fittedDistance.current / globe.current.getGlobeRadius() - 1 });
-  }, [resetViewKey]);
   useEffect(() => {
     if (!ready) return;
     let frame = 0;
@@ -370,7 +411,6 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
       (layer.mesh.material as ShaderMaterial).dispose();
     });
   }, []);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(() => new Set());
   // Hover is pin-first: an arc only hovers where no pin is under the pointer.
   const [hoveredPinId, setHoveredPinId] = useState<string | null>(null);
   const [hoveredArcId, setHoveredArcId] = useState<string | null>(null);
@@ -435,51 +475,94 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     return () => instance.controls().removeEventListener("change", updateDepthRange);
   }, [ready]);
 
+  // IDLE ROTATION — any globe or card interaction stops the spin at once. After
+  // GLOBE.idleResumeMs without one, and while no card holds the view, the globe eases into
+  // rotation and its tilt and zoom ease back to the default view.
+  const viewHeld = useRef(false);
+  const lastInteraction = useRef(-Infinity);
+  const [spinning, setSpinning] = useState(false);
+  // Switching modes skips the idle wait and eases back to the default view at once.
+  const resetView = useRef(false);
+  useEffect(() => { lastInteraction.current = -Infinity; resetView.current = true; }, [view]);
   useEffect(() => {
-    if (!ready || !globe.current) return;
-    const controls = globe.current.controls();
-    controls.autoRotate = rotating;
-    controls.autoRotateSpeed = GLOBE.rotationSpeed;
-    const surface = stage.current;
-    if (!surface) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (!ready || !globe.current || !stage.current) return;
+    const instance = globe.current, controls = instance.controls(), surface = stage.current;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const heldPointers = new Set<number>();
-    // Temporary interaction pauses never change the user's manual rotation choice.
-    const pause = () => {
-      clearTimeout(timer);
-      controls.autoRotate = false;
-      if (!heldPointers.size) timer = setTimeout(() => {
-        controls.autoRotate = rotating;
-      }, GLOBE.interactionPauseMs);
+    // Speed ramps from spinStart; tilt and zoom return from returnStart (restarted by a mode switch).
+    let spinStart: number | null = null, returnStart = 0, from: View | null = null, frame = 0, shown = false;
+    const show = (value: boolean) => { if (value !== shown) setSpinning(shown = value); };
+    const stop = () => { controls.autoRotate = false; spinStart = null; show(false); };
+    const interact = () => { lastInteraction.current = performance.now(); stop(); };
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      const held = viewHeld.current || heldPointers.size > 0;
+      if (held) lastInteraction.current = now; // the idle countdown starts once the view is released
+      if (!canSpin({ held, reduced: media.matches, now, lastInteraction: lastInteraction.current, idleMs: GLOBE.idleResumeMs })) {
+        if (spinStart !== null || controls.autoRotate) stop();
+        return;
+      }
+      const fit = fittedDistance.current;
+      if (!fit) return;
+      const target = { lat: GLOBE.initialView.lat, altitude: fit / instance.getGlobeRadius() - 1 };
+      if (spinStart === null || resetView.current) {
+        const current = instance.pointOfView();
+        spinStart ??= now;
+        returnStart = now;
+        from = { lat: current.lat, altitude: current.altitude };
+        resetView.current = false;
+        controls.autoRotate = true;
+        show(true);
+      }
+      controls.autoRotateSpeed = GLOBE.rotationSpeed * spinUpFrame(now - spinStart, GLOBE.spinUpMs, GLOBE.viewReturnMs, from!, target).speed;
+      const step = spinUpFrame(now - returnStart, GLOBE.spinUpMs, GLOBE.viewReturnMs, from!, target);
+      if (step.returning) instance.pointOfView({ ...step.view, lng: instance.pointOfView().lng });
     };
-    const isRotationButton = (event: { target: EventTarget | null }) => event.target instanceof Element && !!event.target.closest("[data-rotation-toggle]");
-    const down = (event: PointerEvent) => {
-      if (isRotationButton(event)) return;
-      heldPointers.add(event.pointerId);
-      pause();
-    };
-    const up = (event: PointerEvent) => {
-      if (heldPointers.delete(event.pointerId)) pause();
-    };
-    const click = (event: MouseEvent) => { if (!isRotationButton(event)) pause(); };
-    const blur = () => { heldPointers.clear(); pause(); };
+    frame = requestAnimationFrame(tick);
+    const down = (event: PointerEvent) => { heldPointers.add(event.pointerId); interact(); };
+    const up = (event: PointerEvent) => { if (heldPointers.delete(event.pointerId)) interact(); };
+    // Leaving the window is not an interaction: only drop pointers whose release we will never see.
+    const blur = () => heldPointers.clear();
     // Capture also catches card gestures whose handlers stop propagation.
     surface.addEventListener("pointerdown", down, true);
-    surface.addEventListener("click", click, true);
-    surface.addEventListener("wheel", pause, { capture: true, passive: true });
+    surface.addEventListener("click", interact, true);
+    surface.addEventListener("keydown", interact, true);
+    surface.addEventListener("wheel", interact, { capture: true, passive: true });
     window.addEventListener("pointerup", up, true);
     window.addEventListener("pointercancel", up, true);
     window.addEventListener("blur", blur);
     return () => {
-      clearTimeout(timer);
+      cancelAnimationFrame(frame);
+      controls.autoRotate = false;
       surface.removeEventListener("pointerdown", down, true);
-      surface.removeEventListener("click", click, true);
-      surface.removeEventListener("wheel", pause, true);
+      surface.removeEventListener("click", interact, true);
+      surface.removeEventListener("keydown", interact, true);
+      surface.removeEventListener("wheel", interact, true);
       window.removeEventListener("pointerup", up, true);
       window.removeEventListener("pointercancel", up, true);
       window.removeEventListener("blur", blur);
     };
-  }, [rotating, ready]);
+  }, [ready]);
+
+  // STARRY BACKDROP — the real sky for "now". Stars are fixed in the scene while the camera orbits,
+  // so they turn with the Earth, both during idle rotation and manual drags.
+  useEffect(() => {
+    if (!ready || !globe.current) return;
+    const instance = globe.current;
+    const stars = createStarField({
+      brightness: GLOBE.skyBrightness, magnitudeCutoff: GLOBE.skyMagnitudeCutoff, minSizePx: GLOBE.skyStarMinSizePx,
+      maxSizePx: GLOBE.skyStarMaxSizePx, saturation: GLOBE.skyColorSaturation,
+    }, instance.renderer().getPixelRatio());
+    alignStarField(stars, new Date());
+    instance.scene().add(stars);
+    const timer = setInterval(() => alignStarField(stars, new Date()), GLOBE.skyRealignMs);
+    return () => {
+      clearInterval(timer);
+      instance.scene().remove(stars);
+      stars.geometry.dispose();
+      (stars.material as ShaderMaterial).dispose();
+    };
+  }, [ready]);
 
   // Start at a whole-Earth fit, but allow close country-scale zoom inside the central canvas.
   useEffect(() => {
@@ -502,13 +585,17 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   const selectedCountryIds = useMemo(() => new Set(selectedCountries.map(country => country.id)), [selectedCountries]);
   const selectedEvents = useMemo(() => [...new Map(selectedCountries.flatMap(country => country.events).map(event => [event.id, event])).values()], [selectedCountries]);
   const selectedIds = useMemo(() => new Set(selectedEvents.map(event => event.id)), [selectedEvents]);
-  const rootEvent = selection?.kind === "event" ? selection.event : null;
+  // One selection at a time; its details card is the only expanded card.
+  const selectedEvent = selection?.kind === "event" ? selection.event : null;
+  // Headlines shows details in the side panel; only Explore expands the card itself.
+  const expandedCards = useMemo(() => new Set(view === "explore" && selectedEvent ? [selectedEvent.id] : []), [view, selectedEvent]);
+  const headlineEvents = headlines;
   // Add, update or remove category heatmaps; unchanged categories keep their density.
   useEffect(() => {
     if (!ready || !globe.current) return;
     const scene = globe.current.scene();
     const base = sharedHeatmapGrid(globe.current.getGlobeRadius());
-    const wanted = new Map((rootEvent ? [] : heatmaps).map(heatmap => [heatmap.id, heatmap]));
+    const wanted = new Map((view === "explore" ? heatmaps : []).map(heatmap => [heatmap.id, heatmap]));
     for (const [id, layer] of heatmapLayers.current) {
       if (wanted.has(id)) continue;
       scene.remove(layer.mesh);
@@ -531,12 +618,13 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
       density.needsUpdate = true;
       layer.key = key;
     }
-  }, [ready, heatmaps, rootEvent]);
+  }, [ready, heatmaps, view]);
   const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
   const [hoveredBorderId, setHoveredBorderId] = useState<string | null>(null);
-  const hoverId = hoveredBorderId ?? hoveredCountryId;
+  // Country hover highlighting belongs to Explore; Headlines has no country interactions.
+  const hoverId = view === "explore" ? hoveredBorderId ?? hoveredCountryId : null;
   const landMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
-    writeLandStencil(continentMaterial(satelliteColor(country.id), GLOBE.continentEdgeShadeStrength)),
+    writeLandStencil(continentMaterial(satelliteColor(country.id), GLOBE.continentEdgeShadeStrength, landRelief)),
   ])), []);
   const sideMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
     continentMaterial(satelliteColor(country.id), GLOBE.continentEdgeShadeStrength),
@@ -553,36 +641,62 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   const landMaterial = useCallback((value: object) => landMaterials.get((value as CountryFeature).id)!, [landMaterials]);
   const countryBorderColor = useCallback((path: object) => selectedCountryIds.has((path as typeof borders[number]).countryId) ? "#000000" : borderColors.get(path as typeof borders[number])!, [selectedCountryIds]);
   const polygonAltitude = useCallback((value: object) => selectedCountryIds.has((value as CountryFeature).id) ? GLOBE.selectedCountryAltitude : GLOBE.landAltitude, [selectedCountryIds]);
-  // A selected event shows its linked events, but only those its filters already show.
+  // Explore: a selected event shows its linked events that the filters allow.
+  // Headlines shows no relationships at all (no linked pins, no arcs, no graying).
   const relationshipEvents = useMemo(() => {
-    if (!rootEvent) return [];
+    if (!selectedEvent || view === "headlines") return [];
     const visible = new Map(events.map(event => [event.id, event]));
-    const linked = (linkIndex.get(rootEvent.id) ?? []).map(link => visible.get(otherEnd(link, rootEvent.id)));
-    return [...new Map(linked.filter((event): event is Event => !!event && event.id !== rootEvent.id).map(event => [event.id, event])).values()];
-  }, [rootEvent, events, linkIndex]);
-  const displayEvents = useMemo(() => rootEvent ? [...new Map([rootEvent, ...relationshipEvents].map(event => [event.id, event])).values()] : [...new Map([...events, ...selectedEvents, ...relationshipEvents].map(event => [event.id, event])).values()], [events, selectedEvents, relationshipEvents, rootEvent]);
+    const linked = (linkIndex.get(selectedEvent.id) ?? []).map(link => visible.get(otherEnd(link, selectedEvent.id)));
+    return [...new Map(linked.filter((event): event is Event => !!event && event.id !== selectedEvent.id).map(event => [event.id, event])).values()];
+  }, [selectedEvent, view, events, linkIndex]);
+  const linkedIds = useMemo(() => new Set(selectedEvent && view === "explore" ? (linkIndex.get(selectedEvent.id) ?? []).map(link => otherEnd(link, selectedEvent.id)) : []), [selectedEvent, view, linkIndex]);
+  // 3D pins. Headlines: the top events at every zoom. Explore: every filtered event once
+  // zoomed in (the heatmap and clusters stand in for them further out). Either way the
+  // selection and its linked events always keep their pins.
+  const displayEvents = useMemo(() => {
+    const base = view === "headlines" ? headlineEvents : zoomedIn ? [...events, ...selectedEvents] : [];
+    return [...new Map([...(selectedEvent ? [selectedEvent] : []), ...relationshipEvents, ...base].map(event => [event.id, event])).values()];
+  }, [view, headlineEvents, zoomedIn, events, selectedEvents, selectedEvent, relationshipEvents]);
 
   // A connection card belongs to the selection it was opened from.
-  useEffect(() => { setOpenLink(null); }, [rootEvent?.id]);
+  useEffect(() => { setOpenLink(null); }, [selectedEvent?.id]);
+  // Explore view: an opened cluster lists its events; one headline is occasionally spotlit.
+  const [openCluster, setOpenCluster] = useState<{ ids: string[]; x: number; y: number; width: number; height: number } | null>(null);
+  const [spotlight, setSpotlight] = useState<Event | null>(null);
+  useEffect(() => { setOpenCluster(null); setSpotlight(null); }, [view, selectedEvent?.id]);
+  // A selection, connection card, or cluster list holds the view: rotation never resumes under it.
+  useEffect(() => { viewHeld.current = !!selection || !!openLink || !!openCluster; }, [selection, openLink, openCluster]);
+  // Center the camera on a newly selected pin or place, keeping the zoom (unless a linked-pin
+  // visit asked for a wider minimum). Latitude stays inside the tilt lock.
+  const focusMinAltitude = useRef(0);
+  const focusTarget = selection?.kind === "event" ? selection.event : selection?.kind === "location" ? selection.location : null;
+  const focusKey = focusTarget ? `${focusTarget.lat},${focusTarget.lng}` : null;
+  useEffect(() => {
+    const instance = globe.current;
+    if (!ready || !instance || !focusKey) return;
+    const [lat, lng] = focusKey.split(",").map(Number);
+    const altitude = Math.max(focusMinAltitude.current, instance.pointOfView().altitude);
+    focusMinAltitude.current = 0;
+    instance.pointOfView({ lat: clampViewLat(lat, GLOBE.maxTiltDegrees), lng, altitude }, GLOBE.relatedFocusMs);
+  }, [ready, focusKey]);
 
   const closeLink = useCallback(() => setOpenLink(null), []);
   function clearSelection() {
-    setExpandedCards(new Set());
     setOpenLink(null);
     onSelect(null);
   }
-  function visitEvent(target: Event) {
-    onRotationChange(false);
+  /** One pin at a time: choosing the selected event again deselects it. */
+  function toggleEvent(event: Event) {
     setOpenLink(null);
-    // Connection navigation opens only the headline; details remain opt-in.
-    setExpandedCards(current => {
-      const next = new Set(current);
-      next.delete(target.id);
-      return next;
-    });
+    setOpenCluster(null);
+    if (selectedEvent?.id === event.id) { onSelect(null); return; }
+    onSelect({ kind: "event", event });
+  }
+  function visitEvent(target: Event) {
+    setOpenLink(null);
+    setOpenCluster(null);
+    focusMinAltitude.current = GLOBE.relatedFocusAltitude; // the selection effect flies there
     onSelect({ kind: "event", event: target });
-    const instance = globe.current;
-    if (instance) instance.pointOfView({ lat: target.lat, lng: target.lng, altitude: Math.max(GLOBE.relatedFocusAltitude, instance.pointOfView().altitude) }, GLOBE.relatedFocusMs);
   }
 
   function selectCountry(country: CountryFeature) {
@@ -592,20 +706,28 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     const country = countries.features.find(country => countryContains(country, {lat, lng}));
     if (country) selectCountry(country);
   }
+  // Cards: the selection's details card, plus headline bubbles (headlines view) or the
+  // occasional spotlight (explore view). Card placement hides cards that cannot fit.
   const callouts = useMemo<Callout[]>(() => {
-    if (rootEvent) return displayEvents.map(event => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event }));
-    const selectedId = selection?.kind === "event" ? selection.event.id : null;
-    const opened = allEvents.filter(event => expandedCards.has(event.id));
-    const ranked = [...new Map([...opened, ...relationshipEvents, ...(selectedCountries.length ? selectedEvents : events), ...(selection?.kind === "event" ? [selection.event] : [])].map(event => [event.id, event])).values()].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || Number(relationshipEvents.some(event => event.id === b.id)) - Number(relationshipEvents.some(event => event.id === a.id)) || b.significance - a.significance || a.id.localeCompare(b.id));
-    // Keep opened cards mounted so their positions and source controls survive navigation.
-    const included = ranked.filter((event, index) => expandedCards.has(event.id) || index < GLOBE.maxCallouts - Number(selection?.kind === "location"));
-    const result = included.map((event) => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: !displayEvents.some(visible => visible.id === event.id) }));
+    const bubbles = view === "headlines" ? headlineEvents : spotlight ? [spotlight] : [];
+    const listed = [...new Map([...(selectedEvent ? [selectedEvent] : []), ...bubbles].map(event => [event.id, event])).values()];
+    const result = listed.map(event => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: !displayEvents.some(visible => visible.id === event.id) && event.id !== spotlight?.id }));
     return selection?.kind === "location" ? [{ id: "selected-location", ...selection.location, color: GLOBE.colors.selected }, ...result] : result;
-  }, [events, selection, selectedEvents, rootEvent, selectedCountries.length, displayEvents, relationshipEvents, allEvents, expandedCards]);
+  }, [view, headlineEvents, spotlight, selectedEvent, selection, displayEvents]);
 
-  // Relationship trees always show their markers; otherwise markers wait for zoom-in.
-  const showMarkers = zoomedIn || !!rootEvent;
-  const points = useMemo(() => showMarkers ? displayEvents.map((event) => ({ ...event, color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId), altitude: GLOBE.landAltitude })) : [], [showMarkers, displayEvents, selectedIds]);
+  // With a selection, linked pins keep their color and every other pin turns gray.
+  const points = useMemo(() => displayEvents.map(event => ({
+    ...event,
+    color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId),
+    // Headlines only marks the selection; Explore also grays pins unrelated to it.
+    tone: !selectedEvent ? "normal" : event.id === selectedEvent.id ? "selected" : view === "headlines" ? "normal" : linkedIds.has(event.id) ? "linked" : "dim",
+    // Headline pins ping for attention until something is selected.
+    ping: view === "headlines" && !selectedEvent,
+    pingOffset: pingOffset(event.id),
+    // Headlines uses large pins throughout; Explore enlarges only the selection.
+    scale: view === "headlines" ? GLOBE.headlinePinScale : event.id === selectedEvent?.id ? GLOBE.pinSelectedScale : 1,
+    altitude: GLOBE.landAltitude,
+  })), [displayEvents, selectedIds, selectedEvent, linkedIds, view]);
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
     countries.features.find(country => countryContains(country, event))?.id,
   ])), [displayEvents]);
@@ -615,8 +737,9 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   const pointsRef = useRef(points);
   useEffect(() => { pointsRef.current = points; }, [points]);
   const shownIds = useMemo(() => new Set(points.map(point => point.id)), [points]);
-  const desiredArcs = useMemo(() => arcSpecs([rootEvent?.id, hoveredPinId, openLink?.origin], linkIndex, shownIds),
-    [rootEvent?.id, hoveredPinId, openLink?.origin, linkIndex, shownIds]);
+  // Headlines draws no arcs.
+  const desiredArcs = useMemo(() => view === "headlines" ? [] : arcSpecs([selectedEvent?.id, hoveredPinId, openLink?.origin], linkIndex, shownIds),
+    [view, selectedEvent?.id, hoveredPinId, openLink?.origin, linkIndex, shownIds]);
   useEffect(() => {
     const instance = globe.current;
     if (!ready || !instance) return;
@@ -661,7 +784,7 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     });
     instance.camera().updateMatrixWorld();
     hoverRaycaster.setFromCamera(new Vector2(2 * (clientX - bounds.left) / bounds.width - 1, 1 - 2 * (clientY - bounds.top) / bounds.height), instance.camera());
-    const pinObjects = pointsRef.current.map(point => (point as typeof point & { __threeObjObject?: Object3D }).__threeObjObject).filter((pin): pin is Object3D => !!pin);
+    const pinObjects = pointsRef.current.map(point => (point as typeof point & { __threeObjObject?: Object3D }).__threeObjObject).filter((pin): pin is Object3D => !!pin && pin.visible); // clustered pins are hidden
     const arcHits = [...arcs.current.values()].filter(arc => arc.state !== "retract" && arc.progress > 0.9).map(arc => arc.hit);
     const surface = globeSurface.current;
     type PickObject = Object3D & { __globeObjType?: string; __data?: unknown };
@@ -716,6 +839,7 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     const tick = (now: number) => {
       const elapsed = now - last;
       last = now;
+      animatePings(now, media.matches);
       for (const [id, arc] of arcs.current) {
         if (arc.state === "grow") {
           arc.progress = media.matches ? 1 : arc.from + (1 - arc.from) * growProgress(now - arc.start, GLOBE.relatedArcGrowMs);
@@ -751,6 +875,180 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  // CLUSTERS (explore view) — pins closer than clusterRadiusPx on screen merge into a
+  // numbered bubble, recomputed whenever the camera moves. The selection never clusters.
+  const eventsById = useMemo(() => new Map(allEvents.map(event => [event.id, event])), [allEvents]);
+  const clusterCandidates = useMemo(() => view === "explore"
+    ? [...new Map([...events, ...selectedEvents].map(event => [event.id, event])).values()]
+      .filter(event => event.id !== selectedEvent?.id)
+      .sort((a, b) => b.significance - a.significance || a.id.localeCompare(b.id))
+    : [], [view, events, selectedEvents, selectedEvent?.id]);
+  const [clusters, setClusters] = useState<PinCluster[]>([]);
+  const clusteredIds = useRef(new Set<string>());
+  const clusterButtons = useRef(new Map<string, HTMLButtonElement>());
+  const clusterPositions = useRef(new Map<string, { x: number; y: number }>());
+  const placeCluster = (key: string, button: HTMLButtonElement) => {
+    const position = clusterPositions.current.get(key);
+    if (position) button.style.transform = `translate(${position.x}px, ${position.y}px) translate(-50%, -50%)`;
+  };
+  useEffect(() => {
+    const instance = globe.current;
+    if (!ready || !instance || !container.current || !stage.current) return;
+    const canvas = container.current, surface = stage.current;
+    let frame = 0, dirty = true, signature: string | null = null; // the first pass always publishes
+    const mark = () => { dirty = true; };
+    const controls = instance.controls();
+    controls.addEventListener("change", mark);
+    const observer = new ResizeObserver(mark);
+    observer.observe(canvas);
+    const tick = () => {
+      if (dirty) {
+        dirty = false;
+        const canvasBounds = canvas.getBoundingClientRect(), stageBounds = surface.getBoundingClientRect();
+        const offsetX = canvasBounds.left - stageBounds.left, offsetY = canvasBounds.top - stageBounds.top;
+        const camera = instance.camera().position, radius = instance.getGlobeRadius();
+        const screen: ScreenPin[] = [];
+        for (const event of clusterCandidates) {
+          const surfacePoint = instance.getCoords(event.lat, event.lng);
+          if (new Vector3(surfacePoint.x, surfacePoint.y, surfacePoint.z).normalize().dot(camera) <= radius + 0.5) continue; // far side
+          const point = instance.getScreenCoords(event.lat, event.lng, PIN.height);
+          screen.push({ id: event.id, x: point.x + offsetX, y: point.y + offsetY, lat: event.lat, lng: event.lng });
+        }
+        const groups = clusterScreenPins(screen, GLOBE.clusterRadiusPx).filter(group => group.ids.length > 1);
+        clusteredIds.current = new Set(groups.flatMap(group => group.ids));
+        clusterPositions.current = new Map(groups.map(group => [group.key, { x: group.x, y: group.y }]));
+        clusterButtons.current.forEach((button, key) => placeCluster(key, button));
+        const next = groups.map(group => group.ids.join(",")).join("|");
+        if (next !== signature) { signature = next; setClusters(groups); }
+      }
+      // Every frame: three-globe rebuilds pin objects a moment after their data changes.
+      for (const point of pointsRef.current) {
+        const pin = (point as typeof point & { __threeObjObject?: Object3D }).__threeObjObject;
+        if (pin) pin.visible = !clusteredIds.current.has(point.id);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      controls.removeEventListener("change", mark);
+      observer.disconnect();
+    };
+  }, [ready, clusterCandidates, points]);
+
+  function openClusterAt(cluster: PinCluster, button: HTMLButtonElement) {
+    const instance = globe.current;
+    if (!instance || !stage.current || !container.current) return;
+    setOpenLink(null);
+    const members = cluster.ids.map(id => eventsById.get(id)).filter((event): event is Event => !!event);
+    // Too many to list: fly in until they spread apart. Identical coordinates never
+    // spread, so those always list.
+    if (members.length > GLOBE.clusterOpenMax && !cluster.colocated) {
+      setOpenCluster(null);
+      const { center, angle } = angularSpread(members);
+      const camera = instance.camera() as PerspectiveCamera;
+      const focal = container.current.clientHeight / (2 * Math.tan(camera.fov * Math.PI / 360));
+      const altitude = spreadAltitude({
+        angle, focalPx: focal, currentAltitude: instance.pointOfView().altitude, minAltitude: GLOBE.minZoomAltitude,
+        targetPx: GLOBE.clusterRadiusPx * Math.sqrt(members.length) * GLOBE.clusterSpreadFactor,
+      });
+      instance.pointOfView({ lat: clampViewLat(center.lat, GLOBE.maxTiltDegrees), lng: center.lng, altitude }, GLOBE.clusterZoomMs);
+      return;
+    }
+    const bounds = button.getBoundingClientRect(), stageBounds = stage.current.getBoundingClientRect();
+    setOpenCluster({ ids: cluster.ids, x: bounds.left + bounds.width / 2 - stageBounds.left, y: bounds.top + bounds.height / 2 - stageBounds.top, width: stageBounds.width, height: stageBounds.height });
+  }
+
+  // SPOTLIGHT (explore view) — while idly rotating with nothing selected, now and then one
+  // significant event near the middle of the view gets a brief headline card.
+  const spotlightRecent = useRef<string[]>([]);
+  useEffect(() => {
+    if (!ready || view !== "explore" || !spinning || selectedEvent || openCluster) return;
+    let hide: ReturnType<typeof setTimeout> | undefined;
+    const timer = setInterval(() => {
+      const instance = globe.current, canvas = container.current;
+      if (!instance || !canvas) return;
+      const camera = instance.camera().position, radius = instance.getGlobeRadius();
+      const candidates = events.map(event => {
+        const surfacePoint = instance.getCoords(event.lat, event.lng);
+        const point = instance.getScreenCoords(event.lat, event.lng);
+        return { id: event.id, significance: event.significance, x: point.x, y: point.y, front: new Vector3(surfacePoint.x, surfacePoint.y, surfacePoint.z).normalize().dot(camera) > radius + 0.5 };
+      });
+      const id = pickSpotlight(candidates, canvas.clientWidth, canvas.clientHeight, new Set(spotlightRecent.current));
+      if (!id) return;
+      spotlightRecent.current = [...spotlightRecent.current, id].slice(-GLOBE.spotlightMemory);
+      setSpotlight(events.find(event => event.id === id) ?? null);
+      clearTimeout(hide);
+      hide = setTimeout(() => setSpotlight(null), GLOBE.spotlightShowMs);
+    }, GLOBE.spotlightEveryMs);
+    return () => { clearInterval(timer); clearTimeout(hide); };
+  }, [ready, view, spinning, selectedEvent, openCluster, events]);
+
+  // Escape closes the innermost layer: connection card, then cluster list, then selection.
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (openLink) setOpenLink(null);
+      else if (openCluster) setOpenCluster(null);
+      else if (selectedEvent) onSelect(null);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [openLink, openCluster, selectedEvent, onSelect]);
+
+  // HEADLINES BRIEFING — ‹ ›, the arrow keys and the tour step through the headlines from
+  // north to south like a feed; each selection flies the camera there (focus effect above).
+  const tourStops = useMemo(() => view === "headlines" ? tourOrder(headlineEvents) : [], [view, headlineEvents]);
+  const stopIndex = selectedEvent ? tourStops.findIndex(event => event.id === selectedEvent.id) : -1;
+  const [tour, setTour] = useState<"off" | "playing" | "paused">("off");
+  function stepHeadline(delta: number) {
+    if (!tourStops.length) return;
+    const from = stopIndex < 0 ? (delta > 0 ? -1 : 0) : stopIndex;
+    setOpenLink(null);
+    setOpenCluster(null);
+    onSelect({ kind: "event", event: tourStops[(from + delta + tourStops.length) % tourStops.length] });
+  }
+  function startTour() {
+    if (stopIndex < 0 && tourStops.length) onSelect({ kind: "event", event: tourStops[0] });
+    setTour("playing");
+  }
+  /** Re-centre on demand (selection already centres once; this brings it back after a drag). */
+  function centerOn(target: Event) {
+    const instance = globe.current;
+    if (instance) instance.pointOfView({ lat: clampViewLat(target.lat, GLOBE.maxTiltDegrees), lng: target.lng, altitude: instance.pointOfView().altitude }, GLOBE.relatedFocusMs);
+  }
+  // The tour ends with the briefing (closed or deselected) or when leaving Headlines.
+  useEffect(() => { if (view !== "headlines" || !selectedEvent) setTour("off"); }, [view, selectedEvent]);
+  // Playing: advance after each story's dwell time. Manual steps restart the clock.
+  useEffect(() => {
+    if (tour !== "playing" || !selectedEvent) return;
+    const timer = setTimeout(() => stepHeadline(1), GLOBE.tourStepMs);
+    return () => clearTimeout(timer);
+    // stepHeadline reads the current selection and order, both keyed here by the selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tour, selectedEvent?.id]);
+  // Dragging or zooming the globe pauses the tour; the controls and cards do not.
+  useEffect(() => {
+    const canvas = container.current;
+    if (tour !== "playing" || !canvas) return;
+    const pause = () => setTour("paused");
+    canvas.addEventListener("pointerdown", pause, true);
+    canvas.addEventListener("wheel", pause, { capture: true, passive: true });
+    return () => { canvas.removeEventListener("pointerdown", pause, true); canvas.removeEventListener("wheel", pause, true); };
+  }, [tour]);
+  // ← → step through the briefing while it is open.
+  useEffect(() => {
+    if (view !== "headlines" || !selectedEvent) return;
+    const keys = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select")) return;
+      if (event.key === "ArrowRight") { event.preventDefault(); stepHeadline(1); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); stepHeadline(-1); }
+    };
+    window.addEventListener("keydown", keys);
+    return () => window.removeEventListener("keydown", keys);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, selectedEvent?.id, tourStops]);
+
   // Update only projected DOM positions each frame, not React state or backend data.
   useEffect(() => {
     if (!ready || !globe.current || !stage.current || !container.current) return;
@@ -775,6 +1073,8 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
       if (polygon.__globeObjType === "polygon" && polygon.__data?.data?.id) countrySurfaces.set(polygon.__data.data.id, polygon);
     });
     const animationUntil = performance.now() + GLOBE.countryAnimationMs + 100;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let lastFrame = performance.now();
     const update = () => {
       const instance = globe.current;
       if ((dirty || dragNeedsUpdate.current || drag.current || performance.now() < animationUntil) && instance && stage.current && container.current) {
@@ -811,7 +1111,8 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
           pin.position.set(base.x, base.y, base.z);
           // Pin size and orientation remain constant; only the base follows the country.
         }
-        const visible: { item: Callout; x: number; y: number; front: boolean; side: "left" | "right" }[] = [];
+        const visible: { item: Callout; x: number; y: number; front: boolean; side: "left" | "right"; world: Vector3 }[] = [];
+        const pinScales = new Map(points.map(point => [point.id, point.scale]));
         for (const item of callouts) {
           const surface = instance.getCoords(item.lat, item.lng);
           const normal = new Vector3(surface.x, surface.y, surface.z).normalize();
@@ -819,7 +1120,8 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
           const front = normal.dot(camera) > radius + 0.5;
           const countryId = pointCountries.get(item.id);
           const surfaceAltitude = countryId ? countrySurfaces.get(countryId)?.__currentTargetD?.alt ?? GLOBE.landAltitude : 0;
-          const altitude = surfaceAltitude + PIN.height;
+          // Connectors meet the top of the pin at its drawn size.
+          const altitude = surfaceAltitude + PIN.height * (pinScales.get(item.id) ?? 1);
           const point = instance.getScreenCoords(item.lat, item.lng, altitude);
           const card = cards.current.get(item.id), pin = pins.current.get(item.id), path = paths.current.get(item.id);
           if (!card || !pin || !path) continue;
@@ -828,37 +1130,36 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
           const y = item.retained && !expandedCards.has(item.id) ? centerY : point.y + offsetY;
           const shown = !item.retained && front && point.x > 0 && point.x < canvasRect.width && point.y > 0 && point.y < canvasRect.height;
           card.hidden = false;
-          pin.hidden = !shown;
+          // Events are marked by their 3D pins; numbered markers are reserved for Explore's
+          // clusters, so only a picked location keeps one. Connectors follow `onscreen`.
+          pin.dataset.onscreen = String(shown);
+          pin.hidden = !shown || !!item.event;
           path.style.display = item.retained || !front ? "none" : "";
-          visible.push({ item, x, y, front: front || !!item.retained || expandedCards.has(item.id), side: x < centerX ? "left" : "right" });
+          const top3d = instance.getCoords(item.lat, item.lng, altitude);
+          visible.push({ item, x, y, front: front || !!item.retained || expandedCards.has(item.id), side: x < centerX ? "left" : "right", world: new Vector3(top3d.x, top3d.y, top3d.z) });
         }
         // Release hidden cards, then move existing rectangles with their pins before
-        // finding space for newcomers. Stored offsets never change during rotation.
+        // finding space for newcomers. Each card keeps a fixed on-screen offset from its
+        // pin, so zooming never pushes it farther away (or behind the camera).
         const activeIds = new Set(visible.filter(entry => entry.front).map(entry => entry.item.id));
         for (const id of cardPlacements.current.keys()) {
-          if (!activeIds.has(id)) { cardPlacements.current.delete(id); cardAnchors.current.delete(id); }
+          if (!activeIds.has(id)) cardPlacements.current.delete(id);
         }
+        // A card that rotated away rejoins its ring (and enters fresh) next time.
+        for (const id of manualCards.current) if (!activeIds.has(id)) manualCards.current.delete(id);
+        for (const id of drawn.current.keys()) if (!activeIds.has(id)) drawn.current.delete(id);
         for (const { item, x, y } of visible) {
+          pinScreen.current.set(item.id, { x, y });
           const placement = cardPlacements.current.get(item.id);
-          if (placement) {
-            const anchor = cardAnchors.current.get(item.id);
-            if (drag.current?.id !== item.id && !expandedCards.has(item.id)) {
-              if (anchor) {
-                const projected = anchor.clone().project(instance.camera());
-                placement.left = offsetX + (projected.x + 1) * canvasRect.width / 2;
-                placement.top = offsetY + (1 - projected.y) * canvasRect.height / 2;
-              } else {
-                placement.left = x + placement.offsetX;
-                placement.top = y + placement.offsetY;
-              }
-            }
+          if (placement && drag.current?.id !== item.id && !expandedCards.has(item.id)) {
+            placement.left = x + placement.offsetX;
+            placement.top = y + placement.offsetY;
           }
         }
-        // Keep width stable; expansion changes height without changing the stored offset.
+        // Collapsed headline cards are narrower than the open details card.
         visible.forEach(({ item }) => {
           const card = cards.current.get(item.id)!;
-          const placement = cardPlacements.current.get(item.id);
-          card.style.width = `${placement?.width ?? Math.min(278, stageRect.width - 2 * GLOBE.cardEdgePaddingPx)}px`;
+          card.style.width = `${Math.min(expandedCards.has(item.id) ? 278 : GLOBE.headlineCardWidthPx, stageRect.width - 2 * GLOBE.cardEdgePaddingPx)}px`;
           card.style.height = "auto";
           card.style.maxHeight = `${Math.max(1, canvasRect.height - 2 * GLOBE.cardEdgePaddingPx)}px`;
         });
@@ -890,53 +1191,109 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
             const replacement = placeCard(rect, [...cardPlacements.current].filter(([otherId]) => otherId !== id).map(([, other]) => other), stageRect.width, canvasRect.height, GLOBE.cardEdgePaddingPx, 16, { x: centerX, y: centerY, radius: screenRadius * GLOBE.cardCenterExclusion, strict: true });
             if (replacement) {
               Object.assign(rect, replacement);
-              cardAnchors.current.delete(id);
+              rebaseCard(id);
             }
           }
         }
-        for (const { item, x, y, front, side } of visible) {
-          const card = cards.current.get(item.id)!;
+        const pad = GLOBE.cardEdgePaddingPx;
+        const frameNow = performance.now();
+        const ease = reducedMotion.matches ? 1 : easeFactor(frameNow - lastFrame, GLOBE.cardEaseMs);
+        lastFrame = frameNow;
+        const onscreen = (id: string) => pins.current.get(id)!.dataset.onscreen === "true";
+        // Collapsed event cards ride their pin's ring. The open details card, dragged cards
+        // and retained selections keep a placement instead, and the ring flows around them.
+        const ringManaged = (item: Callout) => !!item.event && !item.retained && !expandedCards.has(item.id)
+          && !manualCards.current.has(item.id) && drag.current?.id !== item.id;
+        type Entry = typeof visible[number];
+        // Draw one card (or hide it with rect = null). Connectors end at the headline for
+        // placed cards, and at the edge facing the pin for ring cards.
+        const draw = ({ item, x, y, side }: Entry, rect: Rect | null, attach: "headline" | "bottom" | "top") => {
+          const card = cards.current.get(item.id)!, path = paths.current.get(item.id)!;
+          card.style.visibility = rect ? "visible" : "hidden";
+          card.inert = !rect;
+          card.setAttribute("aria-hidden", String(!rect));
+          path.style.display = rect && (expandedCards.has(item.id) || (!item.retained && onscreen(item.id))) ? "" : "none";
+          pins.current.get(item.id)!.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+          if (!rect) { drawn.current.delete(item.id); return; }
+          drawn.current.set(item.id, { left: rect.left, top: rect.top });
+          card.style.left = "0px";
+          card.style.top = "0px";
+          card.style.transform = `translate(${rect.left}px, ${rect.top}px)`; // always flat to the viewer
+          card.dataset.side = side;
+          if (item.retained && !expandedCards.has(item.id)) return;
+          const headline = headlineCenters.get(item.id)!;
+          const end = attach === "headline"
+            ? { x: rect.left + headline.x, y: rect.top + headline.y }
+            : { x: rect.left + rect.width / 2, y: attach === "bottom" ? rect.top + rect.height : rect.top };
+          path.setAttribute("d", `M ${x} ${y} L ${end.x} ${end.y}`);
+        };
+
+        // 1) Placed cards, kept inside the visible area; they become obstacles for the ring.
+        const fixedRects: Rect[] = [];
+        for (const entry of visible) {
+          const { item, x, y, front, side } = entry;
+          if (ringManaged(item)) { cardPlacements.current.delete(item.id); continue; }
           const { width, height } = measurements.get(item.id)!;
           let placement = cardPlacements.current.get(item.id);
           if (front && !placement) {
-            const availablePlacement = placeCard({
-              left: item.retained ? GLOBE.cardEdgePaddingPx : side === "left" ? x - GLOBE.pinToCardDistancePx - width : x + GLOBE.pinToCardDistancePx,
+            // A card leaving the ring (opened or dragged) starts exactly where it was drawn.
+            const from = drawn.current.get(item.id);
+            const chosen = from ? { left: from.left, top: from.top, width, height } : placeCard({
+              left: item.retained ? pad : side === "left" ? x - GLOBE.pinToCardDistancePx - width : x + GLOBE.pinToCardDistancePx,
               top: y - height / 2, width, height,
-            }, [...cardPlacements.current.values()], stageRect.width, canvasRect.height, GLOBE.cardEdgePaddingPx, 16, { x: centerX, y: centerY, radius: screenRadius * GLOBE.cardCenterExclusion, strict: true });
-            const chosenPlacement = availablePlacement;
-            if (chosenPlacement) {
-              placement = { ...chosenPlacement, offsetX: chosenPlacement.left - x, offsetY: chosenPlacement.top - y };
+            }, [...cardPlacements.current.values()], stageRect.width, canvasRect.height, pad, 16, { x: centerX, y: centerY, radius: screenRadius * GLOBE.cardCenterExclusion, strict: true });
+            if (chosen) {
+              placement = { ...chosen, offsetX: chosen.left - x, offsetY: chosen.top - y };
               cardPlacements.current.set(item.id, placement);
-              if (!item.retained) cardAnchors.current.set(item.id, screenAnchor(placement.left, placement.top, item));
             }
           }
-          const displayed = front && !!placement;
-          card.style.visibility = displayed ? "visible" : "hidden";
-          card.inert = !displayed;
-          card.setAttribute("aria-hidden", String(!displayed));
-          paths.current.get(item.id)!.style.display = displayed && (expandedCards.has(item.id) || (!item.retained && !pins.current.get(item.id)!.hidden)) ? "" : "none";
-          pins.current.get(item.id)!.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-          if (!placement) continue;
-          const { left, top } = placement;
-          card.style.left = "0px";
-          card.style.top = "0px";
-          const headlineCenter = headlineCenters.get(item.id)!;
-          const flat = expandedCards.has(item.id) || item.retained || drag.current?.id === item.id;
-          const dx = Math.max(-1, Math.min(1, (x - centerX) / screenRadius));
-          const dy = Math.max(-1, Math.min(1, (y - centerY) / screenRadius));
-          const edge = Math.min(1, Math.hypot(dx, dy));
-          const scale = flat ? 1 : 1 - (1 - GLOBE.headlineMinScale) * edge;
-          // Rotate around the headline center: its connector attachment stays exact.
-          card.style.transformOrigin = `${headlineCenter.x}px ${headlineCenter.y}px`;
-          card.style.transform = `translate(${left}px, ${top}px) perspective(${GLOBE.headlinePerspectivePx}px) rotateX(${flat ? 0 : -dy * GLOBE.headlineTiltDegrees}deg) rotateY(${flat ? 0 : dx * GLOBE.headlineTiltDegrees}deg) scale(${scale})`;
-          card.dataset.side = side;
-          if (item.retained && !expandedCards.has(item.id)) continue;
-          // The transform origin stays fixed even as the rest of the headline tilts.
-          const endpointX = left + headlineCenter.x;
-          const endpointY = top + headlineCenter.y;
-          const path = paths.current.get(item.id)!;
-          path.setAttribute("d", `M ${x} ${y} L ${endpointX} ${endpointY}`);
-          pins.current.get(item.id)!.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+          // The open details card and retained selections stay readable when their pin is off screen.
+          if (!placement || !front || !(onscreen(item.id) || expandedCards.has(item.id) || item.retained)) { draw(entry, null, "headline"); continue; }
+          const left = Math.max(pad, Math.min(placement.left, stageRect.width - width - pad));
+          const top = Math.max(pad, Math.min(placement.top, canvasRect.height - height - pad));
+          placement.shown = { left, top };
+          const rect = { left, top, width, height };
+          fixedRects.push(rect);
+          draw(entry, rect, "headline");
+        }
+
+        // 2) Ring cards: project each pin's ring anchor, lay the cards out most significant
+        //    first around the placed ones, then glide each toward its target.
+        const ringEntries = visible.filter(entry => ringManaged(entry.item));
+        const toCamera = camera.clone().normalize();
+        const north = instance.getCoords(90, 0, 0);
+        const tilt = GLOBE.cardRingTiltDegrees * Math.PI / 180;
+        const ringCards: RingCard[] = [];
+        for (const { item, front, world } of ringEntries) {
+          if (!front || !onscreen(item.id)) continue;
+          // Split at the default viewing latitude: the visual "middle" of the globe as seen.
+          const below = hangsBelow(item.lat, GLOBE.initialView.lat);
+          const anchor = ringAnchor([world.x, world.y, world.z], [north.x, north.y, north.z], [toCamera.x, toCamera.y, toCamera.z], tilt, below, GLOBE.cardRingLift);
+          const projected = new Vector3(...anchor).project(cameraObject);
+          if (projected.z > 1) continue; // behind the camera at extreme zoom
+          const { width, height } = measurements.get(item.id)!;
+          ringCards.push({
+            id: item.id, width, height, below, priority: item.event!.significance,
+            anchorX: offsetX + (projected.x + 1) / 2 * canvasRect.width,
+            anchorY: offsetY + (1 - projected.y) / 2 * canvasRect.height,
+          });
+        }
+        // An open details panel takes space from the cards, so none slide underneath it:
+        // width when it is docked right, height when it is a bottom sheet (narrow screens).
+        const panel = detailsPanel.current?.getBoundingClientRect();
+        const docked = panel && panel.left - stageRect.left > stageRect.width / 2;
+        const usableWidth = panel && docked ? Math.min(stageRect.width, panel.left - stageRect.left + pad - GLOBE.cardRingGapPx) : stageRect.width;
+        const usableHeight = panel && !docked ? Math.min(canvasRect.height, panel.top - stageRect.top + pad - GLOBE.cardRingGapPx) : canvasRect.height;
+        const targets = layoutRingCards(ringCards, fixedRects, { width: usableWidth, height: usableHeight, pad }, GLOBE.cardRingGapPx);
+        const hanging = new Map(ringCards.map(card => [card.id, card.below]));
+        for (const entry of ringEntries) {
+          const target = targets.get(entry.item.id);
+          if (!target) { draw(entry, null, "bottom"); continue; }
+          const previous = drawn.current.get(entry.item.id);
+          const left = previous ? previous.left + (target.left - previous.left) * ease : target.left;
+          const top = previous ? previous.top + (target.top - previous.top) * ease : target.top;
+          if (Math.abs(target.left - left) > 0.5 || Math.abs(target.top - top) > 0.5) dirty = true; // keep gliding
+          draw(entry, { ...target, left, top }, hanging.get(entry.item.id) ? "top" : "bottom");
         }
       }
       frame = requestAnimationFrame(update);
@@ -953,27 +1310,36 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   // Data stays loaded while zoomed in (the mesh is hidden) so zooming out needs no new density pass.
 
   function select(item: Callout) {
-    onSelect(item.event ? { kind: "event", event: item.event } : { kind: "location", location: { lat: item.lat, lng: item.lng } });
+    if (item.event) toggleEvent(item.event);
+    else onSelect({ kind: "location", location: { lat: item.lat, lng: item.lng } });
   }
 
-  // Unproject onto the pin's camera-depth plane. The resulting world-space
-  // anchor travels along a curved projected path as the camera orbits Earth.
-  function screenAnchor(left: number, top: number, item: Callout) {
-    const instance = globe.current!;
-    const viewport = container.current!.getBoundingClientRect();
-    const bounds = stage.current!.getBoundingClientRect();
-    const coords = instance.getCoords(item.lat, item.lng, PIN.height);
-    return cardWorldAnchor(left - viewport.left + bounds.left, top - viewport.top + bounds.top, viewport.width, viewport.height, coords, instance.camera());
+  // After a card moves away from its pin (dragged, or re-slotted when it grew), keep
+  // following the pin from wherever the card now sits.
+  function rebaseCard(id: string) {
+    const placement = cardPlacements.current.get(id), pin = pinScreen.current.get(id);
+    if (!placement || !pin) return;
+    placement.offsetX = placement.left - pin.x;
+    placement.offsetY = placement.top - pin.y;
   }
   function startCardDrag(event: ReactPointerEvent<HTMLElement>, item: Callout) {
     if (!event.isPrimary || event.button !== 0) return;
-    const placement = cardPlacements.current.get(item.id);
-    if (!placement) return;
+    let placement = cardPlacements.current.get(item.id);
+    const fromRing = !placement;
+    if (!placement) {
+      // A ring card gets a placement where it is drawn; only a real drag keeps it off the ring.
+      const at = drawn.current.get(item.id), pin = pinScreen.current.get(item.id), card = cards.current.get(item.id);
+      if (!at || !pin || !card) return;
+      placement = { left: at.left, top: at.top, width: card.offsetWidth, height: card.offsetHeight, offsetX: at.left - pin.x, offsetY: at.top - pin.y };
+      cardPlacements.current.set(item.id, placement);
+    }
     event.stopPropagation();
     suppressClick.current = null;
     // Capture on the original child so an ordinary button/link click keeps its target.
     const captureTarget = event.target as Element;
-    drag.current = { id: item.id, pointerId: event.pointerId, captureTarget, startX: event.clientX, startY: event.clientY, left: placement.left, top: placement.top, moved: false };
+    // Start from where the card is drawn, so a card held inside the view never jumps.
+    const from = placement.shown ?? placement;
+    drag.current = { id: item.id, pointerId: event.pointerId, captureTarget, startX: event.clientX, startY: event.clientY, left: from.left, top: from.top, moved: false, fromRing };
     captureTarget.setPointerCapture(event.pointerId);
   }
   function moveCardDrag(event: ReactPointerEvent<HTMLElement>, item: Callout) {
@@ -993,8 +1359,11 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     event.stopPropagation();
     const placement = cardPlacements.current.get(item.id);
     if (current.moved && placement) {
-      cardAnchors.current.set(item.id, screenAnchor(placement.left, placement.top, item));
+      rebaseCard(item.id);
+      manualCards.current.add(item.id); // dragged off its ring: stays where it was put
       suppressClick.current = item.id;
+    } else if (current.fromRing) {
+      cardPlacements.current.delete(item.id); // just a click: back on the ring
     }
     drag.current = null;
     dragNeedsUpdate.current = true;
@@ -1029,17 +1398,19 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
       return;
     }
     setOpenLink(null);
+    if (pick?.kind === "pin") {
+      const point = pointsRef.current.find(item => item.id === pick.id);
+      if (point) toggleEvent(allEvents.find(item => item.id === point.id) ?? point);
+      return;
+    }
+    setOpenCluster(null);
+    if (view === "headlines") return; // Headlines is deliberately limited: no country selection
     clickRaycaster.setFromCamera(new Vector2(2 * (event.clientX - bounds.left) / bounds.width - 1, 1 - 2 * (event.clientY - bounds.top) / bounds.height), instance.camera());
     type PickObject = Object3D & { __globeObjType?: string; __data?: unknown };
     for (const hit of clickRaycaster.intersectObjects(instance.scene().children, true)) {
       let owner: PickObject | null = hit.object;
       while (owner && !owner.__globeObjType) owner = owner.parent;
-      if (!owner) continue;
-      if (owner.__globeObjType === "object") {
-        const point = owner.__data as Event;
-        onSelect({ kind: "event", event: point });
-        return;
-      }
+      if (!owner || owner.__globeObjType === "object") continue; // pins were resolved above
       if (owner.__globeObjType === "polygon") {
         selectCountry((owner.__data as { data: CountryFeature }).data);
         return;
@@ -1057,7 +1428,22 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
   }
 
   return <div className="earth-stage" ref={stage} style={{ "--connector-width": `${GLOBE.connectorWidthPx}px` } as CSSProperties}>
-    {selection?.kind === "event" && <div className="earth-controls"><button onClick={clearSelection}>Clear selection</button></div>}
+    {selection?.kind === "event" && view === "explore" && <div className="earth-controls"><button onClick={clearSelection}>Clear selection</button></div>}
+    {view === "headlines" && selectedEvent && <DetailsPanel key={selectedEvent.id} panelRef={detailsPanel} event={selectedEvent} fixture={fixture} onClose={clearSelection}
+      position={stopIndex >= 0 ? { index: stopIndex, total: tourStops.length } : null}
+      rank={{ place: rankOf(selectedEvent.id, headlineEvents), of: headlineEvents.length }}
+      onPrev={() => stepHeadline(-1)} onNext={() => stepHeadline(1)} onCenter={() => centerOn(selectedEvent)} />}
+    {/* The tour sits under the feed tabs: a quiet "start" pill, then a small control bar. */}
+    {view === "headlines" && tourStops.length > 0 && (tour === "off"
+      ? <button className="tour-start" onClick={startTour}><span aria-hidden="true">▶</span> Tour the headlines</button>
+      : <div className="tour-bar" role="group" aria-label="Headlines tour">
+        <button onClick={() => stepHeadline(-1)} aria-label="Previous headline">‹</button>
+        <button onClick={() => setTour(state => state === "playing" ? "paused" : "playing")} aria-label={tour === "playing" ? "Pause tour" : "Resume tour"}>{tour === "playing" ? "❚❚" : "▶"}</button>
+        <button onClick={() => stepHeadline(1)} aria-label="Next headline">›</button>
+        <span className="tour-status">{stopIndex + 1} / {tourStops.length}{tour === "paused" ? " · paused" : ""}</span>
+        <button onClick={() => setTour("off")} aria-label="End tour">✕</button>
+        <span className="tour-progress" key={`${selectedEvent?.id}-${tour}`} data-state={tour} style={{ animationDuration: `${GLOBE.tourStepMs}ms` }} />
+      </div>)}
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location.">
       <div ref={orbSurface} className="earth-orb-surface" aria-hidden="true">
         <FluidOrb size={GLOBE.orbRenderSize} color={GLOBE.orbColor} topColor={GLOBE.orbTopColor} maxFps={GLOBE.orbMaxFps} maxPixelRatio={GLOBE.orbMaxPixelRatio} edgeShade={GLOBE.continentEdgeShadeStrength} />
@@ -1071,7 +1457,7 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
         polygonsData={countries.features} polygonGeoJsonGeometry="geometry"
         polygonCapMaterial={landMaterial} polygonSideMaterial={sideMaterial}
         polygonAltitude={polygonAltitude}
-        polygonCapCurvatureResolution={GLOBE.landCurvatureDegrees} polygonsTransitionDuration={GLOBE.countryAnimationMs}
+        polygonCapCurvatureResolution={GLOBE.reliefFacetDegrees} polygonsTransitionDuration={GLOBE.countryAnimationMs}
         onPolygonHover={country => setHoveredCountryId(country ? (country as CountryFeature).id : null)}
         pathsData={borders} pathPoints="points" pathPointLat={borderLatitude} pathPointLng={borderLongitude}
         pathPointAlt={GLOBE.borderAltitude} pathColor={countryBorderColor} pathStroke={null}
@@ -1088,9 +1474,12 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
           sun.position.set(-150, 200, 200);
           instance.lights([new AmbientLight("#ffffff", GLOBE.ambientLightIntensity), sun]);
           instance.controls().enablePan = false;
+          // Upright Earth: free spin around the poles, tilt toward/away by at most maxTiltDegrees, no roll.
+          instance.controls().minPolarAngle = (90 - GLOBE.maxTiltDegrees) * Math.PI / 180;
+          instance.controls().maxPolarAngle = (90 + GLOBE.maxTiltDegrees) * Math.PI / 180;
           instance.controls().enableDamping = !reduced;
           instance.renderer().setPixelRatio(Math.min(window.devicePixelRatio, GLOBE.maxPixelRatio));
-          setReady(true); onRotationChange(!reduced);
+          setReady(true);
         }}
       />}
       </div>
@@ -1099,10 +1488,22 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
     <svg className="connectors" aria-hidden="true">{callouts.map((item) => <path key={item.id} ref={(node) => { if (node) paths.current.set(item.id, node); else paths.current.delete(item.id); }} stroke={item.color} />)}</svg>
     <div className="pins">{callouts.map((item, index) => <button hidden key={item.id} ref={(node) => { if (node) pins.current.set(item.id, node); else pins.current.delete(item.id); }}
       className="earth-pin" style={{ "--pin-color": item.color } as CSSProperties} aria-label={item.event?.title ?? "Selected location"} onClick={() => select(item)}>{index + 1}</button>)}</div>
+    <div className="clusters" aria-label="Grouped events">{clusters.map(cluster => {
+      const tone = !selectedEvent ? "" : cluster.ids.some(id => linkedIds.has(id)) ? " is-linked" : " is-dim";
+      const zooms = cluster.ids.length > GLOBE.clusterOpenMax && !cluster.colocated;
+      const leader = eventsById.get(cluster.key);
+      return <button key={cluster.key} className={`earth-cluster${tone}`} style={{ "--pin-color": leader ? eventColor(leader.layerId) : GLOBE.colors.selected } as CSSProperties}
+        ref={node => { if (node) { clusterButtons.current.set(cluster.key, node); placeCluster(cluster.key, node); } else clusterButtons.current.delete(cluster.key); }}
+        aria-label={zooms ? `${cluster.ids.length} events. Zoom in to separate them` : `${cluster.ids.length} events. Show the list`}
+        onClick={event => openClusterAt(cluster, event.currentTarget)}>{cluster.ids.length}</button>;
+    })}</div>
+    {openCluster && <ClusterPanel events={openCluster.ids.map(id => eventsById.get(id)).filter((event): event is Event => !!event)}
+      linkCount={id => linkIndex.get(id)?.length ?? 0} x={openCluster.x} y={openCluster.y} stageWidth={openCluster.width} stageHeight={openCluster.height}
+      onPick={event => { setOpenCluster(null); toggleEvent(event); }} onClose={() => setOpenCluster(null)} />}
     <div className="callouts" aria-label="Visible points of interest">{callouts.map((item, index) => {
       const event = item.event;
       const expanded = expandedCards.has(item.id);
-      const active = event ? rootEvent ? displayEvents.some(node => node.id === event.id) : selectedIds.has(event.id) : true;
+      const active = event ? event.id === selectedEvent?.id || selectedIds.has(event.id) : true;
       const href = event && sourceHref(event.sourceUrl);
       return <article hidden key={item.id} ref={(node) => { if (node) cards.current.set(item.id, node); else cards.current.delete(item.id); }} className={`earth-card${active ? " is-selected" : ""}${expanded ? " is-expanded" : " is-collapsed"}`} style={{ "--pin-color": item.color } as CSSProperties}
         onPointerDown={event => startCardDrag(event, item)} onPointerMove={event => moveCardDrag(event, item)}
@@ -1114,30 +1515,29 @@ export default function EventGlobe({ allEvents, links, events, selectedCountries
             event.preventDefault(); event.stopPropagation();
           }
         }}>
-        {expanded && <div className="card-category"><span>{String(index + 1).padStart(2, "0")} / {event ? LABELS[event.layerId as LayerId] ?? event.layerId : "location"}</span>{fixture && event && <span className="sample-badge">Sample</span>}</div>}
-        <button className="card-title" title="Drag to reposition; click to expand or collapse" aria-expanded={expanded}
+        {expanded && <div className="card-category"><span>{event ? LABELS[event.layerId as LayerId] ?? event.layerId : "location"}</span>{fixture && event && <span className="sample-badge">Sample</span>}</div>}
+        {/* Thumbnail left, headline and freshness right. Without an image the text takes the row. */}
+        <div className="card-headline">
+        <Thumbnail src={event?.imageUrl} />
+        <div className="card-headline-text">
+        <button className="card-title" title={expanded ? "Drag to reposition; click to close and deselect" : "Drag to reposition; click to select"} aria-expanded={expanded}
           onClick={() => {
-          if (!expanded) onRotationChange(false);
-          else {
-            const placement = cardPlacements.current.get(item.id);
-            if (placement && !item.retained) cardAnchors.current.set(item.id, screenAnchor(placement.left, placement.top, item));
-          }
-          setExpandedCards(current => {
-            const next = new Set(current);
-            if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
-            return next;
-          });
-          if (!expanded) select(item);
-        }}>{event?.title ?? "Selected location"}<span className="card-expand-icon" aria-hidden="true">{expanded ? "−" : "+"}</span></button>
+          // A closing details card resumes following its pin from where it stands.
+          if (expanded && !item.retained) rebaseCard(item.id);
+          select(item);
+        }}>{event?.title ?? "Selected location"}<span className="card-expand-icon" aria-hidden="true">{expanded ? "×" : "+"}</span></button>
+        {event && <TimeAgo iso={event.occurredAt} />}
+        </div>
+        </div>
         {expanded && <>
         {item.retained && <p className="retained-note">Selected event · hidden by map filters</p>}
         {event && <p className="card-summary">{event.summary ?? "No summary provided."}</p>}
-        <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}{event && <span>{event.geoPrecision} precision</span>}</p>
+        <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}</p>
         {event && <RelatedEventControls key={event.id} event={event} allEvents={allEvents}
           links={links.links ? linkIndex.get(event.id) ?? [] : undefined} error={links.error} onVisit={visitEvent} />}
-        {event && <p className="card-time">{eventTime(event.occurredAt)}</p>}
+        {event && <p className="card-time">{exactTime(event.occurredAt)}</p>}
         <div className="card-footer">{href ? <a href={href} target="_blank" rel="noreferrer">{event!.source.toUpperCase()} ↗</a> : <span>{event?.source.toUpperCase() ?? "Coordinates captured"}</span>}
-          {(event ? event.id === rootEvent?.id : selection?.kind === "location") && <button onClick={clearSelection}>Clear selection</button>}</div>
+          {(event ? event.id === selectedEvent?.id : selection?.kind === "location") && <button onClick={clearSelection}>Close</button>}</div>
         </>}
       </article>;
     })}</div>

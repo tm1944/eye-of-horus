@@ -141,3 +141,13 @@ The wow moment is a card a judge can open in two real source URLs.
 ## Cut list
 
 Real-time social firehoses. Custom models. Photorealistic 3D tiles. Live war, terror, and finance classifiers. Auth and billing. Claiming OEM rights on GDELT Cloud.
+
+## Credits
+
+Third-party data and assets the site shows. The same list appears as small credits in the globe's bottom-right corner (`apps/web/src/components/data-attribution.tsx`); keep the two in sync. Details, checksums, and rebuild steps are in the linked docs.
+
+- **Event feeds:** [USGS](https://earthquake.usgs.gov/earthquakes/feed/) earthquakes (public domain); [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) fire hotspots; [GDACS](https://www.gdacs.org/) disaster alerts; [The GDELT Project](https://www.gdeltproject.org/) conflict events (via `data/backup_csvs/finalconflictCSV.csv`); [GNews](https://gnews.io/) headlines; and [Wikipedia Current events](https://en.wikipedia.org/wiki/Portal:Current_events) (CC BY-SA 4.0). Each event card also links its own source URL.
+- **Star backdrop:** Yale Bright Star Catalogue, 5th Revised Ed. (Hoffleit, D. & Warren Jr., W. H. 1991), distributed by the CDS, Strasbourg as catalog [V/50](https://cdsarc.cds.unistra.fr/viz-bin/cat/V/50). Positions, magnitudes, and B−V colors are copied unchanged by `apps/web/scripts/build-star-catalog.mjs` into `apps/web/src/data/bright-stars.json`. This project uses data obtained from the CDS, Strasbourg, France. Star colors follow Mitchell Charity's blackbody color table ("What color is a blackbody?", vendian.org). See [apps/web/docs/vector-globe.md](apps/web/docs/vector-globe.md#starry-backdrop).
+- **Country shapes:** [Natural Earth](https://www.naturalearthdata.com/) Admin 0 countries, 1:110m, public domain. See [apps/web/docs/vector-globe.md](apps/web/docs/vector-globe.md).
+- **Elevation relief:** `earth-topology.png` from the [three-globe](https://github.com/vasturiano/three-globe) examples (MIT, © Vasco Asturiano). Its original source is not stated upstream. See [apps/web/public/textures/README.md](apps/web/public/textures/README.md).
+- **Rendering:** [three.js](https://threejs.org/), [three-globe](https://github.com/vasturiano/three-globe), and [react-globe.gl](https://github.com/vasturiano/react-globe.gl), all MIT.

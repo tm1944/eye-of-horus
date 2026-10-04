@@ -3,6 +3,7 @@
     "id": "usgs:us7000example",
     "source": "usgs",
     "sourceUrl": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000example",
+    "imageUrl": null,
     "layerId": "earthquake",
     "subtype": null,
     "title": "M 6.2 - 15 km SW of Napa, California",
@@ -18,16 +19,26 @@
     "weight": 6.2,
     "significance": 80,
     "countryIso3": "USA",
-    "keywords": [{ "text": "Napa", "type": "place", "confidence": 0.9 }],
+    "keywords": [
+      {
+        "text": "Napa",
+        "type": "place",
+        "confidence": 0.9
+      }
+    ],
     "entities": [],
     "rawRef": "raw.ingest_batch:usgs-fixture-001",
     "tags": [],
-    "attributes": { "magnitude": 6.2, "depth_km": 10 }
+    "attributes": {
+      "magnitude": 6.2,
+      "depth_km": 10
+    }
   },
   {
     "id": "firms:viirs:20261003:napa",
     "source": "firms",
     "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/map/#d:2026-10-03;l:VIIRS_SNPP_NRT;@-122.35,38.55,8z",
+    "imageUrl": null,
     "layerId": "wildfire",
     "subtype": null,
     "title": "VIIRS hotspot cluster north of Napa Valley",
@@ -47,12 +58,16 @@
     "entities": [],
     "rawRef": "raw.ingest_batch:firms-fixture-001",
     "tags": [],
-    "attributes": { "max_frp": 42.5, "hotspot_count": 12 }
+    "attributes": {
+      "max_frp": 42.5,
+      "hotspot_count": 12
+    }
   },
   {
     "id": "gnews:fixture123",
     "source": "gnews",
     "sourceUrl": "https://example.com/news/napa-earthquake-smoke",
+    "imageUrl": null,
     "layerId": "news",
     "subtype": null,
     "title": "Local outlets report shaking and smoke in Napa County",
@@ -69,8 +84,16 @@
     "significance": 40,
     "countryIso3": null,
     "keywords": [
-      { "text": "Napa County", "type": "location", "relevance": 0.9 },
-      { "text": "earthquake", "type": "event", "relevance": 0.85 }
+      {
+        "text": "Napa County",
+        "type": "location",
+        "relevance": 0.9
+      },
+      {
+        "text": "earthquake",
+        "type": "event",
+        "relevance": 0.85
+      }
     ],
     "entities": [],
     "rawRef": null,

@@ -66,7 +66,9 @@ def _fetch_date(target: date) -> list[dict]:
             continue
 
         article_links = []
+        thumbnail = None  # the first linked page with a thumbnail illustrates the story
         for page in story.get("links") or story.get("pages") or []:
+            thumbnail = thumbnail or (page.get("thumbnail") or {}).get("source")
             content_urls = page.get("content_urls", {})
             desktop_url = (content_urls.get("desktop") or {}).get("page", "")
             if desktop_url:
@@ -81,6 +83,7 @@ def _fetch_date(target: date) -> list[dict]:
             "_story_text": plain,
             "title":       _first_sentence(plain),
             "links":       article_links,
+            "_thumbnail":  thumbnail,
         })
 
     return results

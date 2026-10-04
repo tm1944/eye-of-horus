@@ -564,6 +564,8 @@ def ingest_firms(cur, rows: list[dict] | None = None) -> dict:
     rows = rows[:FIRMS_CAP]
     batch_id = _record_batch(cur, "firms", {"kept": len(rows), "cap": FIRMS_CAP})
     grouped: dict[tuple[float, float, str], list[dict]] = defaultdict(list)
+    # Latest detection per cluster: its event time (not midnight of the acquisition date).
+    latest: dict[tuple[float, float, str], datetime] = {}
     for row in rows:
         lat, lng = _num(row.get("latitude")), _num(row.get("longitude"))
         if lat is None or lng is None:
@@ -575,7 +577,9 @@ def ingest_firms(cur, rows: list[dict] | None = None) -> dict:
         except ValueError:
             continue
         hotspot_id = f"firms:{row.get('satellite')}:{acq_date}:{acq_time}:{lat:.4f}:{lng:.4f}"
-        grouped[(*_cell(lat, lng), acq_date)].append((hotspot_id, row))
+        cluster_key = (*_cell(lat, lng), acq_date)
+        grouped[cluster_key].append((hotspot_id, row))
+        latest[cluster_key] = max(latest.get(cluster_key, acq_at), acq_at)
         cur.execute(
             """
             INSERT INTO mart.wildfire_hotspot (
@@ -618,7 +622,7 @@ def ingest_firms(cur, rows: list[dict] | None = None) -> dict:
                 title=f"VIIRS hotspot cluster {cell_lat:.1f}, {cell_lng:.1f}",
                 summary="NASA FIRMS cluster. Cite NASA FIRMS.",
                 info_url="https://firms.modaps.eosdis.nasa.gov/",
-                occurred_at=datetime.strptime(acq_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                occurred_at=latest[(cell_lat, cell_lng, acq_date)],
                 updated_at=_now(),
                 lng=cell_lng,
                 lat=cell_lat,
@@ -1108,6 +1112,16 @@ def run_ingest() -> dict:
         with conn.transaction():
             with conn.cursor() as cur:
                 summary.append(load_conflict_csv(cur))
+        # Thumbnails last, outside the loaders' transactions: only rows still without an
+        # image are looked up, so repeat runs are cheap. A failure here never fails ingest.
+        try:
+            from jobs.ingest.images import fill_missing_images
+
+            images = fill_missing_images(conn, sources=("usgs", "gdacs", "conflict_csv"), log=lambda _line: None)
+            summary.append({"source": "images", "status": "ok", **images})
+        except Exception as exc:  # noqa: BLE001 — images are decoration; keep the loaded events
+            conn.rollback()
+            summary.append({"source": "images", "status": "error", "detail": str(exc)[:200]})
         return {"ok": True, "status": "loaded", "sources": summary}
     finally:
         conn.close()

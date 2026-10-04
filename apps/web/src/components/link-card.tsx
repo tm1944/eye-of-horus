@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import type { Event, EventLink, LinkScores } from "@/lib/api";
 import { LABELS, type LayerId } from "@/lib/layers";
 import { eventColor } from "@/lib/globe-config";
@@ -38,11 +38,6 @@ function EventButton({ event, onVisit }: { event?: Event; onVisit: (event: Event
 
 /** Details for one clicked arc: the hypothesis, its reasoning, and both linked events. */
 export default function LinkCard({ link, source, target, x, y, stageWidth, stageHeight, onVisit, onClose }: Props) {
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [onClose]);
   const scores = Array.isArray(link.citations) ? null : link.citations as LinkScores;
   const paragraphs = link.rationale.split(/\n\s*\n/).map(text => text.trim()).filter(Boolean);
   const left = x + GAP + WIDTH + PAD <= stageWidth ? x + GAP : Math.max(PAD, x - GAP - WIDTH);

@@ -11,14 +11,21 @@ export const GLOBE = {
   borderDarkness: 0.5, // borders = average of the two neighbors' land colors, this much darker
   landAltitude: 0.001, // fraction of globe radius, below heatmaps and markers
   borderAltitude: 0.0018, // outlines above land, below heatmaps; prevents line/surface flicker
-  landCurvatureDegrees: 1.5, // tessellation spacing; lower means smoother, more triangles
+  landCurvatureDegrees: 1.5, // border line interpolation spacing; land caps use reliefFacetDegrees
+  reliefStrength: 1.4, // low-poly elevation shading on country caps: 0 = flat; flat ground always keeps its color
+  reliefHeightScale: 0.03, // slope exaggeration: full heightmap range (sea level → highest peak) in globe radii
+  reliefFacetDegrees: 0.5, // land cap triangle size and elevation sampling spacing: each triangle is one shaded facet; lower = finer, more triangles
+  reliefLightDirection: [-0.5, 0.7, 0.5] as const, // camera space, toward the light: upper left, like the orb's bright top
   orbTopColor: "#86bad9", // light blue at the screen-space north/top of the orb (15% darker than #9edbff)
   orbColor: "#072d58", // deep blue at the bottom (15% darker than #083568); fluid motion blends between these
   orbRenderSize: 512, // fixed CSS/backbuffer basis, scaled to the projected globe
   orbMaxFps: 30,
   orbMaxPixelRatio: 1.25,
   initialView: { lat: 30, lng: -110 }, // degrees, east-positive longitude
-  interactionPauseMs: 1000, // resume automatic rotation this long after globe/card input ends, unless paused
+  idleResumeMs: 10000, // automatic rotation restarts this long after the last globe/card interaction (never while a card holds the view)
+  spinUpMs: 4000, // rotation eases from still to rotationSpeed over this long…
+  viewReturnMs: 4000, // …while tilt (initialView.lat) and zoom (default fit) ease back over this long
+  maxTiltDegrees: 45, // the globe stays upright: it tilts toward/away from the viewer at most this far, never sideways
   relatedFocusMs: 1000, // camera travel time to a linked POI
   relatedFocusAltitude: 0.9, // minimum camera altitude for linked POIs; preserve wider current views
   relatedArcColor: "#ff3030", // floating relationship curve
@@ -33,7 +40,7 @@ export const GLOBE = {
   relatedArcHaloScale: 3.2, // hover glow tube radius relative to the drawn arc
   relatedArcHoverMs: 140, // glow fade in/out
   relatedArcHoverReleaseMs: 250, // a hovered pin's arcs linger this long so the pointer can reach them
-  rotationSpeed: 1, // Three.js OrbitControls speed; 1 ≈ one revolution/minute at 60 fps
+  rotationSpeed: 0.5, // Three.js OrbitControls speed; 1 ≈ one revolution/minute at 60 fps, so 0.5 ≈ one per two minutes
   atmosphereColor: "#333333", // one shade lighter than the #242424 page background
   atmosphereAltitude: 0.12, // outer halo thickness, fraction of globe radius
   atmosphereHaloStrength: 1, // 1 = exactly atmosphereColor at the limb, fading to the background
@@ -43,6 +50,13 @@ export const GLOBE = {
   ambientLightIntensity: 2.0,
   sunlightIntensity: 1.1,
   maxPixelRatio: 1.5, // limit GPU cost on high-density displays
+  // Backdrop: the real night sky (Yale Bright Star Catalogue), aligned to the current sidereal time.
+  skyBrightness: 0.85, // peak star opacity; subtle against the #242424 page
+  skyMagnitudeCutoff: 5.5, // dimmest visual magnitude drawn (≈2,900 stars; the catalog reaches ≈6.5)
+  skyStarMinSizePx: 1.6, // CSS pixels for the dimmest stars…
+  skyStarMaxSizePx: 4.2, // …and the brightest (Sirius)
+  skyColorSaturation: 0.6, // 0 = white; 1 = full B−V star color
+  skyRealignMs: 60000, // re-apply sidereal time this often (the sky turns 0.25° per minute)
   pinHeadRadiusDegrees: 0.315, // pin-shaped markers: sphere head, half the earlier 0.63° marker radius
   pinStemRadiusRatio: 0.25, // stem radius / head radius
   pinStemColor: "#9a9a9a", // neutral gray stems; heads keep their layer color
@@ -58,11 +72,34 @@ export const GLOBE = {
   pinToCardDistancePx: 80, // preferred horizontal gap when a card first appears
   connectorWidthPx: 4, // CSS pixels, constant as the globe zooms
   cardCenterExclusion: 0.5, // new cards avoid the central half of Earth's visible radius
-  headlineMinScale: 0.88, // 88% at the limb, full size at the front
-  headlineTiltDegrees: 12, // subtle X/Y perspective tilt; expanded/dragged cards stay flat
-  headlinePerspectivePx: 900, // larger values flatten perspective
   cardEdgePaddingPx: 24, // responsive card width margin and retained-selection inset
+  // Headline cards ride a ring per pin: its latitude circle, tilted so the side facing the
+  // viewer is raised. Cards meet their pins at Earth's edges and arch over them at the centre.
+  cardRingTiltDegrees: 15, // how far the ring rises (or dips) at the centre
+  cardRingLift: 0.04, // ring height above the surface, in globe radii
+  // Pins at or north of the default viewing latitude (initialView.lat, 30°N) carry their
+  // card above; pins south of it hang their card below.
+  cardRingGapPx: 10, // space between a card and its anchor, and between cards
+  cardEaseMs: 140, // cards glide toward their ring position (time constant)
+  headlineCardWidthPx: 240, // collapsed headline cards; the open details card stays 278
   maxCallouts: 4, // highest-significance events; selected event takes priority
+  headlineCount: 12, // Headlines tab: the top N events overall (map filters do not apply), each with a floating card
+  headlinePerCategory: 3, // …taking at most this many from any one sidebar category
+  tourStepMs: 8000, // Headlines tour: each story is shown this long before flying to the next (north to south)
+  pinSelectedScale: 1.5, // Explore: the selected pin grows and gains a white halo
+  headlinePinScale: 1.5, // Headlines: every pin uses the large size (the selection keeps its halo)
+  pinPingPeriodMs: 2400, // Headlines: a soft ring of light expands from each pin head this often…
+  pinPingMaxScale: 3.4, // …to this many head radii…
+  pinPingOpacity: 0.45, // …starting at this opacity and fading out; pins are staggered
+  pinDimColor: "#6c6c6c", // with a selection, unrelated pins turn gray (but stay clickable)
+  pinDimStemColor: "#555555",
+  clusterRadiusPx: 28, // explore view: pins closer than this on screen merge into a numbered cluster
+  clusterOpenMax: 10, // larger clusters zoom in to spread out instead of listing their events
+  clusterSpreadFactor: 1.5, // zoom until a cluster spans ≈ radius × √count × this many pixels
+  clusterZoomMs: 900,
+  spotlightEveryMs: 30000, // explore view: while rotating, one headline appears this often…
+  spotlightShowMs: 7000, // …for this long,
+  spotlightMemory: 12, // …and is not repeated until this many others have been shown
   // One hue family per sidebar category; subcategories are shades of it.
   colors: {
     earthquake: "#ffc38b", wildfire: "#ff9f6b", cyclone: "#ffd9a8", flood: "#f5b26e", volcano: "#ff8a4c", drought: "#e8c08f", environment: "#ffcf96", // hazards

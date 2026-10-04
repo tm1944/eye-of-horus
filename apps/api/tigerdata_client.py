@@ -15,6 +15,8 @@ _COLUMN_ALIASES = {
     "SOURCE": "source",
     "SOURCE_URL": "sourceUrl",
     "SOURCEURL": "sourceUrl",
+    "IMAGE_URL": "imageUrl",
+    "IMAGEURL": "imageUrl",
     "LAYER_ID": "layerId",
     "LAYERID": "layerId",
     "SUBTYPE": "subtype",

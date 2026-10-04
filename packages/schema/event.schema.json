@@ -9,6 +9,7 @@
     "id",
     "source",
     "sourceUrl",
+    "imageUrl",
     "layerId",
     "subtype",
     "title",
@@ -46,6 +47,7 @@
     "id": { "type": "string", "description": "event_id, e.g. usgs:us7000abcd" },
     "source": { "type": "string", "description": "source, e.g. usgs, firms, gdacs, gnews, wikifeeds, conflict_csv" },
     "sourceUrl": { "type": ["string", "null"], "description": "info_url" },
+    "imageUrl": { "type": ["string", "null"], "description": "image_url: article thumbnail, loaded directly from the publisher" },
     "layerId": {
       "type": "string",
       "description": "category",
