@@ -1,0 +1,2756 @@
+[
+  {
+    "id": "usgs:us7000example",
+    "source": "usgs",
+    "links": [
+      {
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000example",
+        "source": "usgs",
+        "label": "USGS Event Page"
+      }
+    ],
+    "layerId": "earthquake",
+    "title": "M 6.2 - 15 km SW of Napa, California",
+    "summary": "USGS native point. Public-domain catalog fixture for the weekend map.",
+    "occurredAt": "2026-10-03T12:04:11Z",
+    "updatedAt": "2026-10-03T12:10:00Z",
+    "lng": -122.4,
+    "lat": 37.8,
+    "altM": -10000,
+    "geoPrecision": "point",
+    "geoSource": "native",
+    "weight": 6.2,
+    "significance": 80,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Napa",
+        "confidence": 0.9
+      }
+    ],
+    "rawRef": "RAW.INGEST_BATCH:usgs-fixture-001"
+  },
+  {
+    "id": "firms:viirs:20261003:napa",
+    "source": "firms",
+    "links": [
+      {
+        "url": "https://firms.modaps.eosdis.nasa.gov/map/#d:2026-10-03;l:VIIRS_SNPP_NRT;@-122.35,38.55,8z",
+        "source": "firms",
+        "label": "NASA FIRMS Map"
+      }
+    ],
+    "layerId": "wildfire",
+    "title": "VIIRS hotspot cluster north of Napa Valley",
+    "summary": "NASA FIRMS native hotspot. Cite NASA FIRMS. Heatmap-first; this row is a marker fixture.",
+    "occurredAt": "2026-10-03T11:40:00Z",
+    "updatedAt": "2026-10-03T11:55:00Z",
+    "lng": -122.35,
+    "lat": 38.55,
+    "altM": 0,
+    "geoPrecision": "point",
+    "geoSource": "native",
+    "weight": 0.82,
+    "significance": 55,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Napa Valley",
+        "confidence": 0.7
+      }
+    ],
+    "rawRef": "RAW.INGEST_BATCH:firms-fixture-001"
+  },
+  {
+    "id": "gdelt:123",
+    "source": "gdelt",
+    "links": [
+      {
+        "url": "https://api.gdeltproject.org/api/v2/doc/doc?query=Napa%20earthquake%20smoke&mode=artlist&maxrecords=10&format=json",
+        "source": "gdelt",
+        "label": "GDELT Article List"
+      }
+    ],
+    "layerId": "news",
+    "title": "Local outlets report shaking and smoke in Napa County",
+    "summary": "Curated headline fixture. Coordinates are a city-scale geocode, not a sensor point.",
+    "occurredAt": "2026-10-03T13:20:00Z",
+    "updatedAt": "2026-10-03T13:22:00Z",
+    "lng": -122.2869,
+    "lat": 38.2975,
+    "altM": null,
+    "geoPrecision": "city",
+    "geoSource": "google_geocode",
+    "weight": 1,
+    "significance": 40,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Napa County",
+        "confidence": 0.86
+      },
+      {
+        "type": "org",
+        "text": "local outlets",
+        "confidence": 0.4
+      }
+    ],
+    "rawRef": "RAW.INGEST_BATCH:gdelt-fixture-001"
+  },
+  {
+    "id": "wikifeeds:11b7a4640976",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/2013_Lampedusa_migrant_shipwreck",
+        "source": "wikipedia",
+        "label": "2013 Lampedusa migrant shipwreck"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Lampedusa",
+        "source": "wikipedia",
+        "label": "Lampedusa"
+      }
+    ],
+    "layerId": "news",
+    "title": "A boat carrying migrants from Libya to Italy sank off the Italian island of Lampedusa, resulting in more than 360 deaths.",
+    "summary": "A boat carrying migrants from Libya to Italy sank off the Italian island of Lampedusa, resulting in more than 360 deaths.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:760258a3e6f6",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Emergency_Economic_Stabilization_Act_of_2008",
+        "source": "wikipedia",
+        "label": "Emergency Economic Stabilization Act of 2008"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Troubled_Asset_Relief_Program",
+        "source": "wikipedia",
+        "label": "Troubled Asset Relief Program"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Bailout",
+        "source": "wikipedia",
+        "label": "Bailout"
+      }
+    ],
+    "layerId": "news",
+    "title": "The Emergency Economic Stabilization Act of 2008, establishing the Troubled Asset Relief Program, commonly referred to as a bailout of the U.",
+    "summary": "The Emergency Economic Stabilization Act of 2008, establishing the Troubled Asset Relief Program, commonly referred to as a bailout of the U.S. financial system, was enacted.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:3bafc0687d29",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Siegfried_%26_Roy",
+        "source": "wikipedia",
+        "label": "Siegfried & Roy"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/The_Mirage",
+        "source": "wikipedia",
+        "label": "The Mirage"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Las_Vegas_Strip",
+        "source": "wikipedia",
+        "label": "Las Vegas Strip"
+      }
+    ],
+    "layerId": "news",
+    "title": "Roy Horn of the American entertainment duo Siegfried & Roy (both pictured) was mauled by a tiger during a performance at the Mirage on the Las Vegas Strip.",
+    "summary": "Roy Horn of the American entertainment duo Siegfried & Roy (both pictured) was mauled by a tiger during a performance at the Mirage on the Las Vegas Strip.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:18c367c1b761",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Sin%C3%A9ad_O'Connor",
+        "source": "wikipedia",
+        "label": "Sin\u00e9ad O'Connor"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Sin%C3%A9ad_O'Connor_on_Saturday_Night_Live",
+        "source": "wikipedia",
+        "label": "Sin\u00e9ad O'Connor on Saturday Night Live"
+      }
+    ],
+    "layerId": "news",
+    "title": "Sin\u00e9ad O'Connor tore up a photograph of Pope John Paul II on live television.",
+    "summary": "Sin\u00e9ad O'Connor tore up a photograph of Pope John Paul II on live television.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:f0908712da40",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Nadine_Gordimer",
+        "source": "wikipedia",
+        "label": "Nadine Gordimer"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Nobel_Prize_in_Literature",
+        "source": "wikipedia",
+        "label": "Nobel Prize in Literature"
+      }
+    ],
+    "layerId": "news",
+    "title": "Nadine Gordimer became the first South African to win the Nobel Prize in Literature.",
+    "summary": "Nadine Gordimer became the first South African to win the Nobel Prize in Literature.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:54c15971221d",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Mois%C3%A9s_Giroldi",
+        "source": "wikipedia",
+        "label": "Mois\u00e9s Giroldi"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/1989_Panamanian_coup_attempt",
+        "source": "wikipedia",
+        "label": "1989 Panamanian coup attempt"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Manuel_Noriega",
+        "source": "wikipedia",
+        "label": "Manuel Noriega"
+      }
+    ],
+    "layerId": "news",
+    "title": "Major Mois\u00e9s Giroldi of the Panama Defense Forces failed in his attempt to overthrow dictator Manuel Noriega.",
+    "summary": "Major Mois\u00e9s Giroldi of the Panama Defense Forces failed in his attempt to overthrow dictator Manuel Noriega.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:4184ba684e2d",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/1981_Irish_hunger_strike",
+        "source": "wikipedia",
+        "label": "1981 Irish hunger strike"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Irish_republicanism",
+        "source": "wikipedia",
+        "label": "Irish republicanism"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/HM_Prison_Maze",
+        "source": "wikipedia",
+        "label": "HM Prison Maze"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Belfast",
+        "source": "wikipedia",
+        "label": "Belfast"
+      }
+    ],
+    "layerId": "news",
+    "title": "A hunger strike by Irish republican prisoners at HM Prison Maze outside Belfast, Northern Ireland, ended after seven months and ten deaths.",
+    "summary": "A hunger strike by Irish republican prisoners at HM Prison Maze outside Belfast, Northern Ireland, ended after seven months and ten deaths.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:f97a0cdcca79",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Oswaldo_L%C3%B3pez_Arellano",
+        "source": "wikipedia",
+        "label": "Oswaldo L\u00f3pez Arellano"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Ram%C3%B3n_Villeda_Morales",
+        "source": "wikipedia",
+        "label": "Ram\u00f3n Villeda Morales"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/1963_Honduran_coup_d'%C3%A9tat",
+        "source": "wikipedia",
+        "label": "1963 Honduran coup d'\u00e9tat"
+      }
+    ],
+    "layerId": "news",
+    "title": "Oswaldo L\u00f3pez Arellano replaced Honduran president Ram\u00f3n Villeda Morales in a violent coup, initiating two decades of military rule.",
+    "summary": "Oswaldo L\u00f3pez Arellano replaced Honduran president Ram\u00f3n Villeda Morales in a violent coup, initiating two decades of military rule.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:4ae1b1c0547c",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Mercury-Atlas_8",
+        "source": "wikipedia",
+        "label": "Mercury-Atlas 8"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Human_spaceflight",
+        "source": "wikipedia",
+        "label": "Human spaceflight"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Cape_Canaveral_Space_Force_Station",
+        "source": "wikipedia",
+        "label": "Cape Canaveral Space Force Station"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Wally_Schirra",
+        "source": "wikipedia",
+        "label": "Wally Schirra"
+      }
+    ],
+    "layerId": "news",
+    "title": "Mercury-Atlas 8, the fifth United States crewed space mission, was launched from Cape Canaveral Air Force Station in Florida, carrying astronaut Wally Schirra (pictured).",
+    "summary": "Mercury-Atlas 8, the fifth United States crewed space mission, was launched from Cape Canaveral Air Force Station in Florida, carrying astronaut Wally Schirra (pictured).",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:64c846e5c306",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Holy_Rosary_Cathedral_(Vancouver)",
+        "source": "wikipedia",
+        "label": "Holy Rosary Cathedral (Vancouver)"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Dedication_of_churches",
+        "source": "wikipedia",
+        "label": "Dedication of churches"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/William_Mark_Duke",
+        "source": "wikipedia",
+        "label": "William Mark Duke"
+      }
+    ],
+    "layerId": "news",
+    "title": "Vancouver's Holy Rosary Cathedral was dedicated by Archbishop William Mark Duke, fifty-three years after it first opened.",
+    "summary": "Vancouver's Holy Rosary Cathedral was dedicated by Archbishop William Mark Duke, fifty-three years after it first opened.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:7ae6709163be",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Operation_Hurricane",
+        "source": "wikipedia",
+        "label": "Operation Hurricane"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/List_of_states_with_nuclear_weapons",
+        "source": "wikipedia",
+        "label": "List of states with nuclear weapons"
+      }
+    ],
+    "layerId": "news",
+    "title": "The United Kingdom successfully conducted its first nuclear test, becoming the world's third state with nuclear weapons.",
+    "summary": "The United Kingdom successfully conducted its first nuclear test, becoming the world's third state with nuclear weapons.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:27f6c9a9b02e",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Major_League_Baseball",
+        "source": "wikipedia",
+        "label": "Major League Baseball"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/San_Francisco_Giants",
+        "source": "wikipedia",
+        "label": "San Francisco Giants"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Bobby_Thomson",
+        "source": "wikipedia",
+        "label": "Bobby Thomson"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Shot_Heard_'Round_the_World_(baseball)",
+        "source": "wikipedia",
+        "label": "Shot Heard 'Round the World (baseball)"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Home_run",
+        "source": "wikipedia",
+        "label": "Home run"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/List_of_National_League_pennant_winners",
+        "source": "wikipedia",
+        "label": "List of National League pennant winners"
+      }
+    ],
+    "layerId": "news",
+    "title": "In Major League Baseball, the New York Giants' Bobby Thomson hit the \"Shot Heard 'Round the World\", a game-winning home run, to win the National League pennant.",
+    "summary": "In Major League Baseball, the New York Giants' Bobby Thomson hit the \"Shot Heard 'Round the World\", a game-winning home run, to win the National League pennant.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:3b6618c8536e",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/First_Battle_of_Maryang-san",
+        "source": "wikipedia",
+        "label": "First Battle of Maryang-san"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Australian_Army",
+        "source": "wikipedia",
+        "label": "Australian Army"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Korean_War",
+        "source": "wikipedia",
+        "label": "Korean War"
+      }
+    ],
+    "layerId": "news",
+    "title": "The First Battle of Maryang-san, widely regarded as one of the Australian Army's greatest accomplishments during the Korean War, began.",
+    "summary": "The First Battle of Maryang-san, widely regarded as one of the Australian Army's greatest accomplishments during the Korean War, began.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:158e7eb50a37",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Emilio_De_Bono",
+        "source": "wikipedia",
+        "label": "Emilio De Bono"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/De_Bono's_invasion_of_Ethiopia",
+        "source": "wikipedia",
+        "label": "De Bono's invasion of Ethiopia"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Second_Italo-Ethiopian_War",
+        "source": "wikipedia",
+        "label": "Second Italo-Ethiopian War"
+      }
+    ],
+    "layerId": "news",
+    "title": "Italian forces under General Emilio De Bono invaded Abyssinia during the opening stages of the Second Italo-Abyssinian War.",
+    "summary": "Italian forces under General Emilio De Bono invaded Abyssinia during the opening stages of the Second Italo-Abyssinian War.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:36b03ef18546",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Edgar_Allan_Poe",
+        "source": "wikipedia",
+        "label": "Edgar Allan Poe"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Baltimore",
+        "source": "wikipedia",
+        "label": "Baltimore"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Death_of_Edgar_Allan_Poe",
+        "source": "wikipedia",
+        "label": "Death of Edgar Allan Poe"
+      }
+    ],
+    "layerId": "news",
+    "title": "American author Edgar Allan Poe was found semi-conscious and delirious in Baltimore under mysterious circumstances; it was the last time he was seen in public before his death four days later.",
+    "summary": "American author Edgar Allan Poe was found semi-conscious and delirious in Baltimore under mysterious circumstances; it was the last time he was seen in public before his death four days later.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:b61d9140f3d4",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Valdivia",
+        "source": "wikipedia",
+        "label": "Valdivia"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Huilliche_uprising_of_1792",
+        "source": "wikipedia",
+        "label": "Huilliche uprising of 1792"
+      }
+    ],
+    "layerId": "news",
+    "title": "Spanish forces departed Valdivia to suppress the indigenous Huilliche uprising in southern Chile.",
+    "summary": "Spanish forces departed Valdivia to suppress the indigenous Huilliche uprising in southern Chile.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:9b4473e290c2",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Anglo-Spanish_War_(1585%E2%80%931604)",
+        "source": "wikipedia",
+        "label": "Anglo-Spanish War (1585\u20131604)"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Battle_of_the_Narrow_Seas",
+        "source": "wikipedia",
+        "label": "Battle of the Narrow Seas"
+      }
+    ],
+    "layerId": "news",
+    "title": "Anglo-Spanish War: An English fleet intercepted and attacked six Spanish ships at the Battle of the Narrow Seas (pictured).",
+    "summary": "Anglo-Spanish War: An English fleet intercepted and attacked six Spanish ships at the Battle of the Narrow Seas (pictured).",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "wikifeeds:daf389c164e8",
+    "source": "wikifeeds",
+    "links": [
+      {
+        "url": "https://en.wikipedia.org/wiki/Muhammad_VII_of_Granada",
+        "source": "wikipedia",
+        "label": "Muhammad VII of Granada"
+      },
+      {
+        "url": "https://en.wikipedia.org/wiki/Emirate_of_Granada",
+        "source": "wikipedia",
+        "label": "Emirate of Granada"
+      }
+    ],
+    "layerId": "news",
+    "title": "Muhammad VII became the twelfth sultan of the Emirate of Granada.",
+    "summary": "Muhammad VII became the twelfth sultan of the Emirate of Granada.",
+    "occurredAt": "2026-10-03T00:00:00Z",
+    "updatedAt": "2026-10-04T00:28:26.094000Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:6f9393a0bd5a",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.sheknows.com/entertainment/articles/1235085226/chad-lowe-daughter-mabel-honors-fiona/",
+        "source": "SheKnows",
+        "label": "Chad Lowe's Eldest Daughter Mabel Honored Her Late Sister Fiona"
+      }
+    ],
+    "layerId": "news",
+    "title": "Chad Lowe's Eldest Daughter Mabel Honored Her Late Sister Fiona",
+    "summary": "Chad Lowe's eldest daughter Mabel found a quiet way to honor her younger sister, Fiona, just days after her heartbreaking death.",
+    "occurredAt": "2026-10-03T12:33:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:2c7d52485c77",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.news18.com/sports/other-sports/indias-asian-games-medal-tally-21-gold-27-silver-37-bronze-archery-athletics-squash-hockey-cricket-kabaddi-shooting-ws-l-10365885.html",
+        "source": "News18",
+        "label": "India At Asian Games 2026: Full List Of Medals Across Sports"
+      }
+    ],
+    "layerId": "news",
+    "title": "India At Asian Games 2026: Full List Of Medals Across Sports",
+    "summary": "Here's a look at all the medals won by India at the 20th Asian Games in Japan.",
+    "occurredAt": "2026-10-03T12:32:56Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:d96917084864",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.goal.com/en/news/egypt-squad-camp-erupts-over-mohamed-salah-serious-accusations-and-a-complaint-to-the-public-prosecutor/blt7febd222ddbe62af",
+        "source": "Goal.com",
+        "label": "Egypt's camp erupts over Mohamed Salah: serious accusations and a report to the "
+      }
+    ],
+    "layerId": "news",
+    "title": "Egypt's camp erupts over Mohamed Salah: serious accusations and a report to the public prosecutor",
+    "summary": "Egypt's camp had barely caught its breath after the start of its campaign in the 2027 Africa Cup of Nations qualifiers before a fresh controversy erupted, driven by media reports speaking of tension within the ranks of the Pharaohs, before national team officials came out to deny what had been circulating and to stress that there was no crisis whatsoever between the technical staff and the players.",
+    "occurredAt": "2026-10-03T12:31:07Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:b88301eb85cc",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.monitor.co.ug/uganda/news/national/over-70-lubiri-high-school-students-narrowly-escape-crash-as-unroadworthy-bus-fails-on-mengo-hill--5618480",
+        "source": "Daily Monitor",
+        "label": "Over 70 Lubiri High School students narrowly escape crash as unroadworthy bus fa"
+      }
+    ],
+    "layerId": "news",
+    "title": "Over 70 Lubiri High School students narrowly escape crash as unroadworthy bus fails on Mengo Hill",
+    "summary": "Hassan Katula, a local resident, noted that suspicion arose when the vehicle\u2019s conductor was seen frantically jumping out of the moving bus to wedge objects under the wheels",
+    "occurredAt": "2026-10-03T12:30:26Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:f875fdfae90d",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://sports.yahoo.com/articles/apollo-crews-explains-wrestled-tna-123000264.html",
+        "source": "Yahoo Sports",
+        "label": "Apollo Crews Explains How He Wrestled In TNA During WWE Non-Compete Period"
+      }
+    ],
+    "layerId": "news",
+    "title": "Apollo Crews Explains How He Wrestled In TNA During WWE Non-Compete Period",
+    "summary": "Former WWE star Apollo Crews, now known as Uhaa Nation, explained how he wrestled at TNA Slammiversary 2026 during his 90-day non-compete period.",
+    "occurredAt": "2026-10-03T12:30:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:e7585a2e5247",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.ndtv.com/world-news/video-plumes-of-smoke-fire-emerge-from-aramco-facility-near-riyadh-12134222",
+        "source": "NDTV",
+        "label": "Video: Plumes Of Smoke, Fire Emerge From Aramco Facility Near Riyadh"
+      }
+    ],
+    "layerId": "news",
+    "title": "Video: Plumes Of Smoke, Fire Emerge From Aramco Facility Near Riyadh",
+    "summary": "The fire comes amid escalating hostilities between Saudi Arabia and Yemen's Iran-aligned Houthis, who have stepped up attacks on Saudi cities and energy infrastructure.",
+    "occurredAt": "2026-10-03T12:29:59Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:733c781479df",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.middleeastmonitor.com/20261003-egypt-denies-any-role-in-ethiopian-conflict/",
+        "source": "Middle East Monitor",
+        "label": "Egypt denies any role in Ethiopian conflict"
+      }
+    ],
+    "layerId": "news",
+    "title": "Egypt denies any role in Ethiopian conflict",
+    "summary": "Egypt denied any role on Saturday in the escalating conflict in northern Ethiopia, Anadolu reports. \u201cThe current crisis in Ethiopia is an internal one with which Egypt has no role, and that o\u2026",
+    "occurredAt": "2026-10-03T12:29:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:f966b4b1618d",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://globalnews.ca/news/12086540/axe-wielding-flydubai-co-pilot-extremism-concerns/",
+        "source": "Global News",
+        "label": "Axe-wielding FlyDubai co-pilot had been flagged over extremism concerns"
+      }
+    ],
+    "layerId": "news",
+    "title": "Axe-wielding FlyDubai co-pilot had been flagged over extremism concerns",
+    "summary": "The co-pilot accused of attacking the captain on an Israel-bound flight with an axe had been barred from flying on his country's airline because of concerns about extremist views.",
+    "occurredAt": "2026-10-03T12:28:43Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:88c1abb35858",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://timesofindia.indiatimes.com/india/most-comprehensive-plan-ukraine-confirms-india-playing-role-in-mediating-energy-truce-in-black-sea/articleshow/134659507.cms",
+        "source": "The Times of India",
+        "label": "'Most comprehensive plan': Ukraine confirms India playing role in mediating ener"
+      }
+    ],
+    "layerId": "news",
+    "title": "'Most comprehensive plan': Ukraine confirms India playing role in mediating energy truce in Black Sea",
+    "summary": "NEW DELHI: India's role in efforts to find a negotiated end to the Russia-Ukraine war has gained greater prominence, with Kyiv describing an Indian",
+    "occurredAt": "2026-10-03T12:28:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:8a8dc816341d",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.irishexaminer.com/sport/soccer/arid-41919253.html",
+        "source": "Irish Examiner",
+        "label": "FAI shuts down press conference after repeated questions over alleged monkey cha"
+      }
+    ],
+    "layerId": "news",
+    "title": "FAI shuts down press conference after repeated questions over alleged monkey chants",
+    "summary": "As a member of the visiting media continued to repeat the question, he threatened to call the local police when the FAI sought to take the microphone off him",
+    "occurredAt": "2026-10-03T12:27:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:e40027064bba",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.news18.com/tech/amazon-new-kindle-lineup-page-turn-cover-kindle-click-whats-new-10365153.html",
+        "source": "News18",
+        "label": "Amazon's New Kindles And Page-Turn Cover: What's New"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Amazon's New Kindles And Page-Turn Cover: What's New",
+    "summary": "Amazon has refreshed the Kindle, Paperwhite and Colorsoft with flush screens and new colours, plus a page-turn button cover and Kindle Click remote. Details here.",
+    "occurredAt": "2026-10-03T12:31:37Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:75f5840e8a58",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.gsmarena.com/huawei_watch_gt_7_pro_review-news-74802.php",
+        "source": "GSMArena.com",
+        "label": "Huawei Watch GT 7 Pro review"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Huawei Watch GT 7 Pro review",
+    "summary": "An iterative upgrade over the Watch GT 6 Pro with refreshed looks and impressive battery endurance. Huawei\u2019s Watch GT series has consistently offered a...",
+    "occurredAt": "2026-10-03T12:31:02Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:81f9df574223",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.xda-developers.com/i-turned-old-phone-into-permanent-android-auto-device-main-phone-never-connects-anymore/",
+        "source": "xda-developers.com",
+        "label": "I turned an old phone into a permanent Android Auto device, and my main phone ne"
+      }
+    ],
+    "layerId": "technology",
+    "title": "I turned an old phone into a permanent Android Auto device, and my main phone never connects to the car anymore",
+    "summary": "My Pixel 8 Pro is now my dedicated Android Auto device.",
+    "occurredAt": "2026-10-03T12:30:19Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:c17637491869",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.engadget.com/2273330/how-to-adjust-audio-quality-apple-music/",
+        "source": "Engadget",
+        "label": "How To Adjust The Audio Quality In Apple Music"
+      }
+    ],
+    "layerId": "technology",
+    "title": "How To Adjust The Audio Quality In Apple Music",
+    "summary": "Apple Music offers both lossless streaming and EQ features, if you know where to look.",
+    "occurredAt": "2026-10-03T12:30:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:0f346b50de47",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.techpowerup.com/353354/nvidia-raises-shield-tv-pro-price-to-usd-299-discontinues-standard-shield-tv",
+        "source": "TechPowerUp",
+        "label": "NVIDIA Raises Shield TV Pro Price to $299, Discontinues Standard Shield TV"
+      }
+    ],
+    "layerId": "technology",
+    "title": "NVIDIA Raises Shield TV Pro Price to $299, Discontinues Standard Shield TV",
+    "summary": "NVIDIA has raised the price of the Shield TV Pro from $199.99 to $299.99, effective October 2. The streaming box launched in October 2019 at $199.99 and held that price for almost seven years. Earlier this year, NVIDIA promised to keep updating the Shield TV, with hardware engineering SVP Andrew...",
+    "occurredAt": "2026-10-03T12:28:25Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:89858c4a3fa8",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.techpowerup.com/353355/sony-updates-playstation-5-slim-with-better-cooling-design",
+        "source": "TechPowerUp",
+        "label": "Sony Updates PlayStation 5 Slim with Better Cooling Design"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Sony Updates PlayStation 5 Slim with Better Cooling Design",
+    "summary": "Sony has reportedly released a new version of the PlayStation 5 Slim console that addresses several issues and optimizes manufacturing. Historically, console makers make these smaller revisions throughout the manufacturing process, which spans years for consoles, involving minor cosmetic changes...",
+    "occurredAt": "2026-10-03T12:18:31Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:f7aec76dc07f",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.engadget.com/2271901/is-nintendo-3ds-still-worth-buying/",
+        "source": "Engadget",
+        "label": "Is A Nintendo 3DS Still Worth Buying In 2026?"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Is A Nintendo 3DS Still Worth Buying In 2026?",
+    "summary": "The 3DS has a lot to offer, especially if you've never experienced its library of games. It might be a strong alternative to the Switch or Switch 2 for you.",
+    "occurredAt": "2026-10-03T12:15:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:752273656a3b",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.engadget.com/2270823/handy-ways-reuse-old-android-phone/",
+        "source": "Engadget",
+        "label": "10 Handy Ways To Reuse Your Old Android Phone"
+      }
+    ],
+    "layerId": "technology",
+    "title": "10 Handy Ways To Reuse Your Old Android Phone",
+    "summary": "Whether you turn it into a smart home control panel or a life-saving companion for your outdoor adventures, that old Android phone can still be very useful.",
+    "occurredAt": "2026-10-03T12:15:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:7a053fa25b68",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://traxion.gg/gran-turismo-7-spec-iv-update-part-1-releases-15th-october/",
+        "source": "Traxion.GG",
+        "label": "Gran Turismo 7 Spec IV update Part 1 releases 15th October"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Gran Turismo 7 Spec IV update Part 1 releases 15th October",
+    "summary": "The Ferrari F355 is a surprise roster addition to the update.",
+    "occurredAt": "2026-10-03T12:14:27Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:adc23871ed70",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.ept.ca/element14-community-launches-smart-sustainability-design-challenge/",
+        "source": "Electronic Products & Technology",
+        "label": "element14 Community launches smart sustainability design challenge"
+      }
+    ],
+    "layerId": "technology",
+    "title": "element14 Community launches smart sustainability design challenge",
+    "summary": "Global engineering community invited to develop innovative recycling, waste management and sustainability solutions",
+    "occurredAt": "2026-10-03T12:08:18Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:13ea2ebb75d9",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.nature.com/articles/s41598-026-72788-1?error=cookies_not_supported&code=f440ce7c-d49c-4a44-9092-1e18312d7df8",
+        "source": "Nature",
+        "label": "Comparative performance of raw and calcined limestone dust as partial Portland c"
+      }
+    ],
+    "layerId": "science",
+    "title": "Comparative performance of raw and calcined limestone dust as partial Portland cement replacements in cement paste",
+    "summary": "This study investigates the performance of natural limestone dust (LD) and calcined limestone dust (CLD) as partial replacements for Portland cement (PC) in cement paste. Cement pastes containing 0%, 10%, 20%, 30%, and 40% LD or CLD were prepared and evaluated. The reference PC paste was prepared at a water-to-cement ratio (w/c) of 0.30, whereas the LD- and CLD-blended pastes were prepared at a fixed nominal water-to-binder ratio (w/b) of 0.26. The w/b ratio of 0.26 was selected based on a previous experimental study of CLD-containing blended binders, which demonstrated suitable mixing behavior and favorable compressive-strength performance at this ratio. The physical, mechanical, and microstructural properties of the cement pastes were evaluated using specific gravity, bulk density, Vicat penetration behavior, setting time, compressive strength, X-ray diffraction (XRD), and scanning electron microscopy coupled with energy-dispersive spectroscopy (SEM/EDS). The results showed that CLD replacement levels of up to 20% generally produced higher early-age and 28-day compressive strengths than the corresponding LD mixtures, with strength values approaching those of the reference PC paste. Increasing LD and CLD replacement levels also affected the specific gravity, bulk density, penetration behavior, and setting time of the cement pastes. XRD and SEM/EDS analyses provided qualitative evidence of changes in crystalline phases and microstructural features associated with the incorporation of CLD. Overall, CLD exhibited promising potential as a partial replacement for Portland cement across the replacement levels investigated. Further studies are required to evaluate the long-term durability and environmental performance of CLD-containing cement pastes.",
+    "occurredAt": "2026-10-03T12:17:16Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:7cdce4f8b596",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.thenews.com.pk/latest/1418601-moon-water-acts-nothing-like-it-does-on-earth-study-finds",
+        "source": "The News International",
+        "label": "Moon water acts nothing like it does on Earth, study finds"
+      }
+    ],
+    "layerId": "science",
+    "title": "Moon water acts nothing like it does on Earth, study finds",
+    "summary": "When it comes to sustaining life, water holds significant importance. As the countries are locked in a race to dominate the moon and sustain human presence on the lunar surface, it is difficult or...",
+    "occurredAt": "2026-10-03T12:15:00Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:ea146954dcff",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "http://www.sciencedaily.com/releases/2026/09/260930225456.htm",
+        "source": "ScienceDaily",
+        "label": "Scientists just made a superconductor stronger using \u201cempty space\u201d"
+      }
+    ],
+    "layerId": "science",
+    "title": "Scientists just made a superconductor stronger using \u201cempty space\u201d",
+    "summary": "Researchers have demonstrated that quantum fluctuations in supposedly empty space can strengthen superconductivity, raising the transition temperature of an ultrathin material by as much as 5.4%. The discovery opens the possibility of using specially engineered vacuum environments to control quantum materials without direct contact or external driving.",
+    "occurredAt": "2026-10-03T12:05:57Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:930d73e293ee",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://phys.org/news/2026-09-energy-production-virus-defenses-toxin.html",
+        "source": "Phys.org",
+        "label": "Energy production, virus defenses and toxin loading emerge as vulnerabilities in"
+      }
+    ],
+    "layerId": "science",
+    "title": "Energy production, virus defenses and toxin loading emerge as vulnerabilities in resistant bacteria",
+    "summary": "Antimicrobial resistance is one of the world's top public health threats. Often termed a silent pandemic, antimicrobial-resistant bacteria have caused millions of deaths annually. If left unchecked, the number of deaths attributed to antimicrobial-resistant bacteria is expected to increase to 10 million a year by 2050, according to estimates by the World Health Organization.",
+    "occurredAt": "2026-10-03T12:00:18Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:ee6772b9194b",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.nature.com/articles/s41467-026-78054-2?error=cookies_not_supported&code=9907273a-c8e6-449e-a81c-724f4f3074c7",
+        "source": "Nature",
+        "label": "Design principle for mitigating moisture-induced degradation in 2D halide perovs"
+      }
+    ],
+    "layerId": "science",
+    "title": "Design principle for mitigating moisture-induced degradation in 2D halide perovskites",
+    "summary": "We establish a conceptual framework which explains and mitigates moisture-induced degradation in 2D perovskites. Degradation proceeds along defined pathways across the spacer cation iodide (A\u2032I or A\u2032I2)-PbI2-H2O ternary phase diagram as moisture intercalates into the perovskite. Phases evolve as the composition of the system travels towards the H2O and PbI2 sides of the phase diagram. The structure and chemistry of the spacer cations control the availability and formation energies of non-perovskite phases, which in turn determines the degradation mechanism and rate in humid air. In particular, stable 2D perovskites typically can coexist in thermodynamic equilibrium with water, whereas unstable 2D perovskites typically cannot because they are impeded by hydrate phases. This framework establishes a design principle focused on\u00a0tuning the\u00a0spacer cation\u00a0to not accomodate low-energy hydrate phases and other lead-rich phases, thereby suppressing\u00a0moisture driven degradation and\u00a0enhancing 2D perovskite stability. Leveraging this mechanism, we show that replacing linear butylammonium with branched isobutylammonium suppresses moisture-induced degradation of the associated 2D powders by a factor of six. The existence of mixed-organic cation non-perovskite phases can similarly destabilize mixed 3D-2D perovskite films, and suppressing such mixed phases improves stability. In humid air, 2D perovskites degrade into various lead-rich nonperovskite phases. The easier it is for such phases to form, the faster degradation proceeds. By tuning a 2D perovskite\u2019s molecular cations to not accommodate any lead-rich phases, stability can be markedly improved.",
+    "occurredAt": "2026-10-03T11:57:46Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:ae72bf622e5a",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.nature.com/articles/s41467-026-78235-z?error=cookies_not_supported&code=2713ac04-2253-4232-9a2f-2c8e944d04ea",
+        "source": "Nature",
+        "label": "The structural dynamics and molecular coupling in the slow inactivation of a pro"
+      }
+    ],
+    "layerId": "science",
+    "title": "The structural dynamics and molecular coupling in the slow inactivation of a prokaryotic voltage-gated sodium channel",
+    "summary": "Slow inactivation in voltage-gated sodium channels (Navs) is crucial for regulating cell excitability. Many studies indicate that the selectivity filter (SF) serves as the inactivation gate, but the structural mechanism and coupling between the distal primary and inactivation gates remain poorly understood. Our single-molecule FRET studies reveal that the NavAb SF transits among three conformational states, with depolarization enriching a high FRET state, potentially the slow inactivated conformation. We show L176 in the SF and T206 in the S6 helix as key residues that form a steric-hindrance coupler. Crystallographic analysis reveals that bulkier L176F overrides the opening tendency of an S6 C-terminal deletion (\u0394C230) and closes the primary gate, while smaller T206A partially uncouples the slow inactivation gate. SmFRET data confirm that L176F restores the high FRET population depleted by \u0394C230 or the open-pore blocker lidocaine. Our results indicate that \u2018conformational talk\u2019 through L176-T206 underlies slow inactivation in prokaryotic Navs. Slow inactivation of voltage-gated sodium channels is important for regulating cellular excitability. Here the authors probe the conformational dynamics in the selectivity filter using smFRET and reveal the critical residue pair that mediates conformational communication between the primary and slow inactivation gates",
+    "occurredAt": "2026-10-03T11:06:14Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:1bab29750d18",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.futura-sciences.com/en/you-wont-believe-which-countries-hide-the-worlds-most-incredible-fossil-treasures_39227/",
+        "source": "Futura, le m\u00e9dia qui explore le monde",
+        "label": "You won\u2019t believe which countries hide the world\u2019s most incredible fossil treasu"
+      }
+    ],
+    "layerId": "science",
+    "title": "You won\u2019t believe which countries hide the world\u2019s most incredible fossil treasures",
+    "summary": "The Greatest Geological Goldmines This North American giant boasts one of the richest and most complete Mesozoic fossil records on the planet. Legendary sites like the Hell Creek Formation\u2014extending across Montana, Wyoming, and the Dakotas\u2014have produced the world\u2019s most famous specimens of Tyrannosaurus rex and Triceratops. Utah\u2019s geological wealth alone...",
+    "occurredAt": "2026-10-03T11:05:43Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:c8db0498fb66",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://tremblantexpress.com/en/chouettes-et-hiboux/",
+        "source": "Tremblant Express",
+        "label": "Owls with ear tufts and owls without"
+      }
+    ],
+    "layerId": "science",
+    "title": "Owls with ear tufts and owls without",
+    "summary": "A hoot heard in the distance. A strange cry in the woods. A rounded silhouette, perched on a branch. Sometimes you need only a few signs to turn an afternoon\u2026",
+    "occurredAt": "2026-10-03T11:04:16Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:2fdf79194025",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.404media.co/our-solar-system-is-terminally-unstable-and-will-be-completely-destroyed-study-finds/",
+        "source": "404 Media",
+        "label": "Our Solar System Is Terminally Unstable and Will Be Completely Destroyed, Study "
+      }
+    ],
+    "layerId": "science",
+    "title": "Our Solar System Is Terminally Unstable and Will Be Completely Destroyed, Study Finds",
+    "summary": "The estimated lifespan of the outer solar system has been downgraded from 100 billion years to just a few billion years, according to a study that probed \u201cterminal instability\u201d during the Sun\u2019s death.",
+    "occurredAt": "2026-10-03T11:03:58Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:5de9ce6ef47b",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://phys.org/news/2026-10-cooper-pairs-superconducting-critical-temperature.html",
+        "source": "Phys.org",
+        "label": "Cooper pairs found above superconducting critical temperature in pair density wa"
+      }
+    ],
+    "layerId": "science",
+    "title": "Cooper pairs found above superconducting critical temperature in pair density waves",
+    "summary": "Physicists with the University of Illinois Urbana-Champaign's Grainger College of Engineering have identified a new form of superconducting behavior. Experiments on the metal uranium ditelluride reveal that Cooper pairs, the composite electron units responsible for superconductivity, can organize into nonuniform patterns that exist even when the main superconducting phase is absent.",
+    "occurredAt": "2026-10-03T11:00:01Z",
+    "updatedAt": "2026-10-04T00:33:12.708379Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:a13eaa4abe07",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.sciencedaily.com/releases/2026/10/261001095319.htm",
+        "source": "ScienceDaily",
+        "label": "Leucine does more than build muscle. It powers up your cells"
+      }
+    ],
+    "layerId": "news",
+    "title": "Leucine does more than build muscle. It powers up your cells",
+    "summary": "The essential amino acid leucine can boost cellular energy production by protecting key proteins on mitochondria from being destroyed. The discovery reveals a new connection between nutrition and metabolism that could eventually lead to new approaches for metabolic disorders and cancer.",
+    "occurredAt": "2026-10-03T12:34:33Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:9f2d074ab34f",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.thestatszone.com/uganda-vs-congo-dr-preview-prediction-2026-international-friendly-228036",
+        "source": "The Stats Zone",
+        "label": "2026 International Friendly - The Stats Zone"
+      }
+    ],
+    "layerId": "news",
+    "title": "2026 International Friendly - The Stats Zone",
+    "summary": "Uganda vs Congo DR 2026 International Friendly match preview: free tips & prediction\u2026",
+    "occurredAt": "2026-10-03T12:34:00Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:5e1abf4d5e80",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.sciencedaily.com/releases/2026/09/260930225456.htm",
+        "source": "ScienceDaily",
+        "label": "Scientists just made a superconductor stronger using \u201cempty space\u201d"
+      }
+    ],
+    "layerId": "news",
+    "title": "Scientists just made a superconductor stronger using \u201cempty space\u201d",
+    "summary": "Researchers have demonstrated that quantum fluctuations in supposedly empty space can strengthen superconductivity, raising the transition temperature of an ultrathin material by as much as 5.4%. The discovery opens the possibility of using specially engineered vacuum environments to control quantum materials without direct contact or external driving.",
+    "occurredAt": "2026-10-03T12:33:45Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:2f6314ae823c",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.financialexpress.com/life/lifestyle/the-downside-of-an-ageing-population/4352951/",
+        "source": "financialexpress.com",
+        "label": "The downside of an ageing population"
+      }
+    ],
+    "layerId": "health",
+    "title": "The downside of an ageing population",
+    "summary": "A recent study says India's dementia burden set to double in 10 years",
+    "occurredAt": "2026-10-03T12:35:40Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:8730608c747f",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.hindustantimes.com/lifestyle/health/5-bad-cholesterol-myths-busted-cardiologist-explains-why-feeling-fine-doesnt-mean-your-heart-is-safe-101791027677683.html",
+        "source": "Hindustan Times",
+        "label": "5 \u2018bad\u2019 cholesterol myths busted: Cardiologist explains why feeling fine doesn't"
+      }
+    ],
+    "layerId": "health",
+    "title": "5 \u2018bad\u2019 cholesterol myths busted: Cardiologist explains why feeling fine doesn't mean your heart is safe",
+    "summary": "High cholesterol can remain silent for years. Cardiologist busts five common LDL myths and explains why feeling healthy doesn't always mean your heart is safe. | Health",
+    "occurredAt": "2026-10-03T12:28:04Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:6070f5c20ee6",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.thestar.com.my/aseanplus/aseanplus-news/2026/10/03/singapore-sugar-consumption-falls-but-calorie-and-sodium-intake-rise",
+        "source": "thestar.com.my",
+        "label": "Singapore sugar consumption falls, but calorie and sodium intake rise"
+      }
+    ],
+    "layerId": "health",
+    "title": "Singapore sugar consumption falls, but calorie and sodium intake rise",
+    "summary": "SINGAPORE; More people in Singapore are consuming less sugar, engaging in physical activity and getting screened for chronic diseases and cancers.",
+    "occurredAt": "2026-10-03T12:26:00Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:11b9060da7b8",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.independent.co.uk/news/uk/home-news/bluetongue-outbreak-british-farms-heatwave-b3060790.html",
+        "source": "The Independent",
+        "label": "British farms hit by record bluetongue outbreak after heatwave summer"
+      }
+    ],
+    "layerId": "health",
+    "title": "British farms hit by record bluetongue outbreak after heatwave summer",
+    "summary": "Defra said hot and humid summer weather had created \u2018favourable conditions for the biting midges that spread bluetongue\u2019 \u2013 likely contributing\u202fto the increase in cases",
+    "occurredAt": "2026-10-03T12:23:00Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:9787a0ab1413",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.tribuneindia.com/news/haryana/breast-cancer-cases-rise-among-women-aged-25-35-experts-flag-concern/",
+        "source": "The Tribune",
+        "label": "Breast cancer cases rise among women aged 25-35, experts flag concern"
+      }
+    ],
+    "layerId": "health",
+    "title": "Breast cancer cases rise among women aged 25-35, experts flag concern",
+    "summary": "Breast cancer at a young age has emerged as a major health concern. Traditionally, breast cancer was considered more common among older women. However, an increasing number of cases are now being reported among younger women, highlighting the need for greater awareness and early attention to breast health.",
+    "occurredAt": "2026-10-03T12:21:53Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:36d50b506d31",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.the-independent.com/life-style/health-and-families/gut-microbiome-food-disease-lifestyle-b3058249.html",
+        "source": "The Independent",
+        "label": "Affordable ways to protect your gut microbiome from unhealthy changes"
+      }
+    ],
+    "layerId": "health",
+    "title": "Affordable ways to protect your gut microbiome from unhealthy changes",
+    "summary": "Got ten bucks? Then give your gut bacteria a boost",
+    "occurredAt": "2026-10-03T12:17:00Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:9982a07c412b",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.financialexpress.com/life/lifestyle/are-we-taking-too-many-antidepressants/4352944/",
+        "source": "financialexpress.com",
+        "label": "Are we taking too many antidepressants?"
+      }
+    ],
+    "layerId": "health",
+    "title": "Are we taking too many antidepressants?",
+    "summary": "While Selective Serotonin Reuptake Inhibitors or SSRIs are among the most-prescribed psychiatric drugs, doctors caution against their use for everyday emotional distress or temporary bouts of stress.",
+    "occurredAt": "2026-10-03T12:10:52Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:f72b271be77a",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.sciencealert.com/the-aging-brain-isnt-declining-its-adapting-study-finds",
+        "source": "ScienceAlert",
+        "label": "The Aging Brain Isn't Declining - It's Adapting, Study Finds"
+      }
+    ],
+    "layerId": "health",
+    "title": "The Aging Brain Isn't Declining - It's Adapting, Study Finds",
+    "summary": "As we get older, our episodic memory \u2013 managed by the hippocampus region \u2013 gradually gets worse.",
+    "occurredAt": "2026-10-03T12:02:30Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:bdafc6f934e8",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://sg.news.yahoo.com/flu-cases-rising-earlier-heres-120200550.html",
+        "source": "Yahoo News Singapore",
+        "label": "Flu Cases Are Rising Earlier This Year-Here's What That Means"
+      }
+    ],
+    "layerId": "health",
+    "title": "Flu Cases Are Rising Earlier This Year-Here's What That Means",
+    "summary": "Doctors are already starting to treat patients with the flu, but getting vaccinated can lower your odds of severe illness.",
+    "occurredAt": "2026-10-03T12:02:00Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:8ee08ba9d8ad",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.news18.com/lifestyle/health-and-fitness/move-over-ozempic-creatine-can-give-you-muscle-without-working-out-finds-study-10365724.html",
+        "source": "News18",
+        "label": "Move Over Ozempic, Creatine Can Give You Muscle Without Working Out, Finds Study"
+      }
+    ],
+    "layerId": "health",
+    "title": "Move Over Ozempic, Creatine Can Give You Muscle Without Working Out, Finds Study",
+    "summary": "Creatine is among the most extensively studied sports and nutrition supplements.",
+    "occurredAt": "2026-10-03T12:01:02Z",
+    "updatedAt": "2026-10-04T00:36:55.561274Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 0,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:6e0d381db8aa",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.standardmedia.co.ke/national/article/2001559312/raila-family-to-lead-official-candle-lighting-ceremony-despite-odms-nationwide-exercise",
+        "source": "standardmedia.co.ke",
+        "label": "Raila family to lead official candle lighting ceremony despite ODM's nationwide "
+      }
+    ],
+    "layerId": "politics",
+    "title": "Raila family to lead official candle lighting ceremony despite ODM's nationwide exercise",
+    "summary": "The Raila family, led by Mama Ida Odinga, will host an official candle lighting ceremony on October 14th. This event takes place despite a separate nationwide exercise organized by the ODM party.",
+    "occurredAt": "2026-10-03T12:43:00Z",
+    "updatedAt": "2026-10-04T00:43:13.909332Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 35,
+    "entities": [
+      {
+        "type": "person",
+        "text": "Raila Odinga",
+        "confidence": 0.95
+      },
+      {
+        "type": "person",
+        "text": "Ida Odinga",
+        "confidence": 0.95
+      },
+      {
+        "type": "org",
+        "text": "ODM",
+        "confidence": 0.9
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:0d6146d83fd5",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.enca.com/news/andile-lungisa-not-entitled-public-office-anc",
+        "source": "eNCA",
+        "label": "\u2018Andile Lungisa not entitled to public office\u2019 - ANC"
+      }
+    ],
+    "layerId": "politics",
+    "title": "\u2018Andile Lungisa not entitled to public office\u2019 - ANC",
+    "summary": "The African National Congress (ANC) has stated that Andile Lungisa is not entitled to hold public office as he hopes to become the Mayor of Gqeberha.",
+    "occurredAt": "2026-10-03T12:42:18Z",
+    "updatedAt": "2026-10-04T00:43:13.909332Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 45,
+    "entities": [
+      {
+        "type": "person",
+        "text": "Andile Lungisa",
+        "confidence": 0.95
+      },
+      {
+        "type": "org",
+        "text": "ANC",
+        "confidence": 0.98
+      },
+      {
+        "type": "place",
+        "text": "Gqeberha",
+        "confidence": 0.95
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:1ffb351feacd",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.france24.com/en/live-news/20261003-turkey-football-ref-chief-jailed-pending-trial-for-graft",
+        "source": "france24.com",
+        "label": "Turkey football ref chief jailed pending trial for graft"
+      }
+    ],
+    "layerId": "sports",
+    "title": "Turkey football ref chief jailed pending trial for graft",
+    "summary": "The Turkish Football Federation (TFF) said Saturday it was working to shake up its refereeing oversight body after its top official was jailed pending trial on graft charges.",
+    "occurredAt": "2026-10-03T12:40:45Z",
+    "updatedAt": "2026-10-04T00:43:13.909332Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 45,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Turkey",
+        "confidence": 0.99
+      },
+      {
+        "type": "org",
+        "text": "Turkish Football Federation",
+        "confidence": 0.99
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:896147aeb16f",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.thestatszone.com/mauritius-vs-sri-lanka-preview-prediction-2026-international-friendly-228038",
+        "source": "The Stats Zone",
+        "label": "2026 International Friendly - The Stats Zone"
+      }
+    ],
+    "layerId": "sports",
+    "title": "2026 International Friendly - The Stats Zone",
+    "summary": "Mauritius faces Sri Lanka in a 2026 International Friendly match, with match previews and betting tips available.",
+    "occurredAt": "2026-10-03T12:39:00Z",
+    "updatedAt": "2026-10-04T00:43:13.909332Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 15,
+    "entities": [
+      {
+        "type": "org",
+        "text": "Mauritius",
+        "confidence": 0.95
+      },
+      {
+        "type": "org",
+        "text": "Sri Lanka",
+        "confidence": 0.95
+      },
+      {
+        "type": "event",
+        "text": "2026 International Friendly",
+        "confidence": 0.9
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:db85fb01a099",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://tribune.com.pk/story/2632760/pakistan-whip-china-to-claim-volleyball-bronze",
+        "source": "The Express Tribune",
+        "label": "Pakistan whip China to end 64-year medal wait"
+      }
+    ],
+    "layerId": "sports",
+    "title": "Pakistan whip China to end 64-year medal wait",
+    "summary": "The Pakistan national volleyball team secured a historic victory to claim their first bronze medal at the Asian Games since 1962, ending a 64-year medal drought by defeating China.",
+    "occurredAt": "2026-10-03T12:38:58Z",
+    "updatedAt": "2026-10-04T00:43:13.909332Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 45,
+    "entities": [
+      {
+        "type": "place",
+        "text": "Pakistan",
+        "confidence": 0.99
+      },
+      {
+        "type": "place",
+        "text": "China",
+        "confidence": 0.99
+      },
+      {
+        "type": "event",
+        "text": "Asian Games",
+        "confidence": 0.98
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:b785eec671b8",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://gamermatters.com/gran-turismo-7-spec-iv-update-part-1-october-2026-update-adds-new-track-six-cars-new-features-and-more/",
+        "source": "Gamer Matters",
+        "label": "Gran Turismo 7 Spec IV Update Part 1 (October 2026 Update) Adds New Track, Six C"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Gran Turismo 7 Spec IV Update Part 1 (October 2026 Update) Adds New Track, Six Cars, New Features And More",
+    "summary": "The first half of a two-parter free content update for Gran Turismo 7 has been revealed. The Gran Turismo 7 Spec IV Update Part 1 introduces a new track, six new cars, and additional features for players.",
+    "occurredAt": "2026-10-03T12:37:29Z",
+    "updatedAt": "2026-10-04T00:43:13.909332Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 25,
+    "entities": [
+      {
+        "type": "event",
+        "text": "Gran Turismo 7 Spec IV Update Part 1",
+        "confidence": 1.0
+      },
+      {
+        "type": "org",
+        "text": "Gran Turismo 7",
+        "confidence": 1.0
+      }
+    ],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:0b6e0cf3fdbb",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.wionews.com/world/trump-rules-out-us-diesel-export-ban-europe-fuel-supply-1791032335488",
+        "source": "WION",
+        "label": "Trump rules out US diesel export ban as Europe pledges emergency fuel supply"
+      }
+    ],
+    "layerId": "news",
+    "title": "Trump rules out US diesel export ban as Europe pledges emergency fuel supply",
+    "summary": "Donald Trump ruled out a US diesel export ban after European allies pledged to boost fuel availability amid soaring prices and supply disruptions.",
+    "occurredAt": "2026-10-03T14:29:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:811d2fe327e2",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.i24news.tv/en/news/israel/technology-science/artc-from-startup-nation-to-r-d-nation-israel-s-next-technological-leap",
+        "source": "i24NEWS",
+        "label": "From Startup Nation To R&D Nation: Israel\u2019s Next Technological Leap"
+      }
+    ],
+    "layerId": "news",
+    "title": "From Startup Nation To R&D Nation: Israel\u2019s Next Technological Leap",
+    "summary": "Record exports and multibillion-dollar deals underscore Israeli high-tech\u2019s resilience under fire. The challenge now is keeping its talent, research and intellectual property at home",
+    "occurredAt": "2026-10-03T14:26:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:3e5c74f407d5",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.dw.com/en/india-news-cockroach-janta-party-announces-delhi-march-for-october-10-calls-for-election-chiefs-resignation/live-79527537",
+        "source": "DW.com",
+        "label": "CJP announces new march in push for CEC resignation"
+      }
+    ],
+    "layerId": "news",
+    "title": "CJP announces new march in push for CEC resignation",
+    "summary": "The Cockroach Janta Party has called for a protest in Delhi if Chief Election Commissioner Gyanesh Kumar does not resign. After the Indian men's cricket team struck gold, all eyes are on their hockey counterparts.",
+    "occurredAt": "2026-10-03T14:23:36Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:5d720859b194",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://dailynews.co.tz/what-fp-icglrs-dar-meeting-means-for-the-great-lakes-region/",
+        "source": "dailynews.co.tz",
+        "label": "ICGLR\u2019s Dar meeting means for the Great Lakes Region"
+      }
+    ],
+    "layerId": "news",
+    "title": "ICGLR\u2019s Dar meeting means for the Great Lakes Region",
+    "summary": "DAR ES SALAAM: THE significance of the Great Lakes parliamentary forum coming to Dar es Salaam in November extends well beyond four days of speeches and diplomatic meetings. For Tanzania, the gathering is an opportunity to reinforce its role in regional diplomacy, for the Forum of Parliaments of the International Conference on the Great Lakes \u2026",
+    "occurredAt": "2026-10-03T14:22:07Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:3f4657fbab36",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.freemalaysiatoday.com/category/nation/2026/10/03/man-bludgeons-elder-brother-to-death-with-hammer",
+        "source": "Free Malaysia Today",
+        "label": "Man bludgeons elder brother to death with hammer"
+      }
+    ],
+    "layerId": "news",
+    "title": "Man bludgeons elder brother to death with hammer",
+    "summary": "The victim's mother said her daugher also suffered back injuries when she tried to stop the fight.",
+    "occurredAt": "2026-10-03T14:22:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:e74711962230",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.bbc.com/sport/football/articles/cqlyegj20vvxo",
+        "source": "BBC",
+        "label": "Owen Dean: Yeovil Town sign striker from Farnham Town"
+      }
+    ],
+    "layerId": "news",
+    "title": "Owen Dean: Yeovil Town sign striker from Farnham Town",
+    "summary": "Yeovil Town sign striker Owen Dean from Farnham Town for an undisclosed fee on a deal until the summer of 2028.",
+    "occurredAt": "2026-10-03T14:20:19Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:0d683219f95d",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://economictimes.indiatimes.com/tech/artificial-intelligence/openai-safety-employee-quits-calls-for-nuclear-level-safeguards/articleshow/134661414.cms?from=mdr",
+        "source": "The Economic Times",
+        "label": "AI safety: OpenAI safety employee quits, calls for nuclear"
+      }
+    ],
+    "layerId": "news",
+    "title": "AI safety: OpenAI safety employee quits, calls for nuclear",
+    "summary": "David Robinson, who previously led transparency work on OpenAI\u2019s safety team, wrote in an essay that the ChatGPT maker \u201chas thrived by trial and error.\u201d However, he said the stakes of the inevitable failures that come from that approach are growing along with the technology\u2019s capabilities, citing OpenAI\u2019s failure to prevent its AI from going rogue during testing.",
+    "occurredAt": "2026-10-03T14:19:09Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:133a9ce2a621",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.thestar.com.my/aseanplus/aseanplus-news/2026/10/03/thailand-warned-of-four-days-of-heavy-rain-from-october-4",
+        "source": "The Star",
+        "label": "Thailand warned of four days of heavy rain from October 4"
+      }
+    ],
+    "layerId": "news",
+    "title": "Thailand warned of four days of heavy rain from October 4",
+    "summary": "BANGKOK; The Thai Meteorological Department (TMD) has issued a warning for heavy to very heavy rain, thundershowers and gusty winds across parts of Thailand from October 4 to 7.",
+    "occurredAt": "2026-10-03T14:19:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:e9567dbcd5ac",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://dailynews.co.tz/tanzania-2050-water-science-as-a-foundation-for-a-sustainable-future/",
+        "source": "dailynews.co.tz",
+        "label": "TANZANIA 2050: Water science as a foundation for a sustainable future"
+      }
+    ],
+    "layerId": "news",
+    "title": "TANZANIA 2050: Water science as a foundation for a sustainable future",
+    "summary": "DAR ES SALAAM: WATER is at the heart of human life and national development. It sustains communities, supports agriculture and livestock production, powers economic activities, contributes to energy generation and plays a vital role in protecting the environment. For Tanzania, ensuring the sustainable availability and management of water resources is therefore an important part of \u2026",
+    "occurredAt": "2026-10-03T14:18:53Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:5d1171087b65",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.france24.com/en/live-news/20261003-boisterous-fashion-week-barnstorms-sleepy-nigerian-capital",
+        "source": "france24.com",
+        "label": "Boisterous fashion week barnstorms 'sleepy' Nigerian capital"
+      }
+    ],
+    "layerId": "news",
+    "title": "Boisterous fashion week barnstorms 'sleepy' Nigerian capital",
+    "summary": "Nigerian models donned outfits of seemingly impossible amounts of fabric folded and moulded into massive silhouettes, or overlapping in shingled, feather-like patterns.",
+    "occurredAt": "2026-10-03T14:18:50Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:bdac4f2cafb5",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.legit.ng/business-economy/technology/1734134-whatsapp-officially-launches-parental-controls-releases-steps-activate-teens/",
+        "source": "Legit News",
+        "label": "WhatsApp Officially Launches Parental Controls, Releases Steps to Activate for T"
+      }
+    ],
+    "layerId": "technology",
+    "title": "WhatsApp Officially Launches Parental Controls, Releases Steps to Activate for Teens",
+    "summary": "WhatsApp\u2019s optional parental controls let parents manage teens\u2019 privacy, groups, Channels and Meta AI, with activity alerts and encrypted chats kept private.",
+    "occurredAt": "2026-10-03T14:26:58Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:4c13f8683ee3",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://tech-insider.org/ca/1password-universal-sign-on-passkey-setup-2026/",
+        "source": "tech-insider.org",
+        "label": "First Setup in 12 Steps [2026] \u2013 Tech Insider Canada"
+      }
+    ],
+    "layerId": "technology",
+    "title": "First Setup in 12 Steps [2026] \u2013 Tech Insider Canada",
+    "summary": "Set up 1Password Universal Sign-On to default to passkeys over passwords. 12 steps, pricing, troubleshooting, and a complete working config for 2026.",
+    "occurredAt": "2026-10-03T14:24:36Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:4ab943055d1e",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://mashable.com/tech/apple-replacing-iphone-18-pro-max-cell-service-issues",
+        "source": "Mashable",
+        "label": "iPhone 18 Pro Max users on AT&T: Take these steps to save your service"
+      }
+    ],
+    "layerId": "technology",
+    "title": "iPhone 18 Pro Max users on AT&T: Take these steps to save your service",
+    "summary": "iPhone 18 Pro Max owners on AT&T cell plans need to update their devices or risk losing service, as the company flags hardware issues on the new model.",
+    "occurredAt": "2026-10-03T14:24:17Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:d80fddd4c361",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://unn.ua/en/news/meta-has-opened-muse-for-creating-custom-ai-gadgets",
+        "source": "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0456 \u041d\u0430\u0446\u0456\u043e\u043d\u0430\u043b\u044c\u043d\u0456 \u041d\u043e\u0432\u0438\u043d\u0438 (\u0423\u041d\u041d)",
+        "label": "Meta has opened Muse for creating custom AI gadgets"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Meta has opened Muse for creating custom AI gadgets",
+    "summary": "\u0423\u041d\u041d News of the World \u270e Meta has launched the open Muse Gadgets project with firmware and an SDK for developers. The company is also giving away 5,000 Home\nLink devices for f\u2026",
+    "occurredAt": "2026-10-03T14:21:58Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:a3ba9515d68e",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://sea.mashable.com/tech/55475/apple-will-replace-iphone-18-pro-max-devices-with-att-connection-issues",
+        "source": "Mashable SEA",
+        "label": "Apple will replace iPhone 18 Pro Max devices with AT&T connection issues"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Apple will replace iPhone 18 Pro Max devices with AT&T connection issues",
+    "summary": "If you still have service, update ASAP.",
+    "occurredAt": "2026-10-03T14:21:41Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:b141e79e7e0f",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.servethehome.com/nvidia-dgx-spark-64gb-launched-and-big-128gb-gb10-price-increases/",
+        "source": "ServeTheHome",
+        "label": "NVIDIA DGX Spark 64GB Launched and Big 128GB GB10 Price Increases"
+      }
+    ],
+    "layerId": "technology",
+    "title": "NVIDIA DGX Spark 64GB Launched and Big 128GB GB10 Price Increases",
+    "summary": "The NVIDIA DGX Spark 64GB is launching with a $4999 price as the 128GB model jumps to $6950 pushed by memory pricing",
+    "occurredAt": "2026-10-03T14:12:17Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:901af89bb902",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://monochrome-watches.com/raymond-weil-marks-50-years-again-with-a-more-accessible-millesime-jubilee-chronograph-automatic-introducing-price/",
+        "source": "Monochrome Watches",
+        "label": "The Raymond Weil Millesime Jubilee Chronograph 50th Anniversary"
+      }
+    ],
+    "layerId": "technology",
+    "title": "The Raymond Weil Millesime Jubilee Chronograph 50th Anniversary",
+    "summary": "Following The Fifty and its restored movement, Raymond Weil celebrates its 50th anniversary with a more accessible automatic chronograph.",
+    "occurredAt": "2026-10-03T14:00:38Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:c7e84d77877c",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.makeuseof.com/your-nvme-ssd-has-a-wear-meter-hiding-inside-windows/",
+        "source": "makeuseof.com",
+        "label": "Your NVMe SSD has a wear meter hiding inside Windows"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Your NVMe SSD has a wear meter hiding inside Windows",
+    "summary": "Most people only learn their SSD is dying when it stops booting",
+    "occurredAt": "2026-10-03T14:00:14Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:91d762933615",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://tech.yahoo.com/ai/apple-intelligence/articles/today-apple-history-ceo-michael-140012576.html",
+        "source": "Yahoo Tech",
+        "label": "Today in Apple history: CEO Michael Spindler denies Apple is a \u2018lame duck\u2019"
+      }
+    ],
+    "layerId": "technology",
+    "title": "Today in Apple history: CEO Michael Spindler denies Apple is a \u2018lame duck\u2019",
+    "summary": "On October 3, 1994, BusinessWeek published a profile of Apple as it struggled under the leadership of CEO Michael Spindler.",
+    "occurredAt": "2026-10-03T14:00:12Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:17f56dc5b359",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.cagesideseats.com/aew/479394/the-iinspiration-find-replacement-for-jessie-mckay-cassie-lee-steph-de-lander-roh-aew",
+        "source": "Cageside Seats",
+        "label": "The IInspiration find replacement for Jessie McKay"
+      }
+    ],
+    "layerId": "technology",
+    "title": "The IInspiration find replacement for Jessie McKay",
+    "summary": "Reinforcements were needed from a fellow Aussie.",
+    "occurredAt": "2026-10-03T14:00:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:e427612889ae",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.optometrytimes.com/view/aaopt-2026-acuvue-oasys-1-day-lenses-optimal-option-for-athletes",
+        "source": "optometrytimes.com",
+        "label": "AAOpt 2026: Acuvue Oasys 1-Day lenses as an optimal option for athletes"
+      }
+    ],
+    "layerId": "health",
+    "title": "AAOpt 2026: Acuvue Oasys 1-Day lenses as an optimal option for athletes",
+    "summary": "Phil Rainey, OD, MPH, FAAO, states that the recent parameter expansion of Johnson & Johnson's Acuvue Oasys Max 1-Day and Oasys 1-Day has been a game changer for his practice.",
+    "occurredAt": "2026-10-03T14:21:08Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:685a0642af25",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.sciencedaily.com/releases/2026/10/261002080020.htm",
+        "source": "ScienceDaily",
+        "label": "This protective enzyme could help stop fatty liver disease from getting worse"
+      }
+    ],
+    "layerId": "health",
+    "title": "This protective enzyme could help stop fatty liver disease from getting worse",
+    "summary": "Scientists have identified an enzyme that may act as a natural defense against the worsening of fatty liver disease, which affects an estimated 100 million Americans. The enzyme, called UBE2N, helps liver cells clear away damaged mitochondria and break down fat, potentially preventing the inflammation, scarring, and cell damage associated with the more dangerous condition MASH.",
+    "occurredAt": "2026-10-03T14:15:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:9dace066c347",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://mezha.net/eng/news/e6f3a7ee_gene_editing_for_thalassemia/",
+        "source": "\u041c\u0435\u0436\u0430. \u041d\u043e\u0432\u0438\u043d\u0438 \u0423\u043a\u0440\u0430\u0457\u043d\u0438.",
+        "label": "Gene editing for thalassemia, H5N1, and a new cancer treatment: six scientific d"
+      }
+    ],
+    "layerId": "health",
+    "title": "Gene editing for thalassemia, H5N1, and a new cancer treatment: six scientific discoveries of the week",
+    "summary": "A roundup of six recent studies explores an advanced breast cancer drug combination, atropine for childhood myopia, gene editing for alpha-thalassemia, tau structures, H5N1 receptor binding and waves that shape mangrove habitats.",
+    "occurredAt": "2026-10-03T14:10:02Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:0a9676662d4b",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.emjreviews.com/dermatology/news/glp-1-nail-disorders-more-common-in-multinational-study-eadv-2026/",
+        "source": "European Medical Journal",
+        "label": "GLP-1 Nail Disorders More Common in Users"
+      }
+    ],
+    "layerId": "health",
+    "title": "GLP-1 Nail Disorders More Common in Users",
+    "summary": "GLP-1 nail disorders were more common among users, with nail detachment reported more than four times as often as in controls.",
+    "occurredAt": "2026-10-03T14:05:19Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:18ff7507711e",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.globalbankingandfinance.com/france-step-up-ebola-funding-congo-amid-resurgence-fears/",
+        "source": "Global Banking & Finance Review",
+        "label": "France Increases Ebola Funding in Congo Amid Resurgence Fears"
+      }
+    ],
+    "layerId": "health",
+    "title": "France Increases Ebola Funding in Congo Amid Resurgence Fears",
+    "summary": "France will boost Ebola funding in Congo to prevent resurgence, says minister. Humanitarian aid and medical research key to response amid outbreak fears.",
+    "occurredAt": "2026-10-03T14:03:45Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:d43e9765ccb3",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://medicalxpress.com/news/2026-09-brain-scans-depression-treatment-distinct.html",
+        "source": "Medical Xpress",
+        "label": "Brain scans show shared changes during depression treatment and distinct antidep"
+      }
+    ],
+    "layerId": "health",
+    "title": "Brain scans show shared changes during depression treatment and distinct antidepressant effects in some patients",
+    "summary": "Major depressive disorder (MDD) is a common mental health condition primarily characterized by persistent low mood or loss of interest in daily activities. While several medications are available to treat depression, finding one that works for each patient can take time.",
+    "occurredAt": "2026-10-03T14:00:01Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:27da6d45baf6",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.sciencefocus.com/the-human-body/prediabetes-cause-reverse",
+        "source": "BBC Science Focus Magazine",
+        "label": "The surprising real cause of prediabetes (and how to reverse it)"
+      }
+    ],
+    "layerId": "health",
+    "title": "The surprising real cause of prediabetes (and how to reverse it)",
+    "summary": "You can reverse the slide towards type 2 diabetes if you catch it early enough and make the right lifestyle changes",
+    "occurredAt": "2026-10-03T14:00:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:09dd53948765",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://www.thetimes.com/life-style/health-fitness/article/how-little-exercise-can-you-get-away-with-c0vdjkv5w",
+        "source": "thetimes.com",
+        "label": "How little exercise can you get away with?"
+      }
+    ],
+    "layerId": "health",
+    "title": "How little exercise can you get away with?",
+    "summary": "Small bursts of activity can be just as effective as hours in gym. Let the experts show you how",
+    "occurredAt": "2026-10-03T14:00:00Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  },
+  {
+    "id": "gnews:0bf58ebe7e9f",
+    "source": "gnews",
+    "links": [
+      {
+        "url": "https://oncodaily.com/societies/hannatu-ayuba-599791",
+        "source": "Oncodaily",
+        "label": "Hannatu Ayuba: The Future of Cancer Care Is Connected, Collaborative and Patient"
+      }
+    ],
+    "layerId": "health",
+    "title": "Hannatu Ayuba: The Future of Cancer Care Is Connected, Collaborative and Patient",
+    "summary": "Hannatu Ayuba: The Future of Cancer Care Is Connected, Collaborative and Patient-Centred / cancer, CCI, Hannatu Ayuba, MDT, OncoDaily, Oncology",
+    "occurredAt": "2026-10-03T13:55:34Z",
+    "updatedAt": "2026-10-04T02:29:07.009433Z",
+    "lat": null,
+    "lng": null,
+    "altM": null,
+    "geoPrecision": null,
+    "geoSource": "llm_hint",
+    "weight": 1.0,
+    "significance": 50,
+    "entities": [],
+    "rawRef": null
+  }
+]

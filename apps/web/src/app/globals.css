@@ -1,48 +1,622 @@
-:root { color-scheme: dark; font-family: Arial, Helvetica, sans-serif; color: #f3f6fa; background: #070d16; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-button, a { -webkit-tap-highlight-color: transparent; }
-button { font: inherit; color: inherit; cursor: pointer; }
-button:focus-visible, a:focus-visible { outline: 3px solid #dbf9ff; outline-offset: 5px; }
-[hidden] { display: none !important; }
-.earth-page { min-height: 100dvh; background: radial-gradient(ellipse at 50% 45%, #182b41 0, #0c1726 38%, #070d16 75%); }
-.earth-stage { position: relative; min-height: 100dvh; width: 100%; }
-.earth-canvas { width: calc(100% - 640px); height: max(100dvh, 800px); margin: 0 320px; position: relative; overflow: hidden; cursor: grab; }
-.earth-canvas:active { cursor: grabbing; }
-.earth-canvas canvas { display: block; }
-.earth-controls { display: flex; gap: 8px; position: absolute; top: 24px; right: 24px; z-index: 5; }
-.earth-controls button, .data-error button { border: 1px solid #526879; background: #142335; border-radius: 24px; padding: 12px 20px; font-size: 14px; }
-.earth-controls button:hover { background: #223c50; }
-.earth-controls button:disabled { opacity: .6; }
-.earth-hint { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: #bbcbd8; font-size: 13px; pointer-events: none; }
-.earth-hint span { margin: 0 9px; color: #839bb0; }
-.connectors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 2; }
-.connectors path { fill: none; stroke-width: 1.4; opacity: .65; vector-effect: non-scaling-stroke; }
-.pins { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
-.earth-pin { position: absolute; top: 0; left: 0; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: var(--pin-color); color: #071322; box-shadow: 0 0 0 5px #07132266, 0 2px 10px #0008; font-size: 12px; font-weight: 800; pointer-events: auto; }
-.earth-pin:hover { box-shadow: 0 0 0 8px #ffffff33; }
-.earth-card { width: 278px; position: absolute; z-index: 4; border: 1px solid #42576a; border-left: 3px solid var(--pin-color); background: #101f30; border-radius: 10px; padding: 17px 18px; box-shadow: 0 12px 40px #0004; }
-.earth-card.is-selected { border-color: var(--pin-color); }
-.card-category { display: flex; justify-content: space-between; align-items: center; gap: 6px; color: var(--pin-color); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-.sample-badge { color: #d2e0eb; font-size: 10px; letter-spacing: .3px; border: 1px solid #576a7c; padding: 3px 5px; border-radius: 4px; }
-.card-title { display: block; background: none; border: none; padding: 0; margin: 12px 0 8px; text-align: left; font-size: 17px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere; }
-.card-title:hover { text-decoration: underline; text-underline-offset: 4px; }
-.card-summary { font-size: 13px; color: #c7d5e0; line-height: 1.5; margin: 8px 0 12px; max-height: 60px; overflow: auto; }
-.card-coordinates { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 14px; color: #f2f9ff; line-height: 1.55; margin: 10px 0; }
-.card-coordinates span { display: block; font-family: Arial, sans-serif; color: #b9cddd; font-size: 12px; }
-.card-time { color: #b9cddd; font-size: 12px; margin: 8px 0; }
-.card-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; padding-top: 8px; }
-.card-footer a { color: #e0f5ff; text-decoration: underline; text-underline-offset: 4px; font-size: 13px; }
-.card-footer button { background: none; border: 1px solid #60768a; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
-.earth-loading, .globe-fallback { min-height: 100dvh; display: grid; place-content: center; padding: 30px; font-size: 17px; }
-.earth-canvas .earth-loading { position: absolute; inset: 0; min-height: 0; pointer-events: none; }
-.data-error { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 6; background: #2b2021; border: 1px solid #b68b8b; border-radius: 10px; padding: 12px; font-size: 14px; width: min(90vw, 520px); }
-@media (max-width: 1099px) {
- .earth-canvas { width: 100%; margin: 0; height: max(64dvh, 440px); }
- .earth-stage { padding-bottom: 65px; }
- .callouts { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 24px; z-index: 4; }
- .earth-card { width: auto; position: relative; }
- .earth-controls { top: 16px; right: 16px; }
- .earth-hint { font-size: 12px; }
+/*
+ * GLOBAL UI STYLES
+ *
+ * Shapes: border-radius controls rounded corners; 50% creates circular pins/orb.
+ * Sizes: px = CSS pixels; % = parent-relative; vw = viewport width;
+ *        dvh = dynamic viewport height. Padding/margin pairs mean vertical / horizontal.
+ * Colors: #RRGGBB is opaque; #RGBA and #RRGGBBAA include transparency.
+ * Layout: desktop rules come first; media queries override them for smaller screens.
+ * Stack: globe 1 → connectors 2 → pins 3 → cards 4 → controls 5 → errors 6 → menu 8.
+ * Globe land/borders, event colors, camera sizing, and ocean shader colors are in
+ * src/lib/globe-config.ts. This file styles the surrounding DOM and canvas wrappers.
+ */
+
+/* BASE THEME — near-white text on charcoal. Inter is bundled via next/font/local. */
+:root {
+  color-scheme: dark;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  color: #f3f6fa;
+  background: #242424;
 }
-@media (max-width: 580px) { .callouts { grid-template-columns: 1fr; padding: 20px; gap: 16px; } .earth-hint span { margin: 0 4px; } }
+
+/* Include padding and borders in declared widths/heights throughout the UI. */
+* {
+  box-sizing: border-box;
+}
+
+/* Remove the browser’s default outer page spacing. */
+body {
+  margin: 0;
+}
+
+/* Suppress the mobile tap flash; keyboard focus is styled separately below. */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Buttons inherit the surrounding type and text color. */
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Keyboard focus: a 3px pale-cyan ring, separated from the control by 5px. */
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #dbf9ff;
+  outline-offset: 5px;
+}
+
+/* Hidden pins/cards must stay hidden even when their normal layout uses flex/grid. */
+[hidden] {
+  display: none !important;
+}
+
+/* PAGE AND GLOBE — charcoal backdrop covering at least the dynamic viewport height. */
+.earth-page {
+  min-height: 100dvh;
+  background: #242424;
+}
+
+/* Positioning reference for the globe, cards, pins, lines, and controls. */
+.earth-stage {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+}
+
+/* Full-width globe viewport; floating cards can overlap Earth. At least 800px tall.
+ * The actual sphere size and camera fit are controlled in lib/globe-config.ts. */
+.earth-canvas {
+  width: 100%;
+  height: max(100dvh, 800px);
+  margin: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+
+/* Use a grabbing cursor while the pointer is held down. */
+.earth-canvas:active {
+  cursor: grabbing;
+}
+
+/* Block canvases avoid the baseline gap of inline elements. */
+.earth-canvas canvas {
+  display: block;
+}
+
+/* RESET / ROTATION CONTROLS — top-right placement, 24px inset, 8px button gap. */
+.earth-controls {
+  display: flex;
+  gap: 8px;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 5;
+}
+
+/* Rounded pill controls: 24px corners, navy fill, slate border, and 14px text.
+ * Padding is vertical then horizontal (12px 20px); width follows the label. */
+.earth-controls button,
+.data-error button {
+  border: 1px solid #526879;
+  background: #142335;
+  border-radius: 24px;
+  padding: 12px 20px;
+  font-size: 14px;
+}
+
+/* Hover brightens the navy fill. */
+.earth-controls button:hover {
+  background: #223c50;
+}
+
+/* Unavailable controls retain their shape at 60% opacity. */
+.earth-controls button:disabled {
+  opacity: .6;
+}
+
+/* Centered bottom instruction text in muted blue-gray; clicks pass through it. */
+.earth-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #bbcbd8;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* Hint separators use a darker blue-gray and 9px horizontal spacing. */
+.earth-hint span {
+  margin: 0 9px;
+  color: #839bb0;
+}
+
+/* CONNECTOR LINES — full-stage SVG, behind pins/cards; it never captures clicks. */
+.connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 2;
+}
+
+/* Unfilled configurable lines (8px by default) at 65% opacity; scaling does not thicken the stroke.
+ * The stroke color is assigned per event by event-globe.tsx. */
+.connectors path {
+  fill: none;
+  stroke-width: var(--connector-width, 8px);
+  opacity: .65;
+  vector-effect: non-scaling-stroke;
+}
+
+/* PIN OVERLAY — full-stage positioning layer; only individual pins accept clicks. */
+.pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Circular 28px numbered pin: white 2px rim, dark text, and translucent shadow.
+ * --pin-color comes from the event layer palette in lib/globe-config.ts.
+ * Positions are projected from globe coordinates in event-globe.tsx. */
+.earth-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--pin-color);
+  color: #071322;
+  box-shadow: 0 0 0 5px #07132266, 0 2px 10px #0008;
+  font-size: 12px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+
+/* Hover replaces the dark shadow with a wider, translucent white halo. */
+.earth-pin:hover {
+  box-shadow: 0 0 0 8px #ffffff33;
+}
+
+/* EVENT CARDS — 278px desktop width, boxier 4px corners, gray surface.
+ * The 3px left edge uses the event color; padding is 17px vertical / 18px horizontal.
+ * Visible cards follow pins with fixed offsets; rear-facing cards release their slot.
+ * New cards avoid existing cards but may cover Earth; paths may overlap later without repacking. */
+.earth-card {
+  width: min(278px, calc(100vw - 48px));
+  position: absolute;
+  z-index: 4;
+  border: 1px solid #42576a;
+  border-left: 3px solid var(--pin-color);
+  background: #4e4d4d;
+  overflow: auto;
+  border-radius: 4px;
+  padding: 17px 18px;
+  box-shadow: 0 12px 40px #0004;
+}
+
+/* Selection colors every card border with the event accent. */
+.earth-card.is-selected {
+  border-color: var(--pin-color);
+}
+
+/* Compact uppercase category row: 11px bold text in the event color. */
+.card-category {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  color: var(--pin-color);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Small rectangular badge: 4px corners, slate outline, pale text, 3px / 5px padding. */
+.sample-badge {
+  color: #d2e0eb;
+  font-size: 10px;
+  letter-spacing: .3px;
+  border: 1px solid #576a7c;
+  padding: 3px 5px;
+  border-radius: 4px;
+}
+
+/* Title doubles as a text button: 17px semibold, no button fill or border.
+ * Long words may wrap so the title fits within the card. */
+.card-title {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 12px 0 8px;
+  text-align: left;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Underline clickable titles on hover, with a 4px offset. */
+.card-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Muted 13px summary text; content taller than 60px scrolls inside this area. */
+.card-summary {
+  font-size: 13px;
+  color: #c7d5e0;
+  line-height: 1.5;
+  margin: 8px 0 12px;
+  max-height: 60px;
+  overflow: auto;
+}
+
+/* Bright 14px monospaced coordinates make numeric positions easy to scan. */
+.card-coordinates {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 14px;
+  color: #f2f9ff;
+  line-height: 1.55;
+  margin: 10px 0;
+}
+
+/* Coordinate precision/helper text returns to a smaller, muted sans-serif style. */
+.card-coordinates span {
+  display: block;
+  font-family: var(--font-inter), Arial, sans-serif;
+  color: #b9cddd;
+  font-size: 12px;
+}
+
+/* Muted 12px timestamp with 8px vertical separation. */
+.card-time {
+  color: #b9cddd;
+  font-size: 12px;
+  margin: 8px 0;
+}
+
+/* Footer spreads source/actions apart with at least a 10px gap. */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  padding-top: 8px;
+}
+
+/* Source links use pale cyan and an explicit underline. */
+.card-footer a {
+  color: #e0f5ff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-size: 13px;
+}
+
+/* Compact outlined action: 4px corners and 4px / 8px padding. */
+.card-footer button {
+  background: none;
+  border: 1px solid #60768a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* STATUS MESSAGES — centered in a viewport-height area with 30px padding. */
+.earth-loading,
+.globe-fallback {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  padding: 30px;
+  font-size: 17px;
+}
+
+/* The in-globe loading message fills only the canvas and does not block input. */
+.earth-canvas .earth-loading {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+/* Error toast: muted red surface/border, 10px corners, centered 16px above the bottom.
+ * Width is 90% of the viewport, capped at 520px; sits above the cards. */
+.data-error {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: #2b2021;
+  border: 1px solid #b68b8b;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  width: min(90vw, 520px);
+}
+
+/* TABLET / SMALL DESKTOP (≤1099px) — use a shorter full-width globe; cards remain floating overlays. These values override desktop rules. */
+@media (max-width: 1099px) {
+  .earth-canvas {
+    width: 100%;
+    margin: 0;
+    height: max(64dvh, 440px);
+  }
+
+  .earth-stage {
+    padding-bottom: 65px;
+  }
+
+  .earth-controls {
+    top: 16px;
+    right: 16px;
+  }
+
+  .earth-hint {
+    font-size: 12px;
+  }
+}
+
+/* PHONE HINT (≤580px) — tighter spacing between instruction separators. */
+@media (max-width: 580px) {
+  .earth-hint span {
+    margin: 0 4px;
+  }
+}
+
+/* ACCESSIBILITY — visually clip content to 1px without removing it from screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* LAYER MENU — top-left at 24px; z-index 8 places it above globe controls and cards. */
+.layer-menu {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 8;
+  font-size: 14px;
+}
+
+/* Menu trigger: navy pill with 24px corners, content-sized width, 12px / 18px padding. */
+.layer-menu summary {
+  cursor: pointer;
+  border: 1px solid #526879;
+  background: #142335;
+  padding: 12px 18px;
+  border-radius: 24px;
+  width: fit-content;
+}
+
+/* Enabled-layer count uses a pale mint accent and 10px separation. */
+.layer-menu summary span {
+  color: #b4dfd4;
+  margin-left: 10px;
+}
+
+/* Expanded panel: 310px wide, 12px corners, navy fill, and slate border.
+ * Its height leaves 120px of viewport room; overflow scrolls within the panel. */
+.layer-panel {
+  width: 310px;
+  max-height: calc(100dvh - 120px);
+  overflow: auto;
+  padding: 18px;
+  background: #101f30;
+  border: 1px solid #526879;
+  border-radius: 12px;
+  margin-top: 10px;
+  box-shadow: 0 12px 40px #0008;
+}
+
+/* Panel heading: 18px text with 8px of space below. */
+.layer-panel h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+/* Supporting panel text: muted blue-gray, 12px, with generous line spacing. */
+.layer-help {
+  color: #b9cddd;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Each layer row has a slate bottom divider and 13px vertical padding. */
+.layer-row {
+  border: 0;
+  border-bottom: 1px solid #344b60;
+  padding: 13px 0;
+  margin: 0;
+}
+
+/* Align the checkbox and semibold label with a 10px gap. */
+.layer-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Square native checkboxes sized to 17px, with mint checked-state color. */
+.layer-toggle input {
+  width: 17px;
+  height: 17px;
+  accent-color: #9be3c9;
+}
+
+/* Mode controls sit 27px inward to align beneath the checkbox label. */
+.layer-options {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 0 27px;
+}
+
+/* Small 11px labels share the available row width. */
+.layer-options label {
+  font-size: 11px;
+  color: #c1d1df;
+  flex: 1;
+}
+
+/* Full-width select: blue-navy fill, white text, slate border, 4px corners. */
+.layer-options select {
+  display: block;
+  margin-top: 5px;
+  width: 100%;
+  padding: 6px;
+  background: #192d40;
+  border: 1px solid #60768a;
+  border-radius: 4px;
+  color: #fff;
+}
+
+/* Time-filter details: muted 12px text with 15px top separation; long values wrap. */
+.time-summary {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c1d1df;
+  padding-top: 15px;
+  overflow-wrap: anywhere;
+}
+
+/* Time action uses a small outlined rectangle with 4px corners. */
+.time-summary button {
+  margin-top: 8px;
+  background: #192d40;
+  border: 1px solid #60768a;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+/* Pale mint text identifies an event retained in selection after filtering. */
+.retained-note {
+  color: #ceffe5;
+  font-size: 12px;
+}
+
+/* Keyboard focus for form controls: 3px pale-cyan outline with a tighter 3px offset. */
+.layer-menu summary:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid #dbf9ff;
+  outline-offset: 3px;
+}
+
+/* PHONE CONTROLS (≤580px) — smaller insets/buttons and a panel that fits
+ * within the screen with 12px clearance on each side. */
+@media (max-width: 580px) {
+  .layer-menu {
+    top: 16px;
+    left: 12px;
+  }
+
+  .layer-menu summary {
+    padding: 10px 12px;
+  }
+
+  .layer-menu summary span {
+    margin-left: 3px;
+  }
+
+  .earth-controls {
+    gap: 4px;
+    right: 12px;
+  }
+
+  .earth-controls button {
+    font-size: 12px;
+    padding: 11px 10px;
+  }
+
+  .layer-panel {
+    width: min(310px, calc(100vw - 24px));
+  }
+}
+
+/* RENDER FILTERS — vertically spaced controls above a slate divider. */
+.render-controls {
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid #344b60;
+  padding-bottom: 12px;
+}
+
+/* Stack each label above its field with a 6px gap and pale 13px text. */
+.render-controls label {
+  display: grid;
+  gap: 6px;
+  color: #dce6ef;
+  font-size: 13px;
+}
+
+/* Full-width fields: 8px padding, 4px corners, slate border, blue-navy fill, white text. */
+.render-controls input,
+.render-controls select {
+  width: 100%;
+  background: #192d40;
+  color: #fff;
+  border: 1px solid #60768a;
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+}
+
+/* Help text has no default paragraph margins and uses 1.5 line spacing. */
+.render-controls p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* FLUID OCEAN — centered behind the globe; JavaScript supplies projected scale
+ * and reveals it when ready. It never intercepts pointer input. */
+.earth-orb-surface {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+  visibility: hidden;
+  transform-origin: center;
+}
+
+/* The transparent WebGL globe sits above the fluid ocean at z-index 1. */
+.earth-renderer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Circular clipping (50% radius) contains the ocean canvas. Blue is the CSS fallback;
+ * FluidOrb supplies its gradient inline. Colors/render size live in lib/globe-config.ts. */
+.fluid-orb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #1675db;
+}
+
+/* Fill the orb wrapper; the component controls the actual canvas backbuffer size. */
+.fluid-orb-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

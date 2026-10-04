@@ -7,8 +7,9 @@ get_feed(n)         -- keyword-scored feed, top n events
 get_feed_smart(n)   -- same but with Gemini re-rank when keyword scores are weak
 get_globe_pins(n)   -- top n events spread across the globe for pin display
 
-All functions read user preferences from data/user_config.json.
-Falls back to data/fixtures/events.json when SNOWFLAKE_ACCOUNT is unset.
+Functions read data/user_config.json only when no explicit config is supplied.
+The API supplies request selections and validated events without file preferences.
+Falls back to data/fixtures/events.json when DATABASE_URL is unset.
 
 See docs/personalization_algorithm.md for full algorithm spec.
 """
@@ -18,6 +19,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -166,6 +168,7 @@ def score_event(event: dict, config: dict) -> float:
 # Data loading
 # ---------------------------------------------------------------------------
 
+<<<<<<< HEAD
 def _normalize_row(row: dict) -> dict:
     """Map Snowflake snake_case columns to Event schema camelCase field names."""
     mapping = {
@@ -179,23 +182,19 @@ def _normalize_row(row: dict) -> dict:
         "canonical_id": "canonicalId",
     }
     return {mapping.get(k, k): v for k, v in row.items()}
+=======
+def _load_events_database(config: dict) -> list[dict]:
+    api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
+    from db import load_feed_events
+>>>>>>> ee8820429d1be3bd97b17609a2e4b866f7827c40
 
-
-def _load_events_snowflake(config: dict) -> list[dict]:
-    import snowflake.connector  # type: ignore
-
-    layers = config.get("layers", [])
-    sig_floor = config.get("significanceFloor", 0)
-    placeholders = ", ".join(["%s"] * len(layers))
-
-    conn = snowflake.connector.connect(
-        account=os.environ["SNOWFLAKE_ACCOUNT"],
-        user=os.environ["SNOWFLAKE_USER"],
-        password=os.environ["SNOWFLAKE_PASSWORD"],
-        database=os.environ.get("SNOWFLAKE_DATABASE", "EVENTS"),
-        schema="MART",
-        warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "EVENTS_XS"),
+    return load_feed_events(
+        list(config.get("layers") or []),
+        float(config.get("significanceFloor") or 0),
     )
+<<<<<<< HEAD
     try:
         cur = conn.cursor(snowflake.connector.DictCursor)
         cur.execute(
@@ -215,6 +214,8 @@ def _load_events_snowflake(config: dict) -> list[dict]:
         return [_normalize_row(dict(row)) for row in cur.fetchall()]
     finally:
         conn.close()
+=======
+>>>>>>> ee8820429d1be3bd97b17609a2e4b866f7827c40
 
 
 def _load_events_fixture(config: dict) -> list[dict]:
@@ -229,8 +230,13 @@ def _load_events_fixture(config: dict) -> list[dict]:
 
 
 def _load_events(config: dict) -> list[dict]:
-    if os.environ.get("SNOWFLAKE_ACCOUNT"):
-        return _load_events_snowflake(config)
+    api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
+    from db import database_configured
+
+    if database_configured():
+        return _load_events_database(config)
     return _load_events_fixture(config)
 
 
@@ -238,11 +244,11 @@ def _load_events(config: dict) -> list[dict]:
 # Public feed functions
 # ---------------------------------------------------------------------------
 
-def get_feed(n: int = 100, config: dict | None = None) -> list[dict]:
+def get_feed(n: int = 100, config: dict | None = None, *, events: list[dict] | None = None) -> list[dict]:
     """Return top n events ranked by relevance score."""
     if config is None:
         config = load_config()
-    events = _load_events(config)
+    events = _load_events(config) if events is None else events
     scored = sorted(
         events,
         key=lambda e: score_event(e, config),
@@ -255,6 +261,7 @@ def get_globe_pins(
     n: int = 10,
     spread_degrees: float = PIN_SPREAD_DEGREES,
     config: dict | None = None,
+    *, events: list[dict] | None = None,
 ) -> list[dict]:
     """Return n events spread geographically for globe pin display.
 
@@ -264,7 +271,7 @@ def get_globe_pins(
     """
     if config is None:
         config = load_config()
-    events = _load_events(config)
+    events = _load_events(config) if events is None else events
     scored = sorted(
         events,
         key=lambda e: score_event(e, config),

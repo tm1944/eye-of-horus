@@ -45,9 +45,11 @@ SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the news event ingest pipeline.")
-    parser.add_argument("--hours",   type=int,   default=24,               help="Recency window in hours (default: 24)")
-    parser.add_argument("--sources", type=str,   default="gnews,wikifeeds",help="Comma-separated source list")
-    parser.add_argument("--dry-run", action="store_true",                  help="Print events; skip writes")
+    parser.add_argument("--hours",      type=int,   default=24,               help="Recency window in hours (default: 24)")
+    parser.add_argument("--sources",    type=str,   default="gnews,wikifeeds",help="Comma-separated source list")
+    parser.add_argument("--dry-run",    action="store_true",                  help="Print events; skip writes")
+    parser.add_argument("--days-back",  type=int,   default=1,                help="Days of history to fetch from Wikifeeds (default: 1)")
+    parser.add_argument("--gnews-max",  type=int,   default=10,               help="Max articles per GNews category (default: 10, free tier limit)")
     args = parser.parse_args()
 
     sources = [s.strip().lower() for s in args.sources.split(",")]
@@ -58,14 +60,14 @@ def main() -> None:
     # 1. Scrape
     raw_events: list[dict] = []
     if "gnews" in sources:
-        articles = gnews_scraper.fetch_all()
+        articles = gnews_scraper.fetch_all(max_per_category=args.gnews_max)
         raw_events.extend(normalize_gnews(a) for a in articles)
-        print(f"[ingest] gnews: {len(articles)} articles fetched", flush=True)
+        print(f"[ingest] gnews: {len(articles)} articles fetched (max {args.gnews_max} per category)", flush=True)
 
     if "wikifeeds" in sources:
-        stories = wikifeeds_scraper.fetch_news()
+        stories = wikifeeds_scraper.fetch_news(days_back=args.days_back)
         raw_events.extend(normalize_wikifeeds(s) for s in stories)
-        print(f"[ingest] wikifeeds: {len(stories)} stories fetched", flush=True)
+        print(f"[ingest] wikifeeds: {len(stories)} stories fetched ({args.days_back} days)", flush=True)
 
     if not raw_events:
         print("[ingest] no events scraped — check API keys or network", flush=True)

@@ -3,19 +3,28 @@
 from __future__ import annotations
 
 import json
+import base64
+import hashlib
 import os
 import secrets
+import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from jsonschema import Draft202012Validator, FormatChecker
+from ingest_runner import run_ingest
 
-from snowflake_client import (
+from db import (
     fetch_mart_events,
+    fetch_mart_links,
     ping_and_warmup,
-    snowflake_account_set,
+    database_configured,
+    load_repo_env,
+    DatabasePing,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -28,8 +37,22 @@ LINKS_SNAPSHOT = SNAPSHOTS_DIR / "links.json"
 SNAPSHOT_META = SNAPSHOTS_DIR / "meta.json"
 
 DEFAULT_VITE_ORIGIN = "http://127.0.0.1:43123"
+_SCHEMA_DIR = REPO_ROOT / "packages" / "schema"
+_VALIDATORS = {
+    name: Draft202012Validator(
+        json.loads((_SCHEMA_DIR / f"{name}.schema.json").read_text()),
+        format_checker=FormatChecker(),
+    )
+    for name in ("event", "link")
+}
 
-# In-process last-known ingest time (updated by health ping / ingest stub).
+load_repo_env()
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from jobs.llm.personalize import get_feed, get_globe_pins
+
+# In-process last-known ingest time, updated by warehouse reads.
 _last_ingest_at: str | None = None
 
 
@@ -65,7 +88,7 @@ def _read_snapshot_meta() -> dict[str, Any]:
     try:
         data = _load_json(SNAPSHOT_META)
         return data if isinstance(data, dict) else {}
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
         return {}
 
 
@@ -79,18 +102,38 @@ def _remember_last_ingest(value: str | None) -> str | None:
 def _resolved_last_ingest(ping_value: str | None = None) -> str | None:
     if ping_value:
         return _remember_last_ingest(ping_value)
-    if _last_ingest_at:
-        return _last_ingest_at
     meta = _read_snapshot_meta()
     stored = meta.get("lastIngestAt")
-    return stored if isinstance(stored, str) and stored else None
+    candidates = [value for value in (stored, _last_ingest_at) if isinstance(value, str)]
+    valid: list[tuple[datetime, str]] = []
+    for value in candidates:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if parsed.tzinfo is not None:
+                valid.append((parsed, value))
+        except ValueError:
+            continue
+    return max(valid)[1] if valid else None
 
 
-def _load_json_array(path: Path, label: str) -> list[dict[str, Any]]:
-    data = _load_json(path)
+def _validate_rows(data: Any, kind: str) -> list[dict[str, Any]]:
     if not isinstance(data, list):
-        raise ValueError(f"{label} is not a JSON array ({path})")
+        raise ValueError(f"{kind} data is not a JSON array")
+    for index, row in enumerate(data):
+        error = next(_VALIDATORS[kind].iter_errors(row), None)
+        if error is not None:
+            raise ValueError(f"{kind} row {index} violates the shared schema at {error.json_path}")
+        if kind == "event":
+            # datetime parsing is also required by the time filter.
+            for field in ("occurredAt", "updatedAt"):
+                parsed = datetime.fromisoformat(row[field].replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    raise ValueError(f"{kind} row {index} needs a timezone in {field}")
     return data
+
+
+def _load_json_array(path: Path, kind: str) -> list[dict[str, Any]]:
+    return _validate_rows(_load_json(path), kind)
 
 
 def _load_events_cache(*, prefer_snapshot: bool) -> tuple[list[dict[str, Any]], str]:
@@ -106,7 +149,7 @@ def _load_events_cache(*, prefer_snapshot: bool) -> tuple[list[dict[str, Any]], 
             errors.append(f"{label} missing ({path})")
             continue
         try:
-            return _load_json_array(path, label), label
+            return _load_json_array(path, "event"), label
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             errors.append(f"{label} unreadable: {exc}")
     raise HTTPException(
@@ -131,7 +174,7 @@ def _load_links_cache(*, prefer_snapshot: bool) -> tuple[list[dict[str, Any]], s
             errors.append(f"{label} missing ({path})")
             continue
         try:
-            return _load_json_array(path, label), label
+            return _load_json_array(path, "link"), label
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             errors.append(f"{label} unreadable: {exc}")
     raise HTTPException(
@@ -144,41 +187,66 @@ def _load_links_cache(*, prefer_snapshot: bool) -> tuple[list[dict[str, Any]], s
     )
 
 
+def _atomic_write(path: Path, contents: str) -> None:
+    """Readers see either the old file or a complete replacement."""
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(contents)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 def _write_snapshot(events: list[dict[str, Any]], *, last_ingest_at: str | None) -> None:
     """Best-effort last-good write after a successful MART read."""
     try:
         SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-        EVENTS_SNAPSHOT.write_text(
+        _atomic_write(EVENTS_SNAPSHOT,
             json.dumps(events, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
         )
-        if LINKS_FIXTURE.is_file() and not LINKS_SNAPSHOT.is_file():
-            LINKS_SNAPSHOT.write_text(LINKS_FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
         meta = {
+            **_read_snapshot_meta(),
             "lastIngestAt": last_ingest_at,
             "savedAt": _now_iso(),
             "eventCount": len(events),
         }
-        SNAPSHOT_META.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+        _atomic_write(SNAPSHOT_META, json.dumps(meta, indent=2) + "\n")
         _remember_last_ingest(last_ingest_at)
     except OSError:
         pass
 
 
 def _force_fixtures(fixture_flag: bool) -> bool:
-    return fixture_flag or not snowflake_account_set()
+    return fixture_flag or not database_configured()
 
 
-def _source_status(*, snowflake: str) -> dict[str, str]:
-    # Sensor rows in fixtures/snapshots are treated as healthy weekend feeds.
-    # Track B will flip these to error/dark when live ingest reports failures.
-    return {"usgs": "ok", "firms": "ok", "snowflake": snowflake}
+def _source_status(*, database: str, data_source: str) -> dict[str, str]:
+    # Warehouse availability does not prove the sensors ingested successfully.
+    sensor_status = "fixture" if data_source == "fixture" else "unknown"
+    status = {"usgs": sensor_status, "firms": sensor_status, "database": database}
+    if data_source != "fixture":
+        stored = _read_snapshot_meta().get("sourceStatus", {})
+        if isinstance(stored, dict):
+            for source in ("usgs", "firms"):
+                value = stored.get(source)
+                if isinstance(value, str) and value in {"ok", "error", "dark", "unknown"}:
+                    status[source] = value
+    return status
 
 
 def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
+    if value is None:
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            raise ValueError("timezone required")
+        return parsed
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="start/end must be ISO-8601 timestamps with a timezone") from exc
 
 
 def _event_time(event: dict[str, Any]) -> datetime:
@@ -189,14 +257,11 @@ def _filtered_events(
     events: list[dict[str, Any]],
     *,
     types: str | None,
-    start: str | None,
-    end: str | None,
+    start: datetime | None,
+    end: datetime | None,
     min_significance: float,
-    limit: int,
 ) -> list[dict[str, Any]]:
     layer_ids = {part.strip() for part in types.split(",") if part.strip()} if types else None
-    start_dt = _parse_iso(start)
-    end_dt = _parse_iso(end)
 
     out: list[dict[str, Any]] = []
     for event in events:
@@ -205,71 +270,112 @@ def _filtered_events(
         if float(event["significance"]) < min_significance:
             continue
         occurred = _event_time(event)
-        if start_dt and occurred < start_dt:
+        if start and occurred < start:
             continue
-        if end_dt and occurred >= end_dt:
+        if end and occurred >= end:
             continue
         out.append(event)
-        if len(out) >= limit:
-            break
     return out
+
+
+def _page_events(events: list[dict[str, Any]], limit: int, cursor: str | None) -> tuple[list[dict[str, Any]], str | None]:
+    # Bind an offset to the actual result set so a refresh cannot silently skip
+    # or duplicate events halfway through paging. Restart on a 409 response.
+    fingerprint = hashlib.sha256(json.dumps(events, sort_keys=True).encode()).hexdigest()
+    offset = 0
+    if cursor is not None:
+        try:
+            if len(cursor) > 512:
+                raise ValueError("cursor too long")
+            data = json.loads(base64.b64decode(cursor, altchars=b"-_", validate=True))
+            offset = data["offset"]
+            if type(offset) is not int or offset < 0 or not isinstance(data["fingerprint"], str):
+                raise ValueError("invalid cursor payload")
+        except (ValueError, KeyError, TypeError, UnicodeError) as exc:
+            raise HTTPException(422, detail="Invalid event cursor") from exc
+        if data["fingerprint"] != fingerprint:
+            raise HTTPException(409, detail="Events changed; restart pagination without a cursor")
+    end = offset + limit
+    next_cursor = None
+    if end < len(events):
+        next_cursor = base64.urlsafe_b64encode(json.dumps({"offset": end, "fingerprint": fingerprint}).encode()).decode()
+    return events[offset:end], next_cursor
 
 
 def _load_events_for_request(
     *,
     fixture_flag: bool,
-    limit: int,
 ) -> tuple[list[dict[str, Any]], dict[str, str], str | None]:
-    """Return (events, sourceStatus, fallbackDetail). Never blanks the globe when cache exists."""
+    """Fall back on failed reads; a successful empty dataset remains empty."""
     if _force_fixtures(fixture_flag):
-        events, _label = _load_events_cache(prefer_snapshot=False)
-        return events, _source_status(snowflake="fixture"), None
+        events, label = _load_events_cache(prefer_snapshot=False)
+        return events, _source_status(database="fixture", data_source=label), None
 
-    mart_events, ping = fetch_mart_events(limit=limit)
+    # Request limits apply after filters and must not truncate the shared cache.
+    mart_events, ping = fetch_mart_events()
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
 
     if mart_events is not None:
-        _write_snapshot(mart_events, last_ingest_at=last_ingest)
-        return mart_events, _source_status(snowflake="ok"), None
+        try:
+            _validate_rows(mart_events, "event")
+        except ValueError as exc:
+            ping = DatabasePing("error", ping.last_ingest_at, str(exc))
+        else:
+            _write_snapshot(mart_events, last_ingest_at=last_ingest)
+            return mart_events, _source_status(database="ok", data_source="warehouse"), None
 
-    # Snowflake dark / error / misconfigured → last good snapshot or fixtures.
+    # TigerData dark / error / misconfigured → last good snapshot or fixtures.
     try:
         events, label = _load_events_cache(prefer_snapshot=True)
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
         detail = {
             **detail,
-            "failingSource": "snowflake",
-            "snowflakeStatus": ping.status,
-            "snowflakeDetail": ping.detail,
+            "failingSource": "database",
+            "databaseStatus": ping.status,
+            "databaseDetail": ping.detail,
         }
         raise HTTPException(status_code=503, detail=detail) from exc
 
-    snowflake_status = ping.status if ping.status in {"dark", "error"} else "dark"
-    detail = ping.detail or f"Serving {label} after Snowflake {snowflake_status}"
-    return events, _source_status(snowflake=snowflake_status), detail
+    database_status = ping.status if ping.status in {"dark", "error"} else "dark"
+    detail = ping.detail or f"Serving {label} after TigerData {database_status}"
+    return events, _source_status(database=database_status, data_source=label), detail
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
     """Warehouse ping + last ingest. Call before the pitch to warm SELECT 1."""
     ping = ping_and_warmup(fetch_last_ingest=True)
+    data_source = "warehouse"
+    if ping.status == "ok":
+        rows, read_ping = fetch_mart_events(ping=ping)
+        if rows is None:
+            ping = read_ping
+        else:
+            try:
+                _validate_rows(rows, "event")
+            except ValueError as exc:
+                ping = DatabasePing("error", ping.last_ingest_at, str(exc), ping.warmup_ms)
     last_ingest = _resolved_last_ingest(ping.last_ingest_at)
-    using_fixtures = ping.status == "fixture" or not snowflake_account_set()
-    ok = ping.status in {"ok", "fixture"} or _cache_available()
+    ok = ping.status == "ok"
+    detail = ping.detail
+    if ping.status != "ok":
+        try:
+            _, data_source = _load_events_cache(prefer_snapshot=ping.status != "fixture")
+            ok = True
+        except HTTPException:
+            data_source = "unavailable"
+            detail = f"{detail or 'Warehouse unavailable'}; no readable event cache"
     return {
         "ok": ok,
-        "usingFixtures": using_fixtures or ping.status in {"dark", "error"},
-        "snowflake": ping.status,
-        "warehousePing": ping.warehouse_ping,
+        "usingFixtures": data_source == "fixture",
+        "dataSource": data_source,
+        "sourceStatus": _source_status(database=ping.status, data_source=data_source),
+        "database": ping.status,
         "warmupMs": ping.warmup_ms,
         "lastIngestAt": last_ingest,
-        "detail": ping.detail,
+        "detail": detail,
     }
-
-
-def _cache_available() -> bool:
-    return EVENTS_SNAPSHOT.is_file() or EVENTS_FIXTURE.is_file()
 
 
 @app.get("/events")
@@ -282,24 +388,25 @@ def list_events(
     cursor: str | None = None,
     fixture: int | None = None,
 ) -> dict[str, Any]:
-    del cursor  # Opaque cursor reserved; fixtures fit in one page.
+    start_dt, end_dt = _parse_iso(start), _parse_iso(end)
+    if start_dt is not None and end_dt is not None and start_dt > end_dt:
+        raise HTTPException(status_code=422, detail="start must be before or equal to end")
     events, source_status, fallback_detail = _load_events_for_request(
         fixture_flag=fixture == 1,
-        limit=limit,
     )
     filtered = _filtered_events(
         events,
         types=types,
-        start=start,
-        end=end,
+        start=start_dt,
+        end=end_dt,
         min_significance=minSignificance,
-        limit=limit,
     )
+    page, next_cursor = _page_events(filtered, limit, cursor)
     body: dict[str, Any] = {
         "generatedAt": _now_iso(),
         "sourceStatus": source_status,
-        "events": filtered,
-        "nextCursor": None,
+        "events": page,
+        "nextCursor": next_cursor,
     }
     if fallback_detail:
         body["fallbackDetail"] = fallback_detail
@@ -310,12 +417,34 @@ def list_events(
 def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str, Any]]:
     events, _status, _detail = _load_events_for_request(
         fixture_flag=fixture == 1,
-        limit=8000,
     )
     ids = {event["id"] for event in events}
     if event_id not in ids:
         raise HTTPException(status_code=404, detail=f"event not found: {event_id}")
-    links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture == 1))
+    links = None
+    link_ping = None
+    if not _force_fixtures(fixture == 1) and _status["database"] == "ok":
+        links, link_ping = fetch_mart_links()
+        if links is not None:
+            try:
+                _validate_rows(links, "link")
+            except ValueError:
+                links = None
+            else:
+                try:
+                    SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+                    _atomic_write(LINKS_SNAPSHOT, json.dumps(links, indent=2) + "\n")
+                except OSError:
+                    pass
+    if links is None:
+        try:
+            links, _ = _load_links_cache(prefer_snapshot=not _force_fixtures(fixture == 1))
+        except HTTPException as exc:
+            if link_ping is not None:
+                raise HTTPException(503, detail={
+                    "failingSource": "database", "error": "No usable links or link cache",
+                }) from exc
+            raise
     return [
         link
         for link in links
@@ -327,7 +456,6 @@ def get_event_links(event_id: str, fixture: int | None = None) -> list[dict[str,
 def get_event(event_id: str, fixture: int | None = None) -> dict[str, Any]:
     events, _status, _detail = _load_events_for_request(
         fixture_flag=fixture == 1,
-        limit=8000,
     )
     for event in events:
         if event["id"] == event_id:
@@ -352,25 +480,83 @@ def ingest_run(
     authorization: str | None = Header(default=None),
     x_ingest_secret: str | None = Header(default=None, alias="X-Ingest-Secret"),
 ) -> dict[str, Any]:
-    """Protected stub. Track B owns live USGS/FIRMS loaders; this PR only gates auth."""
+    """Run the configured Track B loader after authenticating the request."""
     expected = os.environ.get("INGEST_SECRET", "").strip()
     provided = _extract_ingest_secret(authorization, x_ingest_secret)
     authorized = (
         bool(provided)
         and bool(expected)
-        and len(provided) == len(expected)
-        and secrets.compare_digest(provided, expected)
+        and secrets.compare_digest(provided.encode(), expected.encode())
     )
     if not authorized:
         raise HTTPException(status_code=401, detail="Unauthorized: valid INGEST_SECRET required")
 
-    # No-op until track B loaders land. Do not click during the pitch.
+    default_command = [sys.executable, "-m", "jobs.ingest"] if database_configured() else None
+    run_ingest(REPO_ROOT, default_command=default_command)
+    if database_configured():
+        _remember_last_ingest(ping_and_warmup(fetch_last_ingest=True).last_ingest_at)
     return {
         "ok": True,
-        "status": "noop",
-        "detail": (
-            "Ingest loaders are not wired in this API slice (track B). "
-            "Auth accepted; no USGS/FIRMS job started."
-        ),
+        "status": "completed",
         "lastIngestAt": _resolved_last_ingest(None),
     }
+
+
+def _feed_selection(
+    types: str | None = Query(default=None, max_length=500),
+    keywords: list[str] = Query(default=[], max_length=20),
+    lat: float | None = Query(default=None, ge=-90, le=90, allow_inf_nan=False),
+    lng: float | None = Query(default=None, ge=-180, le=180, allow_inf_nan=False),
+    minSignificance: float = Query(default=0, ge=0, le=100, allow_inf_nan=False),
+    start: str | None = None,
+    end: str | None = None,
+    fixture: int = Query(default=0, ge=0, le=1),
+) -> dict[str, Any]:
+    if (lat is None) != (lng is None):
+        raise HTTPException(422, detail="lat and lng must be supplied together")
+    if any(not keyword.strip() or len(keyword) > 100 for keyword in keywords):
+        raise HTTPException(422, detail="Each keyword must contain 1–100 characters")
+    known_layers = _VALIDATORS["event"].schema["properties"]["layerId"]["enum"]
+    layers = known_layers if types is None else [part.strip() for part in types.split(",") if part.strip()]
+    if any(layer not in known_layers for layer in layers):
+        raise HTTPException(422, detail="Unknown event type")
+    start_dt, end_dt = _parse_iso(start), _parse_iso(end)
+    if start_dt is not None and end_dt is not None and start_dt > end_dt:
+        raise HTTPException(422, detail="start must be before or equal to end")
+    return {
+        "config": {"layers": layers, "keywords": [keyword.strip() for keyword in keywords],
+                   "coordinates": [] if lat is None else [{"lat": lat, "lng": lng}],
+                   "significanceFloor": minSignificance},
+        "start": start_dt, "end": end_dt, "fixture": fixture == 1,
+    }
+
+
+def _ranked_response(selection: dict[str, Any], n: int, spread: float | None = None) -> dict[str, Any]:
+    events, source_status, fallback_detail = _load_events_for_request(fixture_flag=selection["fixture"])
+    config = selection["config"]
+    candidates = _filtered_events(events, types=None, start=selection["start"], end=selection["end"],
+                                  min_significance=config["significanceFloor"])
+    candidates = [event for event in candidates if event["layerId"] in config["layers"]]
+    ranked = (get_feed(n=n, config=config, events=candidates) if spread is None else
+              get_globe_pins(n=n, spread_degrees=spread, config=config, events=candidates))
+    body = {"generatedAt": _now_iso(), "sourceStatus": source_status,
+            "events": ranked, "nextCursor": None}
+    if fallback_detail:
+        body["fallbackDetail"] = fallback_detail
+    return body
+
+
+@app.get("/feed")
+def feed(n: int = Query(default=100, ge=1, le=1000), selection: dict = Depends(_feed_selection)):
+    """Rank events using selections supplied only for this request."""
+    return _ranked_response(selection, n)
+
+
+@app.get("/feed/pins")
+def feed_pins(
+    n: int = Query(default=10, ge=1, le=100),
+    spreadDegrees: float = Query(default=30, ge=0, le=180, allow_inf_nan=False),
+    selection: dict = Depends(_feed_selection),
+):
+    """Return up to n ranked events with the requested angular separation."""
+    return _ranked_response(selection, n, spreadDegrees)

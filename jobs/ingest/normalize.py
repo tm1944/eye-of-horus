@@ -33,7 +33,7 @@ def normalize_gnews(article: dict) -> dict:
         "geoSource":    "llm_hint",
         "weight":       1.0,
         "significance": 0,
-        "entities":     [],
+        "keywords":     [],
         "rawRef":       None,
     }
 
@@ -60,7 +60,7 @@ def normalize_wikifeeds(item: dict) -> dict:
         "geoSource":    "llm_hint",
         "weight":       1.0,
         "significance": 0,
-        "entities":     [],
+        "keywords":     [],
         "rawRef":       None,
     }
 

@@ -8,20 +8,36 @@ Endpoint: https://en.wikipedia.org/api/rest_v1/feed/featured/{yyyy}/{mm}/{dd}
 import urllib.request
 import json
 import re
-from datetime import date, timezone
+from datetime import date, timezone, timedelta
 
 
-def fetch_news(for_date: date | None = None) -> list[dict]:
+def fetch_news(for_date: date | None = None, days_back: int = 1) -> list[dict]:
     """
-    Fetch current-events stories from Wikipedia's featured feed for the given date.
+    Fetch current-events stories from Wikipedia's featured feed.
     Defaults to today (UTC). Returns a list of dicts with keys:
         _wiki_date   : ISO date string
         _story_text  : plain-text story paragraph (HTML stripped)
         title        : headline derived from first sentence
         links        : list of {url, source, label} dicts
+
+    Args:
+        for_date: Starting date (defaults to today)
+        days_back: Number of days to fetch (default 1). Use 7 for a week, 30 for a month.
     """
     target = for_date or date.today()
-    y  = target.strftime("%Y")
+    all_results = []
+
+    for day_offset in range(days_back):
+        fetch_date = target - timedelta(days=day_offset)
+        results = _fetch_date(fetch_date)
+        all_results.extend(results)
+
+    return all_results
+
+
+def _fetch_date(target: date) -> list[dict]:
+    """Fetch stories for a specific date."""
+    y = target.strftime("%Y")
     mm = target.strftime("%m")
     dd = target.strftime("%d")
 

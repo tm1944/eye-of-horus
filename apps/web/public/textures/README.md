@@ -1,6 +1,9 @@
-# Earth texture
+# Earth textures
 
-`earth-blue-marble.jpg` is copied from the three-globe example assets:
-https://github.com/vasturiano/three-globe/blob/master/example/img/earth-blue-marble.jpg
+## Retained texture (inactive)
 
-Downloaded 2026-10-03. The upstream repository's MIT license is preserved in `THREE-GLOBE-LICENSE.txt`. The app links to the source in its footer. The image is bundled locally to avoid runtime CDN dependencies.
+`8k_earth_daymap-Photoroom.png` is the user-provided day-map PNG with oceans already removed. Its actual resolution is **2400 × 1200**, not 8192 × 4096, despite the filename. The 2:1 texture is retained unchanged, but the active globe now uses vector country geometry. Some gaps in polar ice are present in the supplied cutout.
+
+See `apps/web/docs/vector-globe.md` for the active land and border data. No PNG is loaded by the globe.
+
+The original source and license of this user-supplied image were not provided. Previous texture files were removed by the user. `THREE-GLOBE-LICENSE.txt` is retained from the former example texture; it does not establish a license for this PNG.

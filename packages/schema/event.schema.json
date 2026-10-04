@@ -56,6 +56,7 @@
         "finance",
         "humanitarian",
         "news",
+<<<<<<< HEAD
         "world",
         "business",
         "technology",
@@ -71,8 +72,19 @@
         "food",
         "education",
         "media"
+=======
+        "cyclone",
+        "flood",
+        "volcano",
+        "drought",
+        "famine",
+        "protest"
+>>>>>>> ee8820429d1be3bd97b17609a2e4b866f7827c40
       ]
     },
+    "subtype": { "type": ["string", "null"] },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "attributes": { "type": "object" },
     "title": { "type": "string" },
     "summary": { "type": ["string", "null"] },
     "occurredAt": { "type": "string", "format": "date-time" },

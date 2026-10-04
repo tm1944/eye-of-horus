@@ -23,7 +23,7 @@ import json
 import math
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-3.5-flash"
 
 DEDUP_TIME_WINDOW_HOURS = 24
 DEDUP_GEO_KM = 200
