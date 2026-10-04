@@ -39,9 +39,18 @@
         "terror",
         "finance",
         "humanitarian",
-        "news"
+        "news",
+        "cyclone",
+        "flood",
+        "volcano",
+        "drought",
+        "famine",
+        "protest"
       ]
     },
+    "subtype": { "type": ["string", "null"] },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "attributes": { "type": "object" },
     "title": { "type": "string" },
     "summary": { "type": ["string", "null"] },
     "occurredAt": { "type": "string", "format": "date-time" },

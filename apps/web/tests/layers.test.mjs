@@ -106,5 +106,6 @@ test('default product view covers tech, government, finance and society with no 
  assert.deepEqual(parseFilters(writeFilters('', technology)), technology);
  assert(deriveVisuals(events, technology).markers.length > 0);
  const schema = JSON.parse(readFileSync(new URL('../../../packages/schema/event.schema.json', import.meta.url), 'utf8'));
- assert.deepEqual([...schema.properties.layerId.enum].sort(), [...LAYER_IDS].sort());
+ // The shared backend schema also includes types not exposed as UI layers yet.
+ for (const id of LAYER_IDS) assert(schema.properties.layerId.enum.includes(id), `Schema must support UI layer ${id}`);
 });

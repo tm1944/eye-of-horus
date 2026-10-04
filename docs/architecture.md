@@ -1,12 +1,13 @@
 # Global events globe. Weekend architecture
 
 Current product focus: Technology (`technology`), Government & Politics (`politics`), Finance (`finance`), and Society (`humanitarian`) are enabled by default. Technology is a new shared-schema layer ID; Society broadens the humanitarian display grouping to civic and social topics. Natural disasters are optional and off by default. See `apps/web/docs/globe-and-api.md` for the current implementation; the weekend proposal below is historical.
+> Current team decision: TigerData/PostgreSQL replaces Snowflake. The Snowflake-specific setup and constraints below are historical. Use `apps/api/README.md` for the current connection and API contract; coordinate PostgreSQL DDL with Track B.
 
 Globe update: the approved main-screen renderer is now `react-globe.gl` + Three.js, with local Earth imagery, auto-rotation, surface-coordinate selection, and event markers. The original Google Maps/deck.gl proposal below is retained for context, not the current renderer. No geocoding or backend request is needed to select latitude/longitude on the sphere.
 
-Frontend update: the UI now uses Next.js App Router in `apps/web` instead of Vite. The browser calls same-origin `/api/*` routes, which serve fixtures or forward GET requests to FastAPI at `API_BASE_URL` (localhost port 8000 by default). See [local setup](../apps/web/README.md). Earlier Vite references below describe the original proposal; the Event/Link contracts and map plan remain applicable.
+Frontend update: the UI now uses Next.js App Router in `apps/web` instead of Vite. The browser calls same-origin `/api/*` routes, which serve fixtures or forward GET requests to FastAPI at `API_BASE_URL` (localhost port 43124 by default). See [local setup](../apps/web/README.md). Earlier Vite references below describe the original proposal; the Event/Link contracts and map plan remain applicable.
 
-Constraint. The team has free Google API access and free Snowflake API access. Cost is out of scope. Do not drop Snowflake or Gemini to save money. Still treat setup time, quotas, licenses, and demo quality as first-class risks.
+Constraint. The team has free Google API access and a TigerData database. Cost is out of scope. Do not drop TigerData or Gemini to save money. Still treat setup time, quotas, licenses, and demo quality as first-class risks.
 
 Goal. A weekend hackathon demo for four students. An interactive world view with heatmap layers and discrete markers for significant events. Layer toggles. Time scrubber. Optional LLM edges that relate events.
 
@@ -40,7 +41,7 @@ Sources.
 
 ### MVP recommendation
 
-Use Google Maps JavaScript API as a vector basemap. Overlay deck.gl `HeatmapLayer` and `ScatterplotLayer` through `GoogleMapsOverlay`. Drive the map from `@vis.gl/react-google-maps`. Store events in Snowflake. Reason over them with Gemini. Geocode news with Geocoding API v4.
+Use Google Maps JavaScript API as a vector basemap. Overlay deck.gl `HeatmapLayer` and `ScatterplotLayer` through `GoogleMapsOverlay`. Drive the map from `@vis.gl/react-google-maps`. Store events in TigerData. Reason over them with Gemini. Geocode news with Geocoding API v4.
 
 Why this stack.
 
@@ -54,7 +55,7 @@ What not to do on Saturday morning.
 
 - Do not use `google.maps.visualization.HeatmapLayer`. Google marked it deprecated in May 2025 and slated it unavailable in a Maps JS release from May 2026.
 - Do not start on `Map3DElement` photorealistic 3D. It is a separate `maps3d` library. deck.gl `GoogleMapsOverlay` is documented against the classic `Map` plus `WebGLOverlayView`, not `Map3DElement`.
-- Do not call Snowflake or Gemini from the browser.
+- Do not call TigerData or Gemini from the browser.
 
 **Guess.** A clean vector map plus GPU heatmap will read as a globe product if the camera starts zoomed out and copy says “global events.” A spinning Three.js earth is nicer in photos. Swap only if the overlay path is already green.
 
@@ -91,7 +92,7 @@ Empty, loading, error.
 
 ## 3. Event ingestion
 
-Normalize every source into the Event contract before Snowflake MART. Keep RAW VARIANT copies.
+Normalize every source into the Event contract before `mart.event`. Keep raw JSON copies in `raw.ingest_batch`.
 
 ### USGS earthquakes
 
@@ -161,31 +162,27 @@ Store `geoSource` as `native`, `google_geocode`, `google_places`, `centroid`, or
 
 | Store | Fit | Weekend verdict |
 | --- | --- | --- |
-| Snowflake | Shared warehouse. VARIANT raw JSON. SQL over events and edges. Cortex can call Gemini later. | Keep it. This is the team store of record. |
-| Postgres / PostGIS | Excellent geo queries. Needs a hosted instance. | Better local GIS. More setup than one Snowflake schema. |
+| TigerData | Postgres plus Timescale and PostGIS. Shared database. JSONB raw payloads. SQL over events and edges. | Keep it. This is the store of record. |
 | SQLite | Zero ops. One file of fixtures. | Client and ingest scratch. Not the shared source of truth. |
 | DuckDB | Fast local parquet or CSV. | Great for FIRMS downsample notebooks. Not the API backend. |
-| BigQuery | Native GDELT public datasets. | Extra cloud. GDELT HTTP plus Snowflake is enough. |
+| BigQuery | Native GDELT public datasets. | Extra cloud. GDELT HTTP plus TigerData is enough. |
 
-Snowflake is worth standing up this weekend because access is already free, four laptops can share one MART, and the proposed story is news to warehouse to LLM. A trial account is documented as email-only signup with a time-boxed usage balance. [Trial accounts](https://docs.snowflake.com/en/user-guide/admin-trial-account). [Trial marketing](https://www.snowflake.com/en/snowflake-trial/). Cost is out of scope. Still suspend the warehouse so first-query latency is the remaining pain.
+TigerData is the weekend store because the team already has an account, four laptops can share one database, and the story is news to database to LLM.
 
-Weekend Snowflake shape.
+Weekend shape. See [sql/001_init.sql](../sql/001_init.sql).
 
-- Account, role, database `EVENTS`, schemas `RAW` and `MART`.
-- Warehouse `EVENTS_XS`, size `XSMALL`, auto-suspend 60 seconds, auto-resume on.
-- `RAW.INGEST_BATCH` with `source`, `pulled_at`, `payload VARIANT`.
-- `MART.EVENT` matching the Event contract.
-- `MART.EVENT_LINK` for LLM edges.
-- Python connector `snowflake-connector-python` `4.7.3` on Python 3.10+. Stay on 4.x. 5.x is preview. [PyPI 4.7.3](https://pypi.org/project/snowflake-connector-python/4.7.3/). [Connector docs](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector).
+- Schemas `raw` and `mart` on the Tiger service database.
+- `raw.ingest_batch` with `source`, `pulled_at`, `payload jsonb`.
+- `mart.event` for the shared map columns, plus one kind table per hazard.
+- `mart.wildfire_hotspot` as the only hypertable.
+- `mart.event_link` for LLM edges.
+- Python connector `psycopg` 3. The URL lives in `DATABASE_URL`.
 
 Setup-time risks, not cost risks.
 
-- SSO, MFA, or network policy can block the first connection for an hour.
-- Warehouse resume adds 10 to 60 seconds on a cold query. **Guess.**
-- Putting keys in the frontend will leak the account.
-- If Snowflake is not reachable by lunch Saturday, serve `data/fixtures/events.json` from FastAPI and keep the same SQL insert path for when it returns.
-
-Honest alternative. If Snowflake login is blocked after two hours, DuckDB on the API box can run the same SQL-ish queries against parquet. Switch back by changing the repository class. Do not redesign the UI.
+- A missing or pooled-vs-direct URL can block the first connection.
+- Putting `DATABASE_URL` in the frontend will leak the database.
+- If TigerData is not reachable, serve `data/fixtures/events.json` from FastAPI and keep the same insert path for when it returns.
 
 ## 5. LLM reasoning
 
@@ -248,8 +245,8 @@ flowchart LR
     LLM[Gemini extract and links]
   end
 
-  subgraph store [Snowflake]
-    RAW[RAW VARIANT]
+  subgraph store [TigerData]
+    RAW[raw.ingest_batch jsonb]
     MART[MART.EVENT]
     LINKS[MART.EVENT_LINK]
   end
@@ -286,7 +283,7 @@ flowchart LR
   UI --> DECK
 ```
 
-Fixture path. `GET /events` can read `data/fixtures/events.json` when `SNOWFLAKE_ACCOUNT` is unset or `?fixture=1`.
+Fixture path. `GET /events` can read `data/fixtures/events.json` when `DATABASE_URL` is unset or `?fixture=1`.
 
 ### API shape
 
@@ -307,7 +304,7 @@ Response.
 ```json
 {
   "generatedAt": "2026-10-03T19:00:00Z",
-  "sourceStatus": { "usgs": "ok", "firms": "ok", "snowflake": "ok" },
+  "sourceStatus": { "usgs": "ok", "firms": "ok", "database": "ok" },
   "events": [],
   "nextCursor": null
 }
@@ -372,7 +369,7 @@ Link object.
   apps/api/                 FastAPI
   jobs/ingest/              USGS FIRMS GDELT loaders
   jobs/llm/                 extract and link
-  sql/001_init.sql          Snowflake DDL
+  sql/001_init.sql          TigerData DDL
 ```
 
 Monorepo is optional. Two folders `web/` and `api/` is enough if schema JSON lives at the root.
@@ -389,13 +386,13 @@ Delivers. Vector map, heatmap, markers, toggles, scrubber, empty and error state
 
 Blocked by. Nothing if fixtures exist.
 
-### B. Ingest and Snowflake
+### B. Ingest and TigerData
 
 Interface. Writes `MART.EVENT` and `RAW.INGEST_BATCH`. Emits the same JSON the API reads.
 
 Delivers. `sql/001_init.sql`, connector env, USGS and FIRMS loaders, fixture exporter.
 
-Blocked by. Snowflake credentials. Use local JSON until the warehouse answers.
+Blocked by. `DATABASE_URL`. Use local JSON until the database answers.
 
 ### C. API
 
@@ -422,7 +419,7 @@ Critical path. Demo dies without these.
 - Fixture Events on a map with two layer toggles.
 - USGS live or cached quakes with native coords.
 - Time window that changes visible points.
-- FastAPI in front of Snowflake or fixtures.
+- FastAPI in front of TigerData or fixtures.
 - One Google key path that loads the basemap.
 
 Should have if Saturday stays green.
@@ -437,7 +434,7 @@ Nice-to-have.
 - ACLED if the account is already approved.
 - Photorealistic `Map3DElement`.
 - globe.gl dual renderer.
-- Cortex Gemini inside Snowflake.
+- Gemini calls issued from inside the database.
 - Finance ticks. There is no simple free global “finance event” geo feed. **Guess.** Use a curated fixture of market-moving headlines and geocode the companies’ HQs.
 - Auth, accounts, realtime websockets.
 
@@ -445,7 +442,7 @@ Biggest demo-risk items.
 
 1. Google Maps key restrictions (HTTP referrer, APIs not enabled, vector `mapId` missing).
 2. deck.gl overlay blank on raster fallback or missing WebGL2.
-3. Snowflake cold warehouse or login lock during the live talk.
+3. TigerData login lock or a sleeping service during the live talk.
 4. FIRMS volume freezing the tab.
 5. LLM arcs that look fabricated.
 6. News APIs with no coordinates and a geocoder quota spike.
@@ -480,7 +477,7 @@ Verified against public registries or vendor docs on this date.
 | react | 19.3 announced 2026-09-09 | https://react.dev/blog/2026/09/09/react-19-3 |
 | @vis.gl/react-google-maps | 1.10.1 | https://www.npmjs.com/package/@vis.gl/react-google-maps |
 | fastapi | 0.142.2 | https://pypi.org/project/fastapi/ |
-| snowflake-connector-python | 4.7.3 | https://pypi.org/project/snowflake-connector-python/4.7.3/ |
+| psycopg | 3.2.13 | https://pypi.org/project/psycopg/ |
 | google-genai | 2.8.0 (wheel date 2026-06-03) | https://pypi.org/project/google-genai/ |
 | Gemini extract | `gemini-3.5-flash-lite` | https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite |
 | Gemini links | `gemini-3.8-flash` | https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash |
@@ -503,7 +500,7 @@ Frontend.
 Backend.
 
 - `fastapi[standard]==0.142.2`
-- `snowflake-connector-python==4.7.3`
+- `psycopg[binary]==3.2.13`
 - `google-genai==2.8.0` or newer patch if pip shows one
 - Python 3.12
 
