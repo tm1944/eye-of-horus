@@ -168,54 +168,16 @@ def score_event(event: dict, config: dict) -> float:
 # Data loading
 # ---------------------------------------------------------------------------
 
-<<<<<<< HEAD
-def _normalize_row(row: dict) -> dict:
-    """Map Snowflake snake_case columns to Event schema camelCase field names."""
-    mapping = {
-        "layer_id":     "layerId",
-        "occurred_at":  "occurredAt",
-        "updated_at":   "updatedAt",
-        "alt_m":        "altM",
-        "geo_precision": "geoPrecision",
-        "geo_source":   "geoSource",
-        "raw_ref":      "rawRef",
-        "canonical_id": "canonicalId",
-    }
-    return {mapping.get(k, k): v for k, v in row.items()}
-=======
 def _load_events_database(config: dict) -> list[dict]:
     api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
     if str(api_dir) not in sys.path:
         sys.path.insert(0, str(api_dir))
     from db import load_feed_events
->>>>>>> ee8820429d1be3bd97b17609a2e4b866f7827c40
 
     return load_feed_events(
         list(config.get("layers") or []),
         float(config.get("significanceFloor") or 0),
     )
-<<<<<<< HEAD
-    try:
-        cur = conn.cursor(snowflake.connector.DictCursor)
-        cur.execute(
-            f"""
-            SELECT *
-            FROM EVENT
-            WHERE layer_id IN ({placeholders})
-              AND significance >= %s
-              AND occurred_at >= DATEADD(day, -7, CURRENT_TIMESTAMP)
-              AND archived_at IS NULL
-              AND canonical_id IS NULL
-            ORDER BY occurred_at DESC
-            LIMIT 5000
-            """,
-            layers + [sig_floor],
-        )
-        return [_normalize_row(dict(row)) for row in cur.fetchall()]
-    finally:
-        conn.close()
-=======
->>>>>>> ee8820429d1be3bd97b17609a2e4b866f7827c40
 
 
 def _load_events_fixture(config: dict) -> list[dict]:
