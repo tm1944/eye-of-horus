@@ -366,7 +366,8 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   /** Every relationship hypothesis, loaded once; undefined links means still loading. */
   links: { links?: EventLink[]; error?: string };
   events: Event[];
-  /** Events a story's connections may reach: the map filters, ignoring the country restriction. */
+  /** Events a story's connections may reach: the active layers and time range. Neither the country
+   * restriction nor the marker significance cutoff applies; those thin the map, not a story's links. */
   linkable: Event[];
   selectedCountries: { id: string; name: string; events: Event[] }[];
   onToggleCountry: (id: string) => void;
@@ -671,8 +672,8 @@ export default function EventGlobe({ view, headlines, personal, feed, allEvents,
   const [storyTree, setStoryTree] = useState<StoryTree<Event> | null>(null);
   const tree = useMemo(() => view !== "explore" || !selectedEvent ? null
     : storyTree?.focus === selectedEvent.id ? storyTree : storyRoot(selectedEvent), [view, selectedEvent, storyTree]);
-  // Connected stories the filters allow, wherever they are: selected countries restrict the
-  // map, not a story's connections. Headlines shows no relationships at all.
+  // Connected stories in the active layers and time range, wherever they are and however
+  // significant: selected countries and the marker cutoff restrict the map, not a story's connections. Headlines shows no relationships at all.
   const filteredById = useMemo(() => new Map(linkable.map(event => [event.id, event])), [linkable]);
   const connectedOf = useCallback((id: string) => (linkIndex.get(id) ?? []).map(link => filteredById.get(otherEnd(link, id)))
     .filter((event): event is Event => !!event && event.id !== id), [linkIndex, filteredById]);

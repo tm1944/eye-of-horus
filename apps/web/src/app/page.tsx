@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { getEvents, getLinks, type Event, type EventLink, type EventsResponse } from "@/lib/api";
 import { getMyFeed, getProfile, resetProfile, setFeedback, setSaved, track, type Feedback, type FeedEvent, type Profile } from "@/lib/profile";
 import countries from "@/data/countries.geojson.json";
-import { countryContains } from "@/lib/country-selection";
+import { eventCountry } from "@/lib/country-selection";
 import type { Selection } from "@/components/event-globe";
 import LayerRail, { DisplaySettings } from "@/components/layer-controls";
 import { useLayerFilters, useViewTab } from "@/lib/use-layer-filters";
@@ -110,10 +110,12 @@ export default function Home() {
     onSource: (event: Event) => track(event.id, "source", tab),
   } : null, [profile, toggleSaved, giveFeedback, tab]);
   const feedEvents = feed.events ?? emptyEvents;
+  // Each event's country, decided once per load the same way everywhere (lib/country-selection.ts).
+  const eventCountries = useMemo(() => new Map((result?.data.events ?? emptyEvents).map(event => [event.id, eventCountry(countries.features, event)?.id])), [result]);
   const selectedCountries = useMemo(() => selectedCountryIds.map(id => {
     const country = countries.features.find(country => country.id === id)!;
-    return { id, name: country.properties.name, events: (result?.data.events ?? emptyEvents).filter(event => countryContains(country, event)) };
-  }), [selectedCountryIds, result]);
+    return { id, name: country.properties.name, events: (result?.data.events ?? emptyEvents).filter(event => eventCountries.get(event.id) === id) };
+  }), [selectedCountryIds, result, eventCountries]);
   // Selecting a country opens the Selected countries panel with its headlines.
   const [countriesPanelRequest, setCountriesPanelRequest] = useState<{ id: "countries"; key: number } | null>(null);
   const [settingsCloseRequest, setSettingsCloseRequest] = useState(0);
@@ -147,7 +149,7 @@ export default function Home() {
       { id: "significance", label: "Significance", content: <DisplaySettings filters={filters} onChange={update} count={visuals.visible.length} markerCount={visuals.markers.length} markerCandidateCount={visuals.markerCandidateCount} /> },
     ]} />}
     <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
-      feed={tab === "feed" ? { section: feedSection, onSection: section => { setFeed({}); setSelection(null); setFeedSection(section); }, saved: profile?.readingList.length ?? 0, loading: !feed.events && !feed.error, error: feed.error, onStartOver: startOver } : null} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={shown.markers} linkable={visuals.markers} heatmaps={shown.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
+      feed={tab === "feed" ? { section: feedSection, onSection: section => { setFeed({}); setSelection(null); setFeedSection(section); }, saved: profile?.readingList.length ?? 0, loading: !feed.events && !feed.error, error: feed.error, onStartOver: startOver } : null} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={shown.markers} linkable={visuals.visible} heatmaps={shown.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
     {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
 }
