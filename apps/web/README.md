@@ -53,3 +53,5 @@ Earth is the main view. Numbered pins follow geographic coordinates and connect 
 See [globe visuals and backend integration](docs/globe-and-api.md) for all named visual settings, projection/visibility behavior, field mappings, API routes, selection hooks, current limitations, and verification steps.
 
 The page follows every `/api/events` page on mount and on error retry. A changed dataset restarts once; partial or failed results are not displayed as complete. API-served fixtures retain Sample labels. Rotation and selections are local. Details, relationship, and health routes remain available through the proxy but are not currently called. Location search, heatmaps, and relation cards remain unimplemented.
+
+Ranked endpoints `/api/feed` and `/api/feed/pins` now forward to FastAPI in API mode. They accept request selections without saving preferences. See [the API contract](../api/README.md#ranked-feed-and-globe-pins). The current globe continues to load the full `/api/events` dataset; these endpoints are ready for a ranked-feed UI.

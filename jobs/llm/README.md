@@ -26,7 +26,13 @@ pip install -r jobs/llm/requirements.txt
 
 ---
 
-## Endpoints (for Student C — FastAPI)
+## API integration status
+
+`GET /feed` and `GET /feed/pins` now accept selections in query parameters. The API supplies an explicit config and validated candidate events, so it does not load or save the demo preference file. Responses wrap results in an `events` array with source status. See [the API contract](../../apps/api/README.md#ranked-feed-and-globe-pins).
+
+The standalone functions below retain their existing file-config defaults. The `/feed/smart`, `/feed/links`, and saved-config endpoints described below are handoff proposals, not implemented API routes.
+
+## Original endpoint handoff
 
 All four endpoints read preferences from `data/user_config.json`. No `user_id` in the path for the demo.
 
