@@ -8,7 +8,7 @@ const source = readFileSync(new URL("../src/lib/api.ts", import.meta.url), "utf8
 const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 }).outputText;
-const { getEvents } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+const { getEvents, getEventLinks } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 const fixtures = JSON.parse(readFileSync(new URL("../../../data/fixtures/events.json", import.meta.url), "utf8"));
 const liveStatus = { usgs: "ok", firms: "unknown", tigerdata: "ok" };
 const response = (events, nextCursor = null, sourceStatus = liveStatus) => Response.json({
@@ -72,4 +72,23 @@ test("does not request data after cancellation", async () => {
   controller.abort();
   await assert.rejects(getEvents(controller.signal), { name: "AbortError" });
   assert.equal(fetch.mock.callCount(), 0);
+});
+
+test("relationship loader encodes event IDs and forwards cancellation", async () => {
+ const controller = new AbortController();
+ const links=[{id:'link1',sourceId:'source/a:b',targetId:'target'}];
+ mock.method(globalThis,'fetch',async(url,options)=>{
+  assert.equal(url,'/api/events/source%2Fa%3Ab/links');
+  assert.equal(options.signal,controller.signal);
+  return Response.json(links);
+ });
+ assert.deepEqual(await getEventLinks('source/a:b',controller.signal),links);
+});
+test("relationship loader distinguishes an empty list from errors and invalid responses", async () => {
+ const replies=[Response.json([]),new Response(null,{status:503}),Response.json({links:[]}),Response.json([{}])];
+ mock.method(globalThis,'fetch',async()=>replies.shift());
+ assert.deepEqual(await getEventLinks('a'),[]);
+ await assert.rejects(getEventLinks('a'),/503/);
+ await assert.rejects(getEventLinks('a'),/invalid/);
+ await assert.rejects(getEventLinks('a'),/invalid/);
 });

@@ -725,14 +725,18 @@ input:focus-visible {
   text-align: left;
   margin-top: 6px;
 }
-/* The headline is also the drag handle. Pointer capture keeps dragging reliable
- * outside its bounds; touch dragging never scrolls or rotates the globe. */
-.earth-card .card-title {
+/* The entire card is a drag surface, including text and child buttons/links.
+ * A small movement threshold preserves clicks; wheel scrolling still works. */
+.earth-card, .earth-card * {
+  touch-action: none;
+  user-select: none;
+}
+.earth-card, .earth-card .card-title {
   cursor: grab;
   touch-action: none;
   user-select: none;
 }
-.earth-card .card-title:active {
+.earth-card[data-dragging="true"], .earth-card[data-dragging="true"] * {
   cursor: grabbing;
 }
 @media (max-width: 700px) {
@@ -754,3 +758,21 @@ input:focus-visible {
   width: 100%;
 }
 }
+
+/* Expanded-card demo links: full-width, boxy gray buttons with readable text.
+ * These scroll inside the card; the headline remains its free-position drag handle. */
+.card-related { border-top: 1px solid #777575; margin-top: 12px; padding-top: 10px; }
+.card-related h3 { font-size: 14px; margin: 0 0 6px; }
+.card-related h3 span { color: #d2d0d0; font-size: 11px; font-weight: 400; }
+.card-related p { font-size: 12px; color: #d2d0d0; }
+.card-related button { display: block; width: 100%; margin-top: 6px; padding: 8px; text-align: left; background: #393838; color: #fff; border: 1px solid #898686; border-radius: 3px; font-size: 13px; line-height: 1.4; cursor: pointer; }
+.card-related button:hover { background: #605d5d; }
+.card-related button:focus-visible { outline: 2px solid #ed963e; outline-offset: 2px; }
+
+/* Compact related-event row: readable destination plus a small connection toggle.
+ * Warm orange marks an enabled link; disabled clear buttons stay visibly muted. */
+.related-event-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 6px; }
+.card-connections h4 { font-size: 12px; margin: 10px 0 4px; color: #d2d0d0; }
+.card-related .connection-toggle { text-align: center; padding: 6px 2px; }
+.card-related .connection-toggle[aria-pressed="true"] { border-color: #ed963e; color: #ffd4a7; background: #563c28; }
+.card-related button:disabled { opacity: .45; cursor: default; }

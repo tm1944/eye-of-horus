@@ -8,11 +8,21 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. Default `DATA_MODE=fixture` loads the repository's shared JSON files. These three examples are development data, not verified reports. No Maps key or backend is required for this starter screen.
+Open http://localhost:3000. The example configuration uses `DATA_MODE=api` and requires FastAPI on port 43124. For frontend-only development, set `DATA_MODE=fixture` explicitly. Backend-served fixtures remain sample data, not verified reports.
 
 ## Connect FastAPI
 
-Have the API teammate start FastAPI on port 43124, then update `.env.local`:
+Start FastAPI from the repository root in a separate terminal:
+
+```sh
+cd apps/api
+python3 -m venv .venv  # first setup only; Python 3.12+
+source .venv/bin/activate
+pip install -r requirements.txt  # first setup only
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 43124
+```
+
+Then set `apps/web/.env.local`:
 
 ```dotenv
 DATA_MODE=api
@@ -30,7 +40,7 @@ Supported GET paths:
 
 API mode forwards query parameters and HTTP statuses. Requests time out after 10 seconds and return 502 when the backend cannot be reached. Fixture mode returns the complete fixed dataset; fixture filtering and pagination are not implemented. It does not contact FastAPI, and its health response reports `backendConnected: false`. API failures are displayed rather than silently switching to sample data.
 
-`src/lib/api.ts` is the browser data loader. `src/app/api/[...path]/route.ts` controls fixture mode and forwarding. Shared fixtures stay in the root `data/fixtures` folder. Fixture links return an array; confirm the backend link response envelope before building relationship cards.
+`src/lib/api.ts` is the browser data loader. `src/app/api/[...path]/route.ts` controls fixture mode and forwarding. Shared fixtures stay in the root `data/fixtures` folder. Both fixture and FastAPI link routes return an EventLink array. Expanded cards load this endpoint on demand through `src/components/related-event-controls.tsx`, resolve source/target IDs against the loaded Event array, and expose the existing tree controls. Empty results and errors are shown explicitly; no synthetic links are generated.
 
 ## Checks
 
@@ -52,7 +62,7 @@ Earth is the main view. Numbered pins follow geographic coordinates and connect 
 
 See [globe visuals and backend integration](docs/globe-and-api.md) for all named visual settings, projection/visibility behavior, field mappings, API routes, selection hooks, current limitations, and verification steps.
 
-The page fetches `GET /api/events` once on mount (and on error retry). Rotation and selections are local. Details, relationship, and health routes remain available through the proxy but are not currently called. The smooth Earth uses bundled Natural Earth vector countries with readable borders over the fluid ocean; see [vector globe settings and data](docs/vector-globe.md). The Layers menu supports nine layer IDs, with Technology, Government & Politics, Finance, and Society enabled by default. Earthquake and wildfire are off by default; enabling them supports heat-plus-marker mode with one focused heatmap at a time. Markers default to significance ≥ 50 and are capped at 5,000; the panel exposes the threshold and heatmap focus. Layer/time filters are shareable via the URL; Back/Forward restores them. Selected event cards survive disabling their layers. Backend location search, pagination, a visible time scrubber, and relation cards are not implemented.
+The page fetches `GET /api/events` once on mount (and on error retry). Rotation and selections are local. Expanded cards call the relationship route; details and health routes are available through the proxy. The smooth Earth uses bundled Natural Earth vector countries with readable borders over the fluid ocean; see [vector globe settings and data](docs/vector-globe.md). The Layers menu supports nine layer IDs, with Technology, Government & Politics, Finance, and Society enabled by default. Earthquake and wildfire are off by default; enabling them supports heat-plus-marker mode with one focused heatmap at a time. Markers default to significance ≥ 50 and are capped at 5,000; the panel exposes the threshold and heatmap focus. Layer/time filters are shareable via the URL; Back/Forward restores them. Selected event cards survive disabling their layers. The event loader follows pagination. Backend location search and a visible time scrubber are not implemented.
 
 
 The animated ocean uses [Rare UI Fluid Orb](https://rareui.com/components/fluidorb), copyright © 2026 Swami Malode. Its source is vendored and adapted in `src/components/ui/fluid-orb.tsx`, with the [license retained](docs/licenses/rare-ui-LICENSE.txt). See [fluid ocean notes](docs/fluid-ocean.md).

@@ -45,7 +45,7 @@ export default function Home() {
     </section>
     <LayerControls filters={filters} onChange={update} count={visuals.visible.length} markerCount={visuals.markers.length} markerCandidateCount={visuals.markerCandidateCount} activeHeatmapId={visuals.activeHeatmapId} />
     </aside>
-    <div className="globe-workspace"><GlobeBoundary><EventGlobe selectedCountries={selectedCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary></div>
+    <div className="globe-workspace"><GlobeBoundary><EventGlobe allEvents={result?.data.events ?? emptyEvents} selectedCountries={selectedCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} rotating={rotating} onRotationChange={setRotating} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary></div>
     {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
 }

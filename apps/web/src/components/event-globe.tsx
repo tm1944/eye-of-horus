@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { AmbientLight, DirectionalLight, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
+import { AmbientLight, CatmullRomCurve3, TubeGeometry, DirectionalLight, Mesh, MeshBasicMaterial, PerspectiveCamera, Raycaster, Vector2, Vector3, type Object3D } from "three";
 import { LAYER_IDS, LABELS, type LayerId, type HeatmapData } from "@/lib/layers";
 import type { Event } from "@/lib/api";
 import { continentMaterial } from "@/lib/continent-material";
 import { cardWorldAnchor } from "@/lib/card-anchor";
-import { placeCard, type CardRect } from "@/lib/card-placement";
+import { cardsOverlap, placeCard, type CardRect } from "@/lib/card-placement";
 import { countryContains, type CountryFeature } from "@/lib/country-selection";
 import countries from "@/data/countries.geojson.json";
 import { countryBorders, borderContour } from "@/lib/country-borders";
 import { globeClipPlanes } from "@/lib/globe-depth";
+import RelatedEventControls from "@/components/related-event-controls";
 import FluidOrb from "@/components/ui/fluid-orb";
+import { connectTree, pruneBranch, type Connection, floatingArc } from "@/lib/related-events";
 import { GLOBE, eventColor } from "@/lib/globe-config";
 
 export type Location = { lat: number; lng: number };
@@ -31,7 +33,6 @@ const sourceHref = (value: string | null) => {
 
 // Stable accessors prevent unrelated React renders from recalculating density.
 const heatmapAltitude = (layer: object) => GLOBE.heatmapBaseAltitude + LAYER_IDS.indexOf((layer as HeatmapData).id) * GLOBE.heatmapLayerGap;
-const countryBorderColor = () => GLOBE.countryBorderColor;
 const borders = countries.features.flatMap(country => countryBorders([country]).map(points => ({ countryId: country.id, points: borderContour(points, GLOBE.landCurvatureDegrees).map(point => ({ lng: point[0], lat: point[1], countryId: country.id })) })));
 const borderLongitude = (point: object) => (point as { lng: number }).lng;
 const borderLatitude = (point: object) => (point as { lat: number }).lat;
@@ -52,7 +53,8 @@ function heatmapColor(layer: object) {
   return heatmapColors.get(data.id)!;
 }
 
-export default function EventGlobe({ events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture }: {
+export default function EventGlobe({ allEvents, events, selectedCountries, onToggleCountry, heatmaps, selection, onSelect, rotating, onRotationChange, fixture }: {
+  allEvents: Event[];
   events: Event[];
   selectedCountries: { id: string; name: string; events: Event[] }[];
   onToggleCountry: (id: string) => void;
@@ -73,13 +75,17 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
   const cards = useRef(new Map<string, HTMLElement>());
   const cardPlacements = useRef(new Map<string, CardRect & { offsetX: number; offsetY: number }>());
   const cardAnchors = useRef(new Map<string, Vector3>());
-  const drag = useRef<{ id: string; pointerId: number; startX: number; startY: number; left: number; top: number; moved: boolean } | null>(null);
+  const drag = useRef<{ id: string; pointerId: number; captureTarget: Element; startX: number; startY: number; left: number; top: number; moved: boolean } | null>(null);
   const dragNeedsUpdate = useRef(false);
+  const globePress = useRef<{ id: number; x: number; y: number; maxDistance: number; tolerance: number } | null>(null);
+  const clickRaycaster = useMemo(() => new Raycaster(), []);
   const suppressClick = useRef<string | null>(null);
   const pins = useRef(new Map<string, HTMLButtonElement>());
   const paths = useRef(new Map<string, SVGPathElement>());
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
+  const [treeRoot, setTreeRoot] = useState<Event | null>(null);
+  const [connections, setConnections] = useState<Connection<Event>[]>([]);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -122,6 +128,45 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     const controls = globe.current.controls();
     controls.autoRotate = rotating;
     controls.autoRotateSpeed = GLOBE.rotationSpeed;
+    const surface = stage.current;
+    if (!surface) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const heldPointers = new Set<number>();
+    // Temporary interaction pauses never change the user's manual rotation choice.
+    const pause = () => {
+      clearTimeout(timer);
+      controls.autoRotate = false;
+      if (!heldPointers.size) timer = setTimeout(() => {
+        controls.autoRotate = rotating;
+      }, GLOBE.interactionPauseMs);
+    };
+    const isRotationButton = (event: { target: EventTarget | null }) => event.target instanceof Element && !!event.target.closest("[data-rotation-toggle]");
+    const down = (event: PointerEvent) => {
+      if (isRotationButton(event)) return;
+      heldPointers.add(event.pointerId);
+      pause();
+    };
+    const up = (event: PointerEvent) => {
+      if (heldPointers.delete(event.pointerId)) pause();
+    };
+    const click = (event: MouseEvent) => { if (!isRotationButton(event)) pause(); };
+    const blur = () => { heldPointers.clear(); pause(); };
+    // Capture also catches card gestures whose handlers stop propagation.
+    surface.addEventListener("pointerdown", down, true);
+    surface.addEventListener("click", click, true);
+    surface.addEventListener("wheel", pause, { capture: true, passive: true });
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    window.addEventListener("blur", blur);
+    return () => {
+      clearTimeout(timer);
+      surface.removeEventListener("pointerdown", down, true);
+      surface.removeEventListener("click", click, true);
+      surface.removeEventListener("wheel", pause, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+      window.removeEventListener("blur", blur);
+    };
   }, [rotating, ready]);
 
   // Start at a whole-Earth fit, but allow close country-scale zoom inside the central canvas.
@@ -145,7 +190,10 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
   const selectedCountryIds = useMemo(() => new Set(selectedCountries.map(country => country.id)), [selectedCountries]);
   const selectedEvents = useMemo(() => [...new Map(selectedCountries.flatMap(country => country.events).map(event => [event.id, event])).values()], [selectedCountries]);
   const selectedIds = useMemo(() => new Set(selectedEvents.map(event => event.id)), [selectedEvents]);
-  const [focusedCountryEvent, setFocusedCountryEvent] = useState<string | null>(null);
+  const rootEvent = treeRoot ?? (selection?.kind === "event" ? selection.event : null);
+  const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
+  const [hoveredBorderId, setHoveredBorderId] = useState<string | null>(null);
+  const hoverId = hoveredBorderId ?? hoveredCountryId;
   const landMaterials = useMemo(() => new Map(countries.features.map(country => [country.id,
     continentMaterial(country.id === "ATA" ? GLOBE.antarcticaColor : GLOBE.landColor, GLOBE.continentEdgeShadeStrength),
   ])), []);
@@ -156,16 +204,81 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     for (const country of countries.features) {
       const selected = selectedCountryIds.has(country.id);
       const baseColor = country.id === "ATA" ? GLOBE.antarcticaColor : GLOBE.landColor;
-      landMaterials.get(country.id)!.color.set(selected && country.id !== "ATA" ? GLOBE.selectedCountryColor : baseColor);
+      landMaterials.get(country.id)!.color.set(country.id === "ATA" ? baseColor : selected ? GLOBE.selectedCountryColor : country.id === hoverId ? GLOBE.hoverCountryColor : baseColor);
       sideMaterials.get(country.id)!.color.set(selected ? GLOBE.selectedCountrySideColor : baseColor);
     }
-  }, [selectedCountryIds, landMaterials, sideMaterials]);
+  }, [selectedCountryIds, landMaterials, sideMaterials, hoverId]);
   const sideMaterial = useCallback((value: object) => sideMaterials.get((value as CountryFeature).id)!, [sideMaterials]);
   const landMaterial = useCallback((value: object) => landMaterials.get((value as CountryFeature).id)!, [landMaterials]);
+  const countryBorderColor = useCallback((path: object) => selectedCountryIds.has((path as typeof borders[number]).countryId) ? "#000000" : GLOBE.countryBorderColor, [selectedCountryIds]);
   const polygonAltitude = useCallback((value: object) => selectedCountryIds.has((value as CountryFeature).id) ? GLOBE.selectedCountryAltitude : GLOBE.landAltitude, [selectedCountryIds]);
-  const displayEvents = useMemo(() => [...events, ...selectedEvents.filter(event => !events.some(visible => visible.id === event.id))], [events, selectedEvents]);
+  const relationshipEvents = useMemo(() => [...new Map(connections.flatMap(link => [link.source, link.target]).map(event => [event.id, event])).values()], [connections]);
+  const displayEvents = useMemo(() => rootEvent ? [...new Map([rootEvent, ...relationshipEvents].map(event => [event.id, event])).values()] : [...new Map([...events, ...selectedEvents, ...relationshipEvents].map(event => [event.id, event])).values()], [events, selectedEvents, relationshipEvents, rootEvent]);
+
+  useEffect(() => {
+    if (!ready || !globe.current || !connections.length) return;
+    const instance = globe.current;
+    const vector = (event: Event) => {
+      const { x, y, z } = instance.getCoords(event.lat, event.lng);
+      return new Vector3(x, y, z);
+    };
+    const arcs = connections.map(connection => {
+      const curve = new CatmullRomCurve3(floatingArc(vector(connection.source), vector(connection.target), instance.getGlobeRadius(), GLOBE.relatedArcClearance, GLOBE.relatedArcRise));
+      const geometry = new TubeGeometry(curve, 128, GLOBE.relatedArcRadius, 6, false);
+      const material = new MeshBasicMaterial({ color: GLOBE.relatedArcColor });
+      const arc = new Mesh(geometry, material);
+      arc.raycast = () => {}; // The decorative link never blocks POI/country picking.
+      instance.scene().add(arc);
+      return arc;
+    });
+    return () => arcs.forEach(arc => { instance.scene().remove(arc); arc.geometry.dispose(); arc.material.dispose(); });
+  }, [ready, connections]);
+
+  function clearTree() {
+    setConnections([]);
+    setTreeRoot(null);
+    setExpandedCards(new Set());
+    onSelect(null);
+  }
+  function removeBranch(id: string) {
+    if (id === rootEvent?.id) { clearTree(); return; }
+    const next = pruneBranch(connections, id);
+    setConnections(next.links);
+    setExpandedCards(current => new Set([...current].filter(value => !next.removed.has(value))));
+    if (selection?.kind === "event" && next.removed.has(selection.event.id) && rootEvent) onSelect({ kind: "event", event: rootEvent });
+  }
+  function clearChildren(source: Event) {
+    let remaining = connections;
+    const removed = new Set<string>();
+    for (const child of connections.filter(link => link.source.id === source.id)) {
+      const next = pruneBranch(remaining, child.target.id);
+      remaining = next.links;
+      next.removed.forEach(id => removed.add(id));
+    }
+    setConnections(remaining);
+    setExpandedCards(current => new Set([...current].filter(id => !removed.has(id))));
+    if (selection?.kind === "event" && removed.has(selection.event.id)) onSelect({ kind: "event", event: source });
+  }
+  function addConnection(source: Event, target: Event) {
+    const root = rootEvent ?? source;
+    setTreeRoot(root);
+    setConnections(current => connectTree(current, root, source, target));
+  }
+  function visitRelated(source: Event, target: Event) {
+    onRotationChange(false);
+    addConnection(source, target);
+    // Connection navigation opens only the headline; details remain opt-in.
+    setExpandedCards(current => {
+      const next = new Set(current);
+      next.delete(target.id);
+      return next;
+    });
+    onSelect({ kind: "event", event: target });
+    const instance = globe.current;
+    if (instance) instance.pointOfView({ lat: target.lat, lng: target.lng, altitude: Math.max(GLOBE.relatedFocusAltitude, instance.pointOfView().altitude) }, GLOBE.relatedFocusMs);
+  }
+
   function selectCountry(country: CountryFeature) {
-    setFocusedCountryEvent(null);
     onToggleCountry(country.id);
   }
   function selectCoordinates(lat: number, lng: number) {
@@ -173,12 +286,15 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     if (country) selectCountry(country);
   }
   const callouts = useMemo<Callout[]>(() => {
-    const selectedId = selection?.kind === "event" ? selection.event.id : focusedCountryEvent;
-    const retained = selection?.kind === "event" && !displayEvents.some(event => event.id === selectedId) ? selection.event : null;
-    const ranked = [...new Map([...(selectedCountries.length ? selectedEvents : events), ...(selection?.kind === "event" ? [selection.event] : [])].map(event => [event.id, event])).values()].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.significance - a.significance || a.id.localeCompare(b.id));
-    const result = ranked.slice(0, GLOBE.maxCallouts - Number(selection?.kind === "location")).map((event) => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: event.id === retained?.id }));
+    if (rootEvent) return displayEvents.map(event => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event }));
+    const selectedId = selection?.kind === "event" ? selection.event.id : null;
+    const opened = allEvents.filter(event => expandedCards.has(event.id));
+    const ranked = [...new Map([...opened, ...relationshipEvents, ...(selectedCountries.length ? selectedEvents : events), ...(selection?.kind === "event" ? [selection.event] : [])].map(event => [event.id, event])).values()].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || Number(relationshipEvents.some(event => event.id === b.id)) - Number(relationshipEvents.some(event => event.id === a.id)) || b.significance - a.significance || a.id.localeCompare(b.id));
+    // Keep opened cards mounted so their positions and source controls survive navigation.
+    const included = ranked.filter((event, index) => expandedCards.has(event.id) || index < GLOBE.maxCallouts - Number(selection?.kind === "location"));
+    const result = included.map((event) => ({ id: event.id, lat: event.lat, lng: event.lng, color: eventColor(event.layerId), event, retained: !displayEvents.some(visible => visible.id === event.id) }));
     return selection?.kind === "location" ? [{ id: "selected-location", ...selection.location, color: GLOBE.colors.selected }, ...result] : result;
-  }, [events, selection, selectedEvents, focusedCountryEvent, selectedCountries.length, displayEvents]);
+  }, [events, selection, selectedEvents, rootEvent, selectedCountries.length, displayEvents, relationshipEvents, allEvents, expandedCards]);
 
   const points = useMemo(() => displayEvents.map((event) => ({ ...event, color: selectedIds.has(event.id) ? GLOBE.colors.selected : eventColor(event.layerId), altitude: GLOBE.pointAltitude })), [displayEvents, selectedIds]);
   const pointCountries = useMemo(() => new Map(displayEvents.map(event => [event.id,
@@ -258,13 +374,13 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
           const card = cards.current.get(item.id), pin = pins.current.get(item.id), path = paths.current.get(item.id);
           if (!card || !pin || !path) continue;
           // Retained selections stay readable even when their layer is disabled.
-          const x = item.retained ? GLOBE.cardEdgePaddingPx : point.x + offsetX;
-          const y = item.retained ? centerY : point.y + offsetY;
+          const x = item.retained && !expandedCards.has(item.id) ? GLOBE.cardEdgePaddingPx : point.x + offsetX;
+          const y = item.retained && !expandedCards.has(item.id) ? centerY : point.y + offsetY;
           const shown = !item.retained && front && point.x > 0 && point.x < canvasRect.width && point.y > 0 && point.y < canvasRect.height;
           card.hidden = false;
           pin.hidden = !shown;
           path.style.display = item.retained || !front ? "none" : "";
-          visible.push({ item, x, y, front: front || !!item.retained, side: x < centerX ? "left" : "right" });
+          visible.push({ item, x, y, front: front || !!item.retained || expandedCards.has(item.id), side: x < centerX ? "left" : "right" });
         }
         // Release hidden cards, then move existing rectangles with their pins before
         // finding space for newcomers. Stored offsets never change during rotation.
@@ -276,7 +392,7 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
           const placement = cardPlacements.current.get(item.id);
           if (placement) {
             const anchor = cardAnchors.current.get(item.id);
-            if (drag.current?.id !== item.id) {
+            if (drag.current?.id !== item.id && !expandedCards.has(item.id)) {
               if (anchor) {
                 const projected = anchor.clone().project(instance.camera());
                 placement.left = offsetX + (projected.x + 1) * canvasRect.width / 2;
@@ -297,12 +413,36 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
           card.style.maxHeight = `${Math.max(1, canvasRect.height - 2 * GLOBE.cardEdgePaddingPx)}px`;
         });
         // One measurement phase after visibility updates; all position writes follow.
-        const measurements = new Map(visible.map(({ item }) => [item.id, cards.current.get(item.id)!.getBoundingClientRect()]));
-        // New cards avoid the current expanded rectangles as well as headlines.
+        // Layout dimensions ignore visual perspective, avoiding scale feedback each frame.
+        const measurements = new Map(visible.map(({ item }) => {
+          const card = cards.current.get(item.id)!;
+          return [item.id, { width: card.offsetWidth, height: card.offsetHeight }];
+        }));
+        const headlineCenters = new Map(visible.map(({ item }) => {
+          const card = cards.current.get(item.id)!;
+          const title = card.querySelector<HTMLButtonElement>(".card-title")!;
+          return [item.id, { x: card.clientLeft + title.offsetLeft - card.scrollLeft + title.offsetWidth / 2, y: card.clientTop + title.offsetTop - card.scrollTop + title.offsetHeight / 2 }];
+        }));
+        // A newly expanded card may need a new slot; neighbors never move for it.
+        const grownCards: string[] = [];
         for (const { item } of visible) {
           const placement = cardPlacements.current.get(item.id);
           const measurement = measurements.get(item.id)!;
-          if (placement) { placement.width = measurement.width; placement.height = measurement.height; }
+          if (placement) {
+            if (measurement.height > placement.height + 1) grownCards.push(item.id);
+            placement.width = measurement.width; placement.height = measurement.height;
+          }
+        }
+        for (const id of grownCards) {
+          const rect = cardPlacements.current.get(id)!;
+          if ([...cardPlacements.current].some(([otherId, other]) => otherId !== id && cardsOverlap(rect, other))) {
+            // Never discard the current slot before a replacement exists.
+            const replacement = placeCard(rect, [...cardPlacements.current].filter(([otherId]) => otherId !== id).map(([, other]) => other), stageRect.width, canvasRect.height, GLOBE.cardEdgePaddingPx, 16, { x: centerX, y: centerY, radius: screenRadius * GLOBE.cardCenterExclusion, strict: true });
+            if (replacement) {
+              Object.assign(rect, replacement);
+              cardAnchors.current.delete(id);
+            }
+          }
         }
         for (const { item, x, y, front, side } of visible) {
           const card = cards.current.get(item.id)!;
@@ -312,9 +452,10 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
             const availablePlacement = placeCard({
               left: item.retained ? GLOBE.cardEdgePaddingPx : side === "left" ? x - GLOBE.pinToCardDistancePx - width : x + GLOBE.pinToCardDistancePx,
               top: y - height / 2, width, height,
-            }, [...cardPlacements.current.values()], stageRect.width, canvasRect.height, GLOBE.cardEdgePaddingPx);
-            if (availablePlacement) {
-              placement = { ...availablePlacement, offsetX: availablePlacement.left - x, offsetY: availablePlacement.top - y };
+            }, [...cardPlacements.current.values()], stageRect.width, canvasRect.height, GLOBE.cardEdgePaddingPx, 16, { x: centerX, y: centerY, radius: screenRadius * GLOBE.cardCenterExclusion, strict: true });
+            const chosenPlacement = availablePlacement;
+            if (chosenPlacement) {
+              placement = { ...chosenPlacement, offsetX: chosenPlacement.left - x, offsetY: chosenPlacement.top - y };
               cardPlacements.current.set(item.id, placement);
               if (!item.retained) cardAnchors.current.set(item.id, screenAnchor(placement.left, placement.top, item));
             }
@@ -323,19 +464,26 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
           card.style.visibility = displayed ? "visible" : "hidden";
           card.inert = !displayed;
           card.setAttribute("aria-hidden", String(!displayed));
-          paths.current.get(item.id)!.style.display = displayed && !item.retained ? "" : "none";
+          paths.current.get(item.id)!.style.display = displayed && (expandedCards.has(item.id) || (!item.retained && !pins.current.get(item.id)!.hidden)) ? "" : "none";
           pins.current.get(item.id)!.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
           if (!placement) continue;
           const { left, top } = placement;
           card.style.left = "0px";
           card.style.top = "0px";
-          card.style.transform = `translate(${left}px, ${top}px)`;
+          const headlineCenter = headlineCenters.get(item.id)!;
+          const flat = expandedCards.has(item.id) || item.retained || drag.current?.id === item.id;
+          const dx = Math.max(-1, Math.min(1, (x - centerX) / screenRadius));
+          const dy = Math.max(-1, Math.min(1, (y - centerY) / screenRadius));
+          const edge = Math.min(1, Math.hypot(dx, dy));
+          const scale = flat ? 1 : 1 - (1 - GLOBE.headlineMinScale) * edge;
+          // Rotate around the headline center: its connector attachment stays exact.
+          card.style.transformOrigin = `${headlineCenter.x}px ${headlineCenter.y}px`;
+          card.style.transform = `translate(${left}px, ${top}px) perspective(${GLOBE.headlinePerspectivePx}px) rotateX(${flat ? 0 : -dy * GLOBE.headlineTiltDegrees}deg) rotateY(${flat ? 0 : dx * GLOBE.headlineTiltDegrees}deg) scale(${scale})`;
           card.dataset.side = side;
-          if (item.retained) continue;
-          // Meet the pin-facing edge at its midpoint, slightly under the card.
-          const inset = Math.min(GLOBE.connectorInsetPx, width / 2);
-          const endpointX = x < left + width / 2 ? left + inset : left + width - inset;
-          const endpointY = top + height / 2;
+          if (item.retained && !expandedCards.has(item.id)) continue;
+          // The transform origin stays fixed even as the rest of the headline tilts.
+          const endpointX = left + headlineCenter.x;
+          const endpointY = top + headlineCenter.y;
           const path = paths.current.get(item.id)!;
           path.setAttribute("d", `M ${x} ${y} L ${endpointX} ${endpointY}`);
           pins.current.get(item.id)!.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
@@ -352,10 +500,9 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     };
   }, [ready, callouts, expandedCards, selectedIds, points, pointCountries]);
 
-  const activeHeatmaps = useMemo(() => heatmaps.filter(layer => layer.points.length > 0), [heatmaps]);
+  const activeHeatmaps = useMemo(() => rootEvent ? [] : heatmaps.filter(layer => layer.points.length > 0), [heatmaps, rootEvent]);
 
   function select(item: Callout) {
-    if (selectedCountries.length && item.event) { setFocusedCountryEvent(item.id); return; }
     onSelect(item.event ? { kind: "event", event: item.event } : { kind: "location", location: { lat: item.lat, lng: item.lng } });
   }
 
@@ -368,28 +515,31 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     const coords = instance.getCoords(item.lat, item.lng, GLOBE.pointAltitude);
     return cardWorldAnchor(left - viewport.left + bounds.left, top - viewport.top + bounds.top, viewport.width, viewport.height, coords, instance.camera());
   }
-  function startCardDrag(event: ReactPointerEvent<HTMLButtonElement>, item: Callout) {
-    if (event.button !== 0) return;
+  function startCardDrag(event: ReactPointerEvent<HTMLElement>, item: Callout) {
+    if (!event.isPrimary || event.button !== 0) return;
     const placement = cardPlacements.current.get(item.id);
     if (!placement) return;
     event.stopPropagation();
     suppressClick.current = null;
-    drag.current = { id: item.id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, left: placement.left, top: placement.top, moved: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // Capture on the original child so an ordinary button/link click keeps its target.
+    const captureTarget = event.target as Element;
+    drag.current = { id: item.id, pointerId: event.pointerId, captureTarget, startX: event.clientX, startY: event.clientY, left: placement.left, top: placement.top, moved: false };
+    captureTarget.setPointerCapture(event.pointerId);
   }
-  function moveCardDrag(event: ReactPointerEvent<HTMLButtonElement>, item: Callout) {
+  function moveCardDrag(event: ReactPointerEvent<HTMLElement>, item: Callout) {
     const current = drag.current;
     if (!current || current.id !== item.id || current.pointerId !== event.pointerId) return;
     const dx = event.clientX - current.startX, dy = event.clientY - current.startY;
     if (!current.moved && Math.hypot(dx, dy) < 5) return;
     current.moved = true;
+    event.currentTarget.dataset.dragging = "true";
     event.stopPropagation();
     const placement = cardPlacements.current.get(item.id);
     if (placement) { placement.left = current.left + dx; placement.top = current.top + dy; }
   }
-  function endCardDrag(event: ReactPointerEvent<HTMLButtonElement>, item: Callout) {
+  function endCardDrag(event: ReactPointerEvent<HTMLElement>, item: Callout) {
     const current = drag.current;
-    if (!current || current.id !== item.id) return;
+    if (!current || current.id !== item.id || current.pointerId !== event.pointerId) return;
     event.stopPropagation();
     const placement = cardPlacements.current.get(item.id);
     if (current.moved && placement) {
@@ -398,35 +548,82 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     }
     drag.current = null;
     dragNeedsUpdate.current = true;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    delete event.currentTarget.dataset.dragging;
+    if (current.captureTarget.hasPointerCapture(event.pointerId)) current.captureTarget.releasePointerCapture(event.pointerId);
+  }
+
+  function beginGlobePress(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!event.isPrimary || event.button !== 0) { globePress.current = null; return; }
+    globePress.current = { id: event.pointerId, x: event.clientX, y: event.clientY, maxDistance: 0, tolerance: event.pointerType === "mouse" ? 6 : 10 };
+  }
+  function trackGlobePress(event: ReactPointerEvent<HTMLDivElement>) {
+    const press = globePress.current;
+    if (press?.id === event.pointerId) press.maxDistance = Math.max(press.maxDistance, Math.hypot(event.clientX - press.x, event.clientY - press.y));
+  }
+  function finishGlobePress(event: ReactPointerEvent<HTMLDivElement>) {
+    trackGlobePress(event);
+    const press = globePress.current;
+    globePress.current = null;
+    const instance = globe.current;
+    if (!press || press.id !== event.pointerId || press.maxDistance > press.tolerance || !instance) return;
+    const bounds = instance.renderer().domElement.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+    instance.camera().updateMatrixWorld();
+    instance.scene().updateMatrixWorld(true);
+    clickRaycaster.setFromCamera(new Vector2(2 * (event.clientX - bounds.left) / bounds.width - 1, 1 - 2 * (event.clientY - bounds.top) / bounds.height), instance.camera());
+    type PickObject = Object3D & { __globeObjType?: string; __data?: unknown };
+    for (const hit of clickRaycaster.intersectObjects(instance.scene().children, true)) {
+      let owner: PickObject | null = hit.object;
+      while (owner && !owner.__globeObjType) owner = owner.parent;
+      if (!owner) continue;
+      if (owner.__globeObjType === "point") {
+        const point = owner.__data as Event;
+        onSelect({ kind: "event", event: point });
+        return;
+      }
+      if (owner.__globeObjType === "polygon") {
+        selectCountry((owner.__data as { data: CountryFeature }).data);
+        return;
+      }
+      if (owner.__globeObjType === "path") {
+        const country = countries.features.find(country => country.id === (owner.__data as { countryId: string }).countryId);
+        if (country) { selectCountry(country); return; }
+      }
+      if (owner.__globeObjType === "globe") {
+        const location = instance.toGeoCoords(hit.point);
+        selectCoordinates(location.lat, location.lng);
+        return;
+      }
+    }
   }
 
   return <div className="earth-stage" ref={stage} style={{ "--connector-width": `${GLOBE.connectorWidthPx}px` } as CSSProperties}>
     <div className="earth-controls"><button disabled={!ready} onClick={() => {
       if (globe.current && fittedDistance.current) globe.current.pointOfView({ ...GLOBE.initialView, altitude: fittedDistance.current / globe.current.getGlobeRadius() - 1 });
-    }}>Reset view</button><button onClick={() => onRotationChange(!rotating)} disabled={!ready} aria-pressed={rotating}>{rotating ? "Pause rotation" : "Resume rotation"}</button></div>
+    }}>Reset view</button><button data-rotation-toggle onClick={() => onRotationChange(!rotating)} disabled={!ready} aria-pressed={rotating}>{rotating ? "Pause rotation" : "Resume rotation"}</button>{selection?.kind === "event" && <button onClick={clearTree}>Clear selection tree</button>}</div>
     <div className="earth-canvas" ref={container} role="region" aria-label="Interactive Earth. Drag to rotate, scroll to zoom, click to select a location.">
       <div ref={orbSurface} className="earth-orb-surface" aria-hidden="true">
         <FluidOrb size={GLOBE.orbRenderSize} color={GLOBE.orbColor} topColor={GLOBE.orbTopColor} maxFps={GLOBE.orbMaxFps} maxPixelRatio={GLOBE.orbMaxPixelRatio} />
       </div>
-      <div className="earth-renderer">
+      <div className="earth-renderer" onPointerDownCapture={beginGlobePress} onPointerMoveCapture={trackGlobePress}
+        onPointerUpCapture={finishGlobePress} onPointerCancelCapture={() => { globePress.current = null; }}
+        onPointerLeave={() => { globePress.current = null; }}>
       {size.width > 0 && <Globe ref={globe} width={size.width} height={size.height}
         backgroundColor="rgba(0,0,0,0)" globeMaterial={oceanDepthMaterial}
         polygonsData={countries.features} polygonGeoJsonGeometry="geometry"
         polygonCapMaterial={landMaterial} polygonSideMaterial={sideMaterial}
         polygonAltitude={polygonAltitude}
         polygonCapCurvatureResolution={GLOBE.landCurvatureDegrees} polygonsTransitionDuration={GLOBE.countryAnimationMs}
-        onPolygonClick={(country) => selectCountry(country as CountryFeature)}
+        onPolygonHover={country => setHoveredCountryId(country ? (country as CountryFeature).id : null)}
         pathsData={borders} pathPoints="points" pathPointLat={borderLatitude} pathPointLng={borderLongitude}
         pathPointAlt={GLOBE.borderAltitude} pathColor={countryBorderColor} pathStroke={null}
         pathResolution={360} pathTransitionDuration={0}
-        onPathClick={(path) => { const country = countries.features.find(country => country.id === (path as typeof borders[number]).countryId); if (country) selectCountry(country); }}
+        onPathHover={path => setHoveredBorderId(path ? (path as typeof borders[number]).countryId : null)}
         atmosphereColor={GLOBE.atmosphereColor} atmosphereAltitude={GLOBE.atmosphereAltitude} animateIn={false}
         heatmapsData={activeHeatmaps} heatmapPoints="points"
         heatmapPointLat="lat" heatmapPointLng="lng" heatmapPointWeight="weight"
         heatmapColorFn={heatmapColor}
         heatmapBandwidth={GLOBE.heatmapBandwidthDegrees} heatmapBaseAltitude={heatmapAltitude} heatmapTopAltitude={heatmapAltitude} heatmapsTransitionDuration={0}
-        onHeatmapClick={(_, __, { lat, lng }) => selectCoordinates(lat, lng)}
         pointsData={points} pointLat="lat" pointLng="lng" pointColor="color"
         pointRadius={GLOBE.pointRadiusDegrees} pointAltitude="altitude" pointsTransitionDuration={0}
         onGlobeReady={() => {
@@ -442,8 +639,6 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
           instance.renderer().setPixelRatio(Math.min(window.devicePixelRatio, GLOBE.maxPixelRatio));
           setReady(true); onRotationChange(!reduced);
         }}
-        onGlobeClick={({ lat, lng }) => selectCoordinates(lat, lng)}
-        onPointClick={(point) => { if (selectedCountries.length && selectedIds.has((point as Event).id)) setFocusedCountryEvent((point as Event).id); else onSelect({ kind: "event", event: point as Event }); }}
       />}
       </div>
       {!ready && <div className="earth-loading" role="status">Rendering Earth…</div>}
@@ -454,15 +649,26 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
     <div className="callouts" aria-label="Visible points of interest">{callouts.map((item, index) => {
       const event = item.event;
       const expanded = expandedCards.has(item.id);
-      const active = event ? selection?.kind === "event" && selection.event.id === event.id || selectedIds.has(event.id) : true;
+      const active = event ? rootEvent ? displayEvents.some(node => node.id === event.id) : selectedIds.has(event.id) : true;
       const href = event && sourceHref(event.sourceUrl);
-      return <article hidden key={item.id} ref={(node) => { if (node) cards.current.set(item.id, node); else cards.current.delete(item.id); }} className={`earth-card${active ? " is-selected" : ""}${expanded ? " is-expanded" : " is-collapsed"}`} style={{ "--pin-color": item.color } as CSSProperties}>
+      return <article hidden key={item.id} ref={(node) => { if (node) cards.current.set(item.id, node); else cards.current.delete(item.id); }} className={`earth-card${active ? " is-selected" : ""}${expanded ? " is-expanded" : " is-collapsed"}`} style={{ "--pin-color": item.color } as CSSProperties}
+        onPointerDown={event => startCardDrag(event, item)} onPointerMove={event => moveCardDrag(event, item)}
+        onPointerUp={event => endCardDrag(event, item)} onPointerCancel={event => endCardDrag(event, item)}
+        onDragStart={event => event.preventDefault()}
+        onClickCapture={event => {
+          if (suppressClick.current === item.id) {
+            suppressClick.current = null;
+            event.preventDefault(); event.stopPropagation();
+          }
+        }}>
         {expanded && <div className="card-category"><span>{String(index + 1).padStart(2, "0")} / {event ? LABELS[event.layerId as LayerId] ?? event.layerId : "location"}</span>{fixture && event && <span className="sample-badge">Sample</span>}</div>}
-        <button className="card-title" aria-expanded={expanded}
-          onPointerDown={event => startCardDrag(event, item)} onPointerMove={event => moveCardDrag(event, item)}
-          onPointerUp={event => endCardDrag(event, item)} onPointerCancel={event => endCardDrag(event, item)}
+        <button className="card-title" title="Drag to reposition; click to expand or collapse" aria-expanded={expanded}
           onClick={() => {
-          if (suppressClick.current === item.id) { suppressClick.current = null; return; }
+          if (!expanded) onRotationChange(false);
+          else {
+            const placement = cardPlacements.current.get(item.id);
+            if (placement && !item.retained) cardAnchors.current.set(item.id, screenAnchor(placement.left, placement.top, item));
+          }
           setExpandedCards(current => {
             const next = new Set(current);
             if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
@@ -474,9 +680,11 @@ export default function EventGlobe({ events, selectedCountries, onToggleCountry,
         {item.retained && <p className="retained-note">Selected event · hidden by map filters</p>}
         {event && <p className="card-summary">{event.summary ?? "No summary provided."}</p>}
         <p className="card-coordinates">{coordinate(item.lat, true)}<br />{coordinate(item.lng, false)}{event && <span>{event.geoPrecision} precision</span>}</p>
+        {event && <RelatedEventControls key={event.id} event={event} allEvents={allEvents} connections={connections} rootId={rootEvent?.id}
+          onVisit={visitRelated} onAdd={addConnection} onRemove={removeBranch} onClear={clearChildren} />}
         {event && <p className="card-time">{eventTime(event.occurredAt)}</p>}
         <div className="card-footer">{href ? <a href={href} target="_blank" rel="noreferrer">{event!.source.toUpperCase()} ↗</a> : <span>{event?.source.toUpperCase() ?? "Coordinates captured"}</span>}
-          {active && <button onClick={() => onSelect(null)} aria-label="Clear selection">Clear</button>}</div>
+          {active && <button onClick={() => event ? removeBranch(event.id) : clearTree()} aria-label={event?.id === rootEvent?.id ? "Clear root and all branches" : "Remove branch and descendants"}>{event?.id === rootEvent?.id ? "Clear entire tree" : "Remove branch"}</button>}</div>
         </>}
       </article>;
     })}</div>
