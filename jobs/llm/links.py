@@ -142,49 +142,23 @@ def _write_fixture(links: list[dict]) -> None:
         json.dump(merged, f, indent=2)
 
 
-def _write_snowflake(links: list[dict]) -> None:
-    import snowflake.connector  # type: ignore
+def _write_database(links: list[dict]) -> None:
+    api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
+    from db import write_event_links
 
-    conn = snowflake.connector.connect(
-        account=os.environ["SNOWFLAKE_ACCOUNT"],
-        user=os.environ["SNOWFLAKE_USER"],
-        password=os.environ["SNOWFLAKE_PASSWORD"],
-        database=os.environ.get("SNOWFLAKE_DATABASE", "EVENTS"),
-        schema="MART",
-        warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "EVENTS_XS"),
-    )
-    try:
-        cur = conn.cursor()
-        for link in links:
-            cur.execute(
-                """
-                INSERT INTO EVENT_LINK
-                    (id, source_id, target_id, relation, confidence, rationale, citations, model)
-                SELECT %s, %s, %s, %s, %s, %s, PARSE_JSON(%s), %s
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM EVENT_LINK WHERE id = %s
-                )
-                """,
-                (
-                    link["id"],
-                    link["sourceId"],
-                    link["targetId"],
-                    link["relation"],
-                    link["confidence"],
-                    link["rationale"],
-                    json.dumps(link.get("citations", [])),
-                    link["model"],
-                    link["id"],
-                ),
-            )
-        conn.commit()
-    finally:
-        conn.close()
+    write_event_links(links)
 
 
 def _persist(links: list[dict]) -> None:
-    if os.environ.get("SNOWFLAKE_ACCOUNT"):
-        _write_snowflake(links)
+    api_dir = Path(__file__).resolve().parents[2] / "apps" / "api"
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
+    from db import database_configured
+
+    if database_configured():
+        _write_database(links)
     else:
         _write_fixture(links)
 

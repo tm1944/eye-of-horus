@@ -19,7 +19,13 @@
           "terror",
           "finance",
           "humanitarian",
-          "news"
+          "news",
+          "cyclone",
+          "flood",
+          "volcano",
+          "drought",
+          "famine",
+          "protest"
         ]
       },
       "description": "Layer IDs to include. Matches layerId enum in event.schema.json."

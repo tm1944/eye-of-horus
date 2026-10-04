@@ -12,14 +12,14 @@ Open http://localhost:3000. Default `DATA_MODE=fixture` loads the repository's s
 
 ## Connect FastAPI
 
-Have the API teammate start FastAPI on port 8000, then update `.env.local`:
+Have the API teammate start FastAPI on port 43124, then update `.env.local`:
 
 ```dotenv
 DATA_MODE=api
-API_BASE_URL=http://127.0.0.1:8000
+API_BASE_URL=http://127.0.0.1:43124
 ```
 
-Restart Next.js. The browser calls `/api/events` on port 3000; the Next.js server forwards it to FastAPI `/events` on port 8000. This avoids browser CORS configuration. Both variables are server-only; no `NEXT_PUBLIC_` prefix is needed. For a backend on another laptop, use that laptop's reachable address.
+Restart Next.js. The browser calls `/api/events` on port 3000; the Next.js server forwards it to FastAPI `/events` on port 43124. This avoids browser CORS configuration. Both variables are server-only; no `NEXT_PUBLIC_` prefix is needed. For a backend on another laptop, use that laptop's reachable address.
 
 Supported GET paths:
 
