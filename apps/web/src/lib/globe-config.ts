@@ -40,8 +40,8 @@ export const GLOBE = {
   heatmapHighColor: "#ff4d2e", // dense marker density
   zoomInThreshold: 0.97, // camera distance / default fit below which markers replace the heatmap
   pointAltitude: 0.016, // fraction of globe radius
-  surfaceFitWidth: 0.46, // projected sphere radius / canvas width
-  surfaceFitHeight: 0.44, // projected sphere radius / canvas height
+  surfaceFitWidth: 0.36, // projected sphere radius / canvas width
+  surfaceFitHeight: 0.34, // projected sphere radius / canvas height
   zoomOutMultiplier: 1.7,
   minZoomAltitude: 0.04, // nearest camera height / globe radius (~255 km on Earth)
   pinToCardDistancePx: 80, // preferred horizontal gap when a card first appears
