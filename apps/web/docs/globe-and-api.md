@@ -4,28 +4,27 @@
 
 Earth occupies the center of the page. There is no dashboard header, event list, inspector, or permanent connection banner. A compact rotation control and interaction hint remain. Data errors show a retry notice; sample cards are explicitly labeled **Sample**.
 
-Desktop (1100px and wider): the center canvas reserves 320px on each side. Cards are 278px wide and sit 24px from the outside edges. The initial camera fits the entire sphere inside its canvas. Zoom-in now reaches a camera altitude of 0.04 globe radii (roughly 255 km above a real Earth), enabling country-scale and closer inspection. The enlarged Earth is clipped to the center canvas, keeping cards unobstructed. The surface is a smooth sphere with a local Earth texture, not detailed map tiles or country borders. Each rail holds at most two cards with a 16px gap. Layout is at least 800px tall so the cards remain readable on shorter windows; the page may scroll vertically.
-
-Below 1100px, the canvas takes the full width and cards move into a grid below it. Below 580px, that grid becomes one column. No card is placed over Earth. Connectors are behind the cards and ignore pointer events.
+The globe canvas uses the full page width. Newly visible cards find a free rectangle near their pin, with 16px clearance from existing cards. Earth does not constrain placement. Once placed, a card keeps its offset from the pin and its dimensions. Its position follows the projected pin as Earth rotates, without repacking or switching sides. Cards avoid each other when first placed but may overlap later if their paths converge. Rotation behind Earth or removal by filtering releases its slot; reappearing cards get a new placement. If no free rectangle fits, the new card waits until space opens instead of moving existing cards or overlapping them. Cards are at most 278px wide. Existing cards are not clamped or repacked during rotation or resizing; they may extend offscreen until hidden and placed again.
 
 Card title: 17px, coordinates: 14px, body: 13px, UTC time: 12px. Bright text sits on opaque dark panels. N/S and E/W clarify coordinate signs. Coordinates are rounded to four decimals **only for display**; state retains the original numbers. Summaries longer than 60px scroll inside the card, without hiding the source or coordinates. Titles wrap. Source links accept HTTP/HTTPS only. Null summaries and source URLs have explicit fallbacks.
 
-Numbered screen-space pins correspond to numbered cards. Nearby numbered badges slide along their straight connector where space permits to provide separate click targets. The connector still begins at the exact projected coordinate; event data does not move. All loaded events also retain globe markers. Up to four events are eligible for cards, ranked by `significance` descending with ID as the tie-breaker. The selected event takes priority; a selected surface point consumes one slot. This is a visual cap, not an API filter. Numbers identify the current displayed candidate set, not durable event IDs. The backend identity is always `event.id`.
+Numbered screen-space pins correspond to numbered cards. Pins remain at their exact projected coordinate; event data does not move. All loaded events also retain globe markers. Up to four events are eligible for cards, ranked by `significance` descending with ID as the tie-breaker. The selected event takes priority; a selected surface point consumes one slot. This is a visual cap, not an API filter. Numbers identify the current displayed candidate set, not durable event IDs. The backend identity is always `event.id`.
 
 ## Rotation, anchoring, and visibility
 
-`src/components/event-globe.tsx` loads only in the browser. The Earth loads the user-provided `public/textures/8k_earth_daymap.jpg` (8192 × 4096). Change `GLOBE.textureUrl` in `src/lib/globe-config.ts` to use a different local equirectangular texture.
+`src/components/event-globe.tsx` loads only in the browser. The Earth draws bundled Natural Earth country polygons and border lines over the fluid orb. Change `landColor`, `countryBorderColor`, and the documented geometry settings in `src/lib/globe-config.ts`; see [vector basemap documentation](vector-globe.md).
 
 Each animation frame:
 
 1. Convert a callout's geographic coordinates to a surface vector with `getCoords`.
 2. Test whether the surface faces the camera. For the current spherical Earth centered at the origin, the perspective horizon is `surfaceNormal · cameraPosition > globeRadius` (with a 0.5 world-unit margin).
 3. Project with `getScreenCoords(lat, lng, pinAltitude)` and offset into the page's globe container.
-4. Move the screen pin and its single straight SVG segment. Cards follow the projected pin vertically, clamped to the viewport and separated from neighboring cards. They stay in reserved side areas, switching sides after the pin crosses the canvas midpoint by 28px. This buffer prevents rapid flipping near the center. Overcrowded rails spill to the opposite rail. Cards never animate across Earth when switching. Back-facing or off-canvas pins, cards, and connectors are hidden together.
+4. Allocate a free rectangle for each newly visible card using `src/lib/card-placement.ts`. Keep pin-relative offsets in a ref across rotation and React updates. Move all existing rectangles to their current projected pins before checking space for newcomers. Release hidden/removed cards before allocating newcomers. Connect the moving pin to the moving card edge midpoint with a `connectorInsetPx` extension under the card. A selected event retained after filtering keeps its card without a pin or connector.
+
 
 The projection loop mutates only DOM positions and visibility. A selected event hidden by map filters retains its card without a pin/connector. It never changes event coordinates and makes **zero network requests**. Its animation frame, media listener, and resize observer are cleaned up on unmount. Cards near the horizon can disappear as Earth turns; pause rotation to read or interact with them.
 
-Dragging, zooming, surface clicks, pin clicks, card title clicks, and hovering/focusing a card pause rotation so its contents stay readable. Pause/resume is explicit. Reduced-motion users start paused with inertial damping disabled. They can opt into rotation with Resume. Clicking a source opens the source URL in a new tab; it does not call FastAPI.
+Only the Pause/Resume rotation button changes rotation after initialization. Dragging, zooming, selections, card hover/focus, layer menu interactions, and Reset view preserve the chosen rotation state. OrbitControls temporarily yields auto-rotation while a drag is held and resumes on release. Reduced-motion users start paused with inertial damping disabled. They can opt into rotation with Resume. Clicking a source opens the source URL in a new tab; it does not call FastAPI.
 
 ## Visual configuration
 
@@ -40,20 +39,20 @@ Dragging, zooming, surface clicks, pin clicks, card title clicks, and hovering/f
 | `ambientLightIntensity` | 2.0 | Three.js ambient intensity, chosen for readable terrain |
 | `sunlightIntensity` | 1.1 | Three.js directional intensity |
 | `maxPixelRatio` | 2 | Maximum device-pixel ratio for rendering |
-| `pointRadiusDegrees` | 0.38 | Angular radius of event markers |
+| `pointRadiusDegrees` | 1.9 | Angular radius of event markers |
 | `pointAltitude` | 0.016 | Marker height as a fraction of globe radius |
 | `surfaceFitWidth` | 0.43 | Maximum initial sphere radius / canvas width |
 | `surfaceFitHeight` | 0.39 | Maximum initial sphere radius / canvas height |
 | `minZoomAltitude` | 0.04 | Nearest camera altitude / globe radius; lower is closer |
-| `sideSwitchBufferPx` | 28 | Midpoint hysteresis before a card switches rails |
-| `cardEdgePaddingPx` | 80 | Vertical clearance for controls and hint |
+| `pinToCardDistancePx` | 80 | Preferred horizontal gap when allocating a new card |
+| `connectorInsetPx` | 6 | Connector extends this many pixels inside the card edge |
+| `connectorWidthPx` | 8 | Straight connector thickness in CSS pixels |
+| `cardEdgePaddingPx` | 24 | Responsive card width margin and retained-selection inset; does not clamp moving cards |
 | `zoomOutMultiplier` | 1.7 | Maximum camera distance / fitted camera distance |
 | `maxCallouts` | 4 | Maximum card candidates including a selected surface point |
-| `cardGapPx` | 16 | Minimum vertical spacing between desktop cards |
-| `desktopBreakpointPx` | 1100 | Must match CSS media breakpoint |
 | `colors` | by layer | Pin, connector, and card-accent colors |
 
-The perspective fit uses the actual camera field of view: focal pixels = canvas height / (2 × tan(FOV/2)); distance = sqrt(radius² + (focalPixels × radius / desiredScreenRadius)²). Resizing recomputes the fit while preserving the current zoom-to-fit ratio within the zoom limits. Reset view restores the initial latitude/longitude and whole-Earth fit, and pauses rotation. None of these visual settings belong in the backend Event contract.
+The perspective fit uses the actual camera field of view: focal pixels = canvas height / (2 × tan(FOV/2)); distance = sqrt(radius² + (focalPixels × radius / desiredScreenRadius)²). Resizing recomputes the fit while preserving the current zoom-to-fit ratio within the zoom limits. Reset view restores the initial latitude/longitude and whole-Earth fit, without changing rotation. None of these visual settings belong in the backend Event contract.
 
 ## Current frontend/backend boundary
 
@@ -122,8 +121,8 @@ type Selection =
 // null means cleared.
 ```
 
-- Surface click: pauses rotation, normalizes longitude into [-180,180), and invokes `onSelect` with the exact location. A numbered pin/card displays that location. **No request or persistence occurs.**
-- Existing pin/card click: pauses rotation and invokes `onSelect` with the event. This is the future place for fetching details or relationships. Use `encodeURIComponent(event.id)` because IDs include colons or other characters.
+- Surface click: normalizes longitude into [-180,180), and invokes `onSelect` with the exact location. A numbered pin/card displays that location. **No request or persistence occurs.**
+- Existing pin/card click: invokes `onSelect` with the event. This is the future place for fetching details or relationships. Use `encodeURIComponent(event.id)` because IDs include colons or other characters.
 - Clear: invokes `onSelect(null)` and removes surface selection or event highlighting. No backend mutation.
 
 Potential backend integration (not implemented): derive a bounding box from the selected location and a user-chosen radius, then call `/api/events?bbox=minLng,minLat,maxLng,maxLat`. The documented event API also supports `types`, `start` (inclusive), `end` (exclusive), `minSignificance`, `limit`, and `cursor`. A radius is not currently a documented backend parameter. Agree on antimeridian/pole handling, query radius, debounce/cancellation, and pagination with the API teammate first.
@@ -136,20 +135,20 @@ The link endpoint's response envelope must also be agreed before use; the fixtur
 - Pause/resume; drag until a marker disappears behind Earth; verify its card and connector disappear too.
 - Click a surface point: verify the card's hemisphere labels, pin tracking, and clear action.
 - Click a source and verify its URL; click a pin/card title and verify selected state.
-- Rotate/zoom/resize and confirm cards track their pins vertically, switch sides, and never cover Earth or each other. Confirm each connector has one straight segment.
+- Rotate/zoom/resize and confirm cards track their pins vertically, follow their pins with fixed offsets, may cover Earth, and avoid existing cards on initial placement. Confirm each connector has one straight segment.
 - Scroll in to country scale, select a surface coordinate, and use Reset view to return to the whole Earth.
 - Inspect requests: only initial/retry `/api/events` pages, assets, and explicitly opened source links.
 - Run `npm run lint` and `npm run build` from `apps/web`.
 
 ## Layer controls and deep links (#5)
 
-`src/lib/layers.ts` defines the single `LayerState` object, keyed by all eight schema layer IDs. Each value is `{ enabled, mode, weightField }`. Disabled layers remain in this object. Earthquake, wildfire, and humanitarian start enabled; the other five start disabled. Every layer starts in `markers` mode. Every layer keeps `weightField: 'weight'` fixed in its config.
+`src/lib/layers.ts` defines the single `LayerState` object, keyed by all nine schema layer IDs. Each value is `{ enabled, mode, weightField }`. Disabled layers remain in this object. Technology, Government & Politics, Finance, and Society start enabled; the other five start disabled. Earthquake and wildfire start in `both` mode; other layers start in `markers` mode. Only the focused density layer renders heat. Every layer keeps `weightField: 'weight'` fixed in its config.
 
-The compact Layers menu changes enabled state for all layers and rendering mode (`markers`, `heatmap`, `both`) for earthquake and wildfire. Other layers always use individual POI markers; legacy heatmap modes for those layers are canonicalized to markers. Heatmaps always use the backend-supplied event `weight`; there is no weight-field dropdown. The backend can calculate this value from significance, severity, or other factors. Opening the menu pauses rotation. Marker colors match each layer's heatmap color. Native react-globe.gl heatmaps replace the original deck.gl proposal; no Google Map is mounted.
+The compact Layers menu changes enabled state for all layers and rendering mode (`markers`, `heatmap`, `both`) for earthquake and wildfire. Other layers always use individual POI markers; legacy heatmap modes for those layers are canonicalized to markers. Heatmaps always use the backend-supplied event `weight`; there is no weight-field dropdown. The backend can calculate this value from significance, severity, or other factors. Opening or closing the menu preserves rotation. Marker colors match each layer's heatmap color. Native react-globe.gl heatmaps replace the original deck.gl proposal; no Google Map is mounted.
 
 `page.tsx` retains the one API Event array. `deriveVisuals` applies enabled-layer and time filters, then derives marker arrays and per-layer weighted heatmap datasets. Disabled layers get empty datasets; the renderer skips empty heatmaps to avoid unnecessary density computations. No `key` is changed on the globe, so toggles do not reset camera, zoom, or selection. No network request is triggered by a toggle or rendering-mode change.
 
-Time uses `occurredAt >= start && occurredAt < end` in UTC. A visible time scrubber is not included in this task; the menu displays the URL time range and can clear it. Unknown layer IDs in URLs are ignored; explicit `layers=` means all off. Missing `layers` restores the weekend defaults. Invalid modes fall back to defaults. Legacy `weights` URL overrides are ignored and removed when the URL is canonicalized. Invalid/reversed/missing time ranges become all-time.
+Time uses `occurredAt >= start && occurredAt < end` in UTC. A visible time scrubber is not included in this task; the menu displays the URL time range and can clear it. Unknown layer IDs in URLs are ignored; explicit `layers=` means all off. Missing `layers` restores the product defaults. Invalid modes fall back to defaults. Legacy `weights` URL overrides are ignored and removed when the URL is canonicalized. Invalid/reversed/missing time ranges become all-time.
 
 Deep-link format:
 
@@ -161,47 +160,27 @@ Deep-link format:
 
 `t` is either `all` or two timezone-qualified ISO timestamps separated by a comma. `modes` accepts optional comma-separated `layer:value` overrides to make rendering modes shareable too. Browser percent-encoding of commas/colons is normal. Unrelated URL parameters and the hash are preserved. The URL is the persisted source for the one LayerState; `useLayerFilters` subscribes to history changes. Initial values are canonicalized with `replaceState`; user changes use `pushState`, so Back/Forward and refresh restore filters without navigation or a backend round trip. Selection itself is not serialized.
 
-A selected event is retained independently of filtered arrays. Turning off its layer, changing to heatmap-only mode, or excluding its timestamp retains its card with a “hidden by map filters” label while hiding its pin/connector. It stays available even if that hidden location is behind Earth. Clear removes this retained card. Surface selection is also independent of layer filters. Relationship cards are not implemented; future relation selection should follow this same retention rule, using unfiltered event IDs rather than visible markers.
+A selected event is retained independently of filtered arrays. Turning off its layer, changing to heatmap-only mode, excluding its timestamp, or removing its marker through the significance threshold/cap retains its card with a “hidden by map filters” label while hiding its pin/connector. It stays available even if that hidden location is behind Earth. Clear removes this retained card. Surface selection is also independent of layer filters. Relationship cards are not implemented; future relation selection should follow this same retention rule, using unfiltered event IDs rather than visible markers.
 
 ### Backend implications
 
-The browser still requests only `GET /api/events` on initial load/retry. `layers`, `modes`, and `t` are **frontend URL parameters**, not automatically forwarded to FastAPI. The `layers` values map to the backend's documented `types` parameter; an ISO `t` pair maps to `start` and `end` if server-side loading is implemented later. Modes are frontend rendering preferences. Event `weight` is part of the backend Event contract and supplies heatmap intensity. Do not make each layer its own fetch or discard selected events when adding pagination. The current frontend still loads one page; large datasets need a separate loading/performance plan.
+The browser still requests only `GET /api/events` on initial load/retry. `layers`, `modes`, `t`, `heatmap`, and `minSignificance` are **frontend URL parameters**, not automatically forwarded to FastAPI. The `layers` values map to the backend's documented `types` parameter; an ISO `t` pair maps to `start` and `end` if server-side loading is implemented later. Modes are frontend rendering preferences. Event `weight` is part of the backend Event contract and supplies heatmap intensity. Do not make each layer its own fetch or discard selected events when adding pagination. The current frontend still loads one page; large datasets need a separate loading/performance plan.
 
 ### Checks
 
 `npm test` runs the pure filter/URL tests using Node's test runner and the installed TypeScript compiler. Tests cover defaults, all-off state, invalid input, round-trip query preservation, exclusive end times, rendering modes, fixed event weight and legacy override removal, and source-array immutability. Browser checks cover card retention, history restoration, heatmap appearance, and no camera reset on toggles. Subsecond interaction was observed with the eight-fixture dataset; no large-feed performance guarantee has been established.
 
-## Clustered heatmap test data
+## Global event fixtures
 
-`data/fixtures/events.json` contains 48 events, including 40 synthetic `heatmap-demo:*` records. All new records use `fictional-demo`, `[Demo]` titles, null source links, and explicit fictional summaries. They share `2026-10-03T16:00:00Z`; existing fixtures are preserved. Fixture mode serves these through the same `/api/events` contract; API mode does not inject demo data.
+`data/fixtures/events.json` contains 39 events: 36 clearly fictional societal demos, plus the original three Napa earthquake/fire/news contract fixtures. Existing relationship fixture IDs remain valid. The former disaster-heavy `placeholder:*` and `heatmap-demo:*` demos have been replaced.
 
-| Continent / test area | Center (latitude, longitude) | Demo records |
-| --- | --- | --- |
-| North America / California | 38.55, -122.35 | 5 nearby fires, 1 earthquake, 1 humanitarian event |
-| South America / Central Brazil | -12.5, -53 | 5 nearby fires, 1 earthquake, 1 humanitarian event |
-| Europe / Central Spain | 40, -4.5 | 5 nearby fires |
-| Africa / Zambia | -13.5, 28 | 5 nearby fires |
-| Asia / Northern Thailand | 18.5, 99 | 5 nearby fires, 1 earthquake, 1 humanitarian event |
-| Australia / Southeast | -33.7, 150.6 | 5 nearby fires |
-| North America / Central Canada | 55, -105 | 1 isolated fire, weight 0.2 |
-| South America / Central Argentina | -35, -64 | 1 isolated fire, weight 2 |
-| Africa / Tanzania | -6, 35 | 1 isolated fire, weight 0.2 |
-| Asia / Central India | 22, 79 | 1 isolated fire, weight 2 |
+Each of six regions (North America, South America, Europe, Africa, Asia, and Oceania) includes technology, government policy, finance, society, conflict-dialogue, and journalism examples. Every new record uses a `societal-demo:*` ID, `fictional-demo` source, `[Demo]` title, null source URL, and a summary stating it is not a real report. Coordinates are city centroids and never claim exact incident locations. All demos have significance above the default marker threshold of 50.
 
-The 40 demo events are distributed across six continents: 30 clustered fires, 4 isolated fires, and 6 overlapping events. Each five-fire cluster uses weights 0.2, 0.5, 1, 1.5, and 2. California, Brazil, and Thailand include an exact shared coordinate across three layers to exercise overlap. Synthetic significance stays at 20 so test points do not outrank the original featured cards. The original eight fixtures are unchanged.
+- [Current default view](http://localhost:3000/?layers=technology,politics,finance,humanitarian&t=all)
+- [All six primary topics](http://localhost:3000/?layers=technology,politics,finance,humanitarian,conflict,news&t=all)
+- [Optional disaster overlay fixtures](http://localhost:3000/?layers=earthquake,wildfire&t=all)
 
-- [Wildfire intensity only](http://localhost:3000/?layers=wildfire&t=all&modes=wildfire:heatmap)
-- [Earthquake/wildfire heatmaps with humanitarian markers](http://localhost:3000/?layers=earthquake,wildfire,humanitarian&t=all&modes=earthquake:heatmap,wildfire:heatmap)
-- [Wildfire markers and heatmap](http://localhost:3000/?layers=wildfire&t=all&modes=wildfire:both)
-
-Reset view faces North America; pause and zoom toward California. Rotate around Earth to compare the clusters in Brazil, Spain, Zambia, Thailand, and Australia. Isolated comparison points sit away from the clusters. Toggle layers off and back on to check overlap stability. These URLs configure layers, not camera position.
-
-The installed three-globe renderer normalizes density to the maximum **within each layer's current dataset**. Nearby weights accumulate, but brightness is relative: it is not an absolute severity scale and cannot be compared directly between earthquake and wildfire. Changing the time filter can change that maximum. Mixed colors indicate overlapping layers, not a combined backend score.
-
-`src/lib/globe-config.ts` exposes bandwidth (3 degrees), base altitude (0.002 globe radii), layer spacing (0.0005 radii), and maximum opacity (0.65). Heatmaps use flat separated shells rather than intersecting raised surfaces. `event-globe.tsx` disables heatmap depth writes while retaining depth testing against Earth, and sets stable draw order using `LAYER_IDS`. Colors blend in this fixed order; later layers can tint earlier layers. The material adjustment relies on the installed three-globe data-to-mesh binding `__threeObjHeatmap`; recheck this adapter when upgrading that dependency. Pin altitude remains above every heatmap shell.
-
-Validation: 48 unique records pass structural Event schema validation; filter tests, lint, and production build pass. Browser checks exercised the overlap at country zoom and disabling/re-enabling layers. Large-feed performance is not established.
-
+Explicit `layers` in an existing URL still overrides defaults. Open `/` without a query or use the current-default link to see the new focus. Filters remain local; fixtures are not injected into live API responses.
 
 ## Scroll / zoom performance
 
@@ -212,10 +191,55 @@ Heatmap arrays and accessors retain stable identities across rotation and select
 Earlier browser verification covered three simultaneous heatmaps (before density modes were restricted to earthquake and wildfire) and wildfire markers with heatmap, country zoom, and desktop card rails. Tests, lint, and build pass. The geometry reduction is calculated from the installed renderer; no numeric FPS improvement is claimed.
 
 
-## Earth texture and POI rendering
+## Vector Earth and POI rendering
 
-The native smooth globe displays `public/textures/8k_earth_daymap.jpg`, supplied by the user as a 8192 × 4096 equirectangular image. The browser loads it from `/textures/8k_earth_daymap.jpg`; `GLOBE.textureUrl` selects the asset. No map service, API key, or new backend endpoint is needed. Texture provenance is recorded in `public/textures/README.md`.
+The active basemap uses `src/data/countries.geojson.json`, with country polygons and separate border paths over FluidOrb. A colorless depth-writing native sphere provides ocean picking and hides far-side geometry. There is no texture request or duplicate depth shell. [Vector globe documentation](vector-globe.md) covers provenance, settings, longitude seams, and backend boundaries.
 
-The globe uses the library's native sphere, material, geographic orientation, and click picking. No custom mesh replacement, generated land mask, or asset-generation script is needed. Coordinate selection, card projection, markers, optional heatmaps, and scroll performance settings remain unchanged.
+Earthquake and wildfire start in both mode with wildfire as the preferred heatmap; other layers use markers. The default enabled layers are technology, politics, finance, and humanitarian. Only wildfire and earthquake support optional heatmaps because they represent spatial density. News, humanitarian, politics, conflict, terror, and finance remain individually selectable markers even if an old URL asks for heatmap mode. Disabled layers and time filtering still apply. Heatmaps use existing event weights, and clicks still feed the same local selection state.
 
-All enabled layers start in marker mode; the three weekend default enabled layers are unchanged. Only wildfire and earthquake support optional heatmaps because they represent spatial density. News, humanitarian, politics, conflict, terror, and finance remain individually selectable markers even if an old URL asks for heatmap mode. Disabled layers and time filtering still apply. Heatmaps use existing event weights, and clicks still feed the same local selection state.
+
+## Heat plus clickable points (#6, globe implementation)
+
+The existing react-globe.gl renderer provides native weighted heatmaps and clickable Three.js point meshes; no Google Maps, deck.gl overlay, deprecated Maps heatmap, or Map3DElement is introduced. At most four DOM callout pins/cards are created; other points are WebGL meshes. Clicking a point selects its Event and opens/prioritizes its React floating card.
+
+`src/lib/layers.ts` exposes `MAX_MARKERS = 5000` and `DEFAULT_MIN_SIGNIFICANCE = 50`. The Layers panel edits the minimum significance. Marker candidates must be in an enabled layer/time window, permit marker display, and have `significance >= minSignificance`. They are sorted by descending significance, with ID tie-breaking, then capped. The original Event array remains intact. The panel reports displayed/qualifying counts when the cap is reached. Selected cards survive threshold and cap exclusions.
+
+Earthquake and wildfire default to `both`. `heatmap=wildfire` is the default focus; `heatmap=earthquake` switches density while keeping the other layer's eligible markers. Only one heatmap dataset is populated. If the requested focus is off, in markers-only mode, or has no events in the time range, the other eligible density layer is used; otherwise none is drawn. The panel names the active layer. Heatmap-only mode on an unfocused layer has no visual until that layer becomes the focus. Layer configuration remains intact.
+
+The marker threshold and 5,000 cap do not remove events from density calculations. All time/layer-filtered points in the active heatmap contribute their nonnegative `weight`, including the significance-20 synthetic fire clusters. Density is still normalized by the library within the active dataset. Set the marker threshold to 0 to inspect every fixture point.
+
+New URL fields are `minSignificance` (finite nonnegative number, default 50) and `heatmap` (earthquake or wildfire, default wildfire). They round-trip through history alongside `layers`, `modes`, and `t`. Mode defaults changed: missing earthquake/wildfire modes now mean both; explicit `modes=wildfire:markers` remains marker-only. Existing non-density heatmap modes still become markers.
+
+### FIRMS aggregation handoff (proposed; not implemented)
+
+The current frontend consumes one `/api/events` response and computes density locally. It does not aggregate live FIRMS on the server. Before loading large FIRMS feeds, the backend should group hotspots by spatial cell and UTC time bucket, sum a consistently defined nonnegative weight, and return cell centroids for density. Retain individual high-significance Events with stable IDs for clickable markers; do not present an aggregated cell as an individual source event.
+
+A proposed separate `GET /heatmap-cells?layer=wildfire&start=...&end=...&resolution=...` response would be `{ layerId, start, end, resolution, cells: [{ lat, lng, weight, count }] }`. This endpoint and its Next.js proxy allowlist entry do not exist yet; agree its contract with the backend owner before wiring it. Keep the marker Event array separate from that derived density response, reuse the same layer/time filters, and never send the marker significance threshold to the density query. Current backend `/events` defaults to 2,000 rows, with a maximum of 8,000; the frontend does not paginate, so a 5,000 render cap does not imply every backend event is loaded.
+
+Validation includes a 6,000-event synthetic filter test: exactly 5,000 highest-significance markers survive while all 6,000 remain heatmap input. Tests also cover the inclusive significance boundary, one-heatmap fallback, malformed URLs, mode persistence, and immutable source data. This validates data selection, not GPU performance at 5,000 points. Browser checks use the local fixtures; large live-feed performance still needs server aggregation and GPU profiling.
+
+
+## Technology, government, finance, and society focus
+
+| UI label | Event / URL `layerId` | Default |
+| --- | --- | --- |
+| Technology | `technology` (new) | On, markers |
+| Government & Politics | `politics` | On, markers |
+| Finance | `finance` | On, markers |
+| Society | `humanitarian` | On, markers |
+| Conflict | `conflict` | Off, markers |
+| News | `news` | Off, markers |
+| Earthquakes | `earthquake` | Off, both when enabled |
+| Wildfires | `wildfire` | Off, both when enabled |
+| Terror | `terror` | Off, markers |
+
+The first six topics lead the menu. Legacy categories remain for stored data and deep-link compatibility. Category names in event cards use the same friendly labels. Heatmap focus controls appear only when a density-capable layer is enabled, so the default product view is entirely marker-based. The 5,000 marker cap, significance threshold, time filters, selected-card retention, and one-heatmap limit remain in place.
+
+Backend mapping: `technology` is added to `packages/schema/event.schema.json`; ingestion classifiers, warehouse constraints, and downstream consumers with hardcoded layer enums must accept it. Existing FastAPI type filtering compares strings and the Next.js proxy passes through Event rows, so no route change is necessary. Technology covers product launches, computing, AI, communications, and research. `politics` covers government policy and civic decisions; `finance` covers markets, investment, and economic developments. For this product iteration, `humanitarian` intentionally groups societal topics such as housing access, education, labor, community services, and aid under the Society label. This broadens the category's product meaning without rewriting existing event IDs. The backend should use these IDs, not the display labels; no live news ingestion or classification service is implemented by this UI change.
+
+
+## Fluid ocean presentation
+
+The generated land/ice PNG is composited over the animated Rare UI Fluid Orb. See [implementation, attribution, and image prompt](fluid-ocean.md). Oceans are visual only; this change adds no API calls, changes no Event fields, and leaves latitude/longitude selection unchanged.
+
+Unnumbered surface markers use a 1.9° radius (5× the original 0.38°). Numbered HTML pins retain their existing size.
