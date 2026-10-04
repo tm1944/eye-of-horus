@@ -1,4 +1,4 @@
-"""Apply sql/001_init.sql and sql/003_acled.sql to the TigerData database."""
+"""Apply sql/001_init.sql and sql/003_conflict.sql to the TigerData database."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def main() -> None:
 
     with psycopg.connect(database_url(), connect_timeout=30) as conn:
         with conn.cursor() as cur:
-            for name in ("001_init.sql", "003_acled.sql"):
+            for name in ("001_init.sql", "003_conflict.sql"):
                 sql_path = REPO_ROOT / "sql" / name
                 for statement in _statements(sql_path.read_text(encoding="utf-8")):
                     cur.execute(statement)

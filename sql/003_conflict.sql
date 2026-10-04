@@ -1,4 +1,5 @@
--- ACLED kind tables. Safe to re-run after sql/001_init.sql.
+-- Conflict, protest, and strategic development kind tables. Safe to re-run after sql/001_init.sql.
+-- Mirrors the shared TigerData schema; every statement is additive.
 -- Older databases created mart.event before entities existed.
 ALTER TABLE mart.event ADD COLUMN IF NOT EXISTS entities jsonb NOT NULL DEFAULT '[]'::jsonb;
 

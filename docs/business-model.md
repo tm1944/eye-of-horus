@@ -12,8 +12,6 @@ Later paid path. When credits end, keep the same event schema and move the wareh
 
 **GDELT Cloud.** This is a separate commercial product. Explore is a 7-day trial then 50 query units per month. Builder is $49 per month. Team is $124 per month. Analyst is $333 per month. Intelligence is $749 per month. Academic and research access can be free after verification. Data is hourly, not streamed. Median lag is claimed at about 40 minutes. ([GDELT Cloud pricing](https://gdeltcloud.com/pricing).) Terms allow internal and product use. They forbid resale, republishing, mirroring, or serving Cloud events as a substitute feed without a written redistribution or OEM license. ([GDELT Cloud terms](https://gdeltcloud.com/terms), [acceptable use](https://gdeltcloud.com/acceptable-use).) What they miss for a student demo is easy public redistribution and true live streaming.
 
-**ACLED.** Conflict and protest events with a human coding method. Public tiers exist. Commercial users need a corporate license. Government and multilateral users need a public-sector license. List price is confidential. ([myACLED FAQ](https://acleddata.com/myacled-faqs), [ACLED EULA](https://acleddata.com/eula).) Older public FAQs said corporate users got three free downloads a year and that for-profit use always needs a license. ([2023 access FAQ PDF](https://acleddata.com/sites/default/files/wp-content-archive/uploads/2023/07/ACLED_Terms-of-Use-Attribution-Access_FAQs_2023.pdf).) Canada’s Department of National Defence awarded a 12-month OSINT GlobalConflictData subscription to ACLED Analysis Incorporated for 26 Oct 2025 to 25 Oct 2026. ([CanadaBuys contract history](https://canadabuys.canada.ca/en/tender-opportunities/contract-history/cw2418650-001).) The official page did not expose a dollar amount in this research. A third-party awards index reports $355.7K. Treat that figure as unverified until someone opens the award on CanadaBuys. ([Proposal Forge vendor page](https://proposalforge.io/canadian-awards/vendor/acled-analysis-incorporated).) What they miss is non-conflict hazards and a consumer globe.
-
 **ReliefWeb.** UN OCHA humanitarian reports, jobs, and training. The API is free and needs no key. Partner content can be copyrighted. ReliefWeb tells users to respect the original source. ([ReliefWeb API docs](https://apidoc.reliefweb.int/), [ReliefWeb API help](https://reliefweb.int/help/api).) Buyers are aid agencies and journalists. What they miss is a live multi-hazard map and structured causality.
 
 **USGS earthquakes.** Scientific data are public-domain federal records except where security or privacy blocks release. ([USGS data release FAQ](https://www.usgs.gov/faqs/what-usgs-policy-release-scientific-data-are-any-usgs-products-restricted), [copyrights and credits](https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits).) Real-time GeoJSON and other feeds are free. ([USGS feeds](https://earthquake.usgs.gov/earthquakes/feed/).) What they miss is everything that is not seismology.
@@ -46,11 +44,11 @@ A real company sells to a budget owner with a duty.
 
 Typical buyers:
 
-- Government and intel shops that already pay ACLED-class subscriptions.
+- Government and intel shops that already pay geopolitical-risk subscriptions.
 - Corporate security and travel-risk teams that buy Crisis24 or Dataminr.
 - Insurers and reinsurers that need hazard footprints, not news vibes. Guess. Named insurer ACV was not found.
 - Commodity and macro desks that pay for geopolitical modules. Recorded Future’s listed geo module is the public proxy.
-- NGOs that already live in ReliefWeb and ACLED.
+- NGOs that already live in ReliefWeb.
 
 They buy recall on the events that matter, auditability, SLAs, and a path into their stack. They do not buy a pretty globe.
 
@@ -123,7 +121,7 @@ The wedge is a **cross-domain link with a source trail and an explicit unknown**
 
 Example a judge can feel. A FIRMS cluster appears in a region. A ReliefWeb report or a GDELT story mentions displacement. Gemini proposes “possible linkage.” The card shows both sources, the time gap, and “not confirmed.”
 
-That is not Dataminr-scale collection. That is not ACLED-quality coding. It is a product stance the crowded maps refuse to take.
+That is not Dataminr-scale collection. That is not human-coded conflict ground truth. It is a product stance the crowded maps refuse to take.
 
 ### What LLMs can do here
 
@@ -135,7 +133,7 @@ That is not Dataminr-scale collection. That is not ACLED-quality coding. It is a
 ### What LLMs cannot do here
 
 - Prove that event A caused event B.
-- Replace ACLED or USGS as ground truth.
+- Replace USGS as ground truth.
 - Geolocate a vague political story with survey-grade points.
 - Stay stable on fresh facts that were not in training. ([NeurIPS 2024 CausalProbe](https://proceedings.neurips.cc/paper_files/paper/2024/file/af2bb2b2280d36f8842e440b4e275152-Paper-Conference.pdf).)
 
@@ -145,7 +143,7 @@ Pitch language. “Hypothesis graph.” Never “AI detected the cause of the wa
 
 **UI is not a moat.** Liveuamap already owns the consumer conflict map. Google Maps plus a heatmap is a weekend skill, not a company.
 
-**Data can be a moat only if it is licensed, exclusive, or expensive to redo.** Maxar imagery and ACLED coding are that shape. Scraped news is not.
+**Data can be a moat only if it is licensed, exclusive, or expensive to redo.** Maxar imagery is that shape. Scraped news is not.
 
 Licensing risks that can kill a real company and can embarrass a demo:
 
@@ -153,7 +151,6 @@ Licensing risks that can kill a real company and can embarrass a demo:
 - ReliefWeb content is often owned by the contributing partner. ([ReliefWeb API](https://apidoc.reliefweb.int/).)
 - GDELT Project raw files are unrestricted. GDELT Cloud outputs are not for public re-serve without an OEM deal. ([GDELT about](https://gdeltproject.org/about.html), [GDELT Cloud terms](https://gdeltcloud.com/terms).)
 - Liveuamap allows use of its data and maps with attribution. Third-party social text follows the original network terms. ([Liveuamap about](https://liveuamap.com/site/about/).)
-- ACLED for-profit redistribution needs a paid license. ([EULA](https://acleddata.com/eula).)
 - Google Maps content cannot be scraped, rehosted, or used to train models. Attribution cannot be hidden. ([Maps Platform terms](https://cloud.google.com/maps-platform/terms).)
 - USGS and FIRMS are the cleanest weekend layers if you cite them.
 
@@ -163,7 +160,7 @@ Hackathon rule. Show title, source name, time, coordinates, and a link. Do not p
 
 Rank is about willingness to pay and fit to a sensor-plus-hypothesis product. Prices below are comparables. They are not this team’s prices.
 
-1. **Government and NGO.** Highest proven checks. ACLED already sells public-sector licenses. Dataminr claims a large public-sector base. A student product will not win a classified program. A narrow open-source fusion watchboard could become a later RFP add-on. Guess on close rate.
+1. **Government and NGO.** Highest proven checks. Dataminr claims a large public-sector base. A student product will not win a classified program. A narrow open-source fusion watchboard could become a later RFP add-on. Guess on close rate.
 
 2. **Insurance and reinsurance.** They already buy flood, quake, and fire footprints. USGS and FIRMS are native to that job. A news heatmap is not. Public list prices for this exact product are unknown.
 
@@ -247,8 +244,6 @@ If a student is missing. Drop student D’s slide polish last. Never drop the fa
 
 - GDELT Project datasets are fee-free for commercial use. ([gdeltproject.org/about.html](https://gdeltproject.org/about.html).)
 - GDELT Cloud public prices and no-redistribute rule. ([gdeltcloud.com/pricing](https://gdeltcloud.com/pricing), [gdeltcloud.com/terms](https://gdeltcloud.com/terms).)
-- ACLED needs a corporate or public-sector license for those entity types. ([acleddata.com/eula](https://acleddata.com/eula).)
-- Canada DND bought a 12-month ACLED OSINT subscription. Dollar amount not confirmed from CanadaBuys here. ([CanadaBuys](https://canadabuys.canada.ca/en/tender-opportunities/contract-history/cw2418650-001).)
 - ReliefWeb API is free. Partner copyright still applies. ([apidoc.reliefweb.int](https://apidoc.reliefweb.int/).)
 - USGS scientific data are public domain by policy. ([USGS FAQ](https://www.usgs.gov/faqs/what-usgs-policy-release-scientific-data-are-any-usgs-products-restricted).)
 - FIRMS is free with a MAP_KEY and a citation request. ([FIRMS FAQ](https://www.earthdata.nasa.gov/data/tools/firms/faq).)
@@ -266,8 +261,6 @@ If a student is missing. Drop student D’s slide polish last. Never drop the fa
 - Predata price.
 - Maxar MGP dollar price.
 - Crisis24 Horizon seat price.
-- ACLED enterprise list price.
-- Official CanadaBuys dollar figure for W8484-26EK05.
 - Whether the team’s “free Google” grant includes Maps JS, Geocoding, and Gemini or only some of those APIs.
 - Whether the team’s TigerData grant allows the API host to connect, which is the only path the browser needs. The browser never opens the database.
 

@@ -110,19 +110,13 @@ Normalize every source into the Event contract before `mart.event`. Keep raw JSO
 - License. NASA asks credit as “NASA FIRMS” and a LANCE acknowledgment for papers. [FIRMS FAQ](https://www.earthdata.nasa.gov/data/tools/firms/faq).
 - Weekend use. Heatmap only. Cluster or sample before markers.
 
-### ACLED conflict, protest, political violence
-
-- Feed. OAuth against `https://acleddata.com/api/acled/read`. [Auth](https://acleddata.com/api-authentication). [Endpoint](https://acleddata.com/api-documentation/acled-endpoint).
-- Geo. `latitude`, `longitude` in EPSG:4326 to four decimals. Also `geo_precision`, `country`, `location`.
-- Access. myACLED account required. Older public FAQ described six downloads per year for public users plus weekly real-time data. Confirm current TOU before a public demo. [2023 FAQ PDF](https://acleddata.com/sites/default/files/wp-content-archive/uploads/2023/07/ACLED_Terms-of-Use-Attribution-Access_FAQs_2023.pdf).
-- Weekend use. Best politics and terror-adjacent points if the account is approved before Saturday. If not, ship GDELT plus fixtures.
-
 ### GDELT news and coded events
 
-- Feed. Free project files and GEO 2.0 / DOC 2.0 HTTP APIs. [GDELT data](https://gdeltproject.org/data.html). [GEO 2.0](https://blog.gdeltproject.org/gdelt-geo-2-0-api-debuts/). Event codebook has `Actor1Geo_Lat` / `Actor1Geo_Long` and Action geo. [Codebook PDF](https://data.gdeltproject.org/documentation/GDELT-Event_Codebook-V2.0.pdf).
-- Geo. Machine-assigned centroids. Country-level matches still emit a lat/lng at the country centroid. Filter `Actor1Geo_Type` if you need city-scale points.
-- License. Core GDELT project data are described as free and open. GDELT Cloud products have a separate no-redistribute policy. Use the project APIs and files, not Cloud, unless you have that license. [GDELT Cloud AUP](https://gdeltcloud.com/acceptable-use).
+- Feed. A BigQuery export of GDELT Event V2 rows lands in `data/backup_csvs/finalconflictCSV.csv` and loads through `python -m jobs.ingest.conflict_csv` as `source=conflict_csv`. Columns follow the Event codebook: `SQLDATE`, `Actor1Name`, `Actor2Name`, `EventCode`, `ActionGeo_*`, `GoldsteinScale`, `AvgTone`, `NumArticles`, `SOURCEURL`, plus curated `title`, `description`, and `category`. [GDELT data](https://gdeltproject.org/data.html). [Codebook PDF](https://data.gdeltproject.org/documentation/GDELT-Event_Codebook-V2.0.pdf). Public GEO 2.0 / DOC 2.0 HTTP APIs remain available for later live pulls. [GEO 2.0](https://blog.gdeltproject.org/gdelt-geo-2-0-api-debuts/).
+- Geo. `ActionGeo_Lat` / `ActionGeo_Long`. Machine-assigned centroids. Country-level matches still emit a lat/lng at the country centroid.
+- License. Core GDELT project data are described as free and open. GDELT Cloud products have a separate no-redistribute policy. This demo uses the public BigQuery dataset export, not Cloud. [GDELT Cloud AUP](https://gdeltcloud.com/acceptable-use).
 - Quality. High volume. Noisy geo. Good for density. Bad for a single “this war is here” pin without review.
+- Kind tables. Conflict and protest rows also write `mart.conflict` / `mart.protest` ([sql/003_conflict.sql](../sql/003_conflict.sql)): `event_type` is the CSV category, `actor1` / `actor2` come from `Actor1Name` / `Actor2Name`, and `location` from `ActionGeo_FullName`. GDELT has no source for the other shared columns, so they stay NULL. Goldstein drives `significance`, `NumArticles` drives `weight`, and `EventCode` is the `subtype` and a tag. Terror, politics, and crime rows live on `mart.event` only.
 
 ### ReliefWeb humanitarian
 
@@ -150,7 +144,7 @@ Normalize every source into the Event contract before `mart.event`. Keep raw JSO
 
 Prefer Google, in this order.
 
-1. Skip geocoding when the source already has lat/lng (USGS, FIRMS, ACLED).
+1. Skip geocoding when the source already has lat/lng (USGS, FIRMS, GDELT).
 2. Google Geocoding API v4 for addresses and “City, Country” strings. [v4 overview](https://developers.google.com/maps/documentation/geocoding/geocoding-v4-overview).
 3. Places API (New) Text Search when the string is a landmark or “something in X.” [Text Search](https://developers.google.com/maps/documentation/javascript/place-search).
 4. Cached country-centroid table for ReliefWeb ISO3.
@@ -165,7 +159,7 @@ Store `geoSource` as `native`, `google_geocode`, `google_places`, `centroid`, or
 | TigerData | Postgres plus Timescale and PostGIS. Shared database. JSONB raw payloads. SQL over events and edges. | Keep it. This is the store of record. |
 | SQLite | Zero ops. One file of fixtures. | Client and ingest scratch. Not the shared source of truth. |
 | DuckDB | Fast local parquet or CSV. | Great for FIRMS downsample notebooks. Not the API backend. |
-| BigQuery | Native GDELT public datasets. | Extra cloud. GDELT HTTP plus TigerData is enough. |
+| BigQuery | Native GDELT public datasets. Used once to export the conflict CSV. | Keep the export file in-repo. Live BigQuery is not required at demo time. |
 
 TigerData is the weekend store because the team already has an account, four laptops can share one database, and the story is news to database to LLM.
 
@@ -232,8 +226,7 @@ flowchart LR
   subgraph sources [Sources]
     USGS[USGS GeoJSON]
     FIRMS[FIRMS CSV]
-    ACLED[ACLED JSON]
-    GDELT[GDELT GEO or files]
+    GDELT[GDELT BigQuery CSV]
     RW[ReliefWeb]
     NEWS[GNews or Gemini grounded]
     WIKI[Wikifeeds]
@@ -265,7 +258,6 @@ flowchart LR
 
   USGS --> NORM
   FIRMS --> NORM
-  ACLED --> NORM
   GDELT --> NORM
   RW --> NORM
   NEWS --> LLM
@@ -431,7 +423,6 @@ Should have if Saturday stays green.
 
 Nice-to-have.
 
-- ACLED if the account is already approved.
 - Photorealistic `Map3DElement`.
 - globe.gl dual renderer.
 - Gemini calls issued from inside the database.
@@ -446,8 +437,7 @@ Biggest demo-risk items.
 4. FIRMS volume freezing the tab.
 5. LLM arcs that look fabricated.
 6. News APIs with no coordinates and a geocoder quota spike.
-7. ACLED TOU or account not ready.
-8. Deprecated HeatmapLayer if someone follows old Maps samples.
+7. Deprecated HeatmapLayer if someone follows old Maps samples.
 
 Mitigations.
 
