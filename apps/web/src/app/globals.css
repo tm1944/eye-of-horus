@@ -384,6 +384,9 @@ a:focus-visible {
 .briefing-meter span { display: block; height: 100%; background: var(--pin-color); }
 .briefing-rank strong { font-size: 16px; }
 .briefing-rank small { font-size: 11px; color: #bdbbbb; font-weight: 400; }
+/* Satellite view: a full-width VIIRS image of the hazard area with a muted source line. */
+.briefing-satellite-image { display: block; width: 100%; height: auto; background: #2f2e2e; }
+.briefing-satellite-caption { margin: 6px 0 0; font-size: 11px; color: #bdbbbb; }
 .briefing-lede p { margin: 0; font-size: 15px; line-height: 1.55; color: #ecebeb; }
 .briefing-more { margin-top: 6px; padding: 0; background: none; color: #ffd4a7; font-size: 12px; cursor: pointer; }
 

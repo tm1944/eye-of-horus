@@ -37,6 +37,47 @@ export function impactLabel(attributes: Record<string, unknown> | null | undefin
   return `${titleCase(klass)} impact · ${fmt(people)} people within ${fmt(radius)} km · JRC GHSL`;
 }
 
+const HAZARD_RADIUS_KM: Record<string, number> = { earthquake: 50, wildfire: 25, flood: 40, cyclone: 80, volcano: 30 };
+const GIBS_WMS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+// Later WMS layers draw on top. NOAA-20 covers Suomi NPP's daily swath gaps and vice versa,
+// so either satellite missing a pass still leaves an image instead of a black square.
+const TRUE_COLOR = ["VIIRS_SNPP_CorrectedReflectance_TrueColor", "VIIRS_NOAA20_CorrectedReflectance_TrueColor"];
+const ACTIVE_FIRES = ["VIIRS_SNPP_Thermal_Anomalies_375m_All", "VIIRS_NOAA20_Thermal_Anomalies_375m_All"];
+const IMAGE_WIDTH = 512;
+const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
+const round = (value: number) => Number(value.toFixed(4));
+
+export type SatelliteImage = { src: string; date: string; layers: string[]; fires: boolean };
+
+/**
+ * NASA GIBS VIIRS true-color image around a natural hazard, on the UTC day it happened.
+ * A same-day event uses the previous day, because that day's swath may still be incomplete.
+ * Wildfires overlay VIIRS active-fire detections. Null for layers that are not hazards.
+ */
+export function satelliteImage(event: Pick<Brief, "layerId" | "lat" | "lng"> & { occurredAt: string }, now = new Date()): SatelliteImage | null {
+  const radius = HAZARD_RADIUS_KM[event.layerId];
+  const occurred = new Date(event.occurredAt);
+  if (!radius || !Number.isFinite(event.lat) || !Number.isFinite(event.lng) || Number.isNaN(occurred.getTime())) return null;
+  const halfKm = radius * 1.5;
+  const dLat = halfKm / 111;
+  const dLng = Math.min(180, halfKm / (111 * Math.max(0.01, Math.cos(event.lat * Math.PI / 180))));
+  const south = clamp(event.lat - dLat, -90, 90), north = clamp(event.lat + dLat, -90, 90);
+  const west = clamp(event.lng - dLng, -180, 180), east = clamp(event.lng + dLng, -180, 180);
+  if (north <= south || east <= west) return null;
+  let day = occurred.toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+  if (day >= today) day = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const fires = event.layerId === "wildfire";
+  const layers = fires ? [...TRUE_COLOR, ...ACTIVE_FIRES] : TRUE_COLOR;
+  const height = Math.max(64, Math.round(IMAGE_WIDTH * (north - south) / (east - west)));
+  const params = new URLSearchParams({
+    SERVICE: "WMS", VERSION: "1.1.1", REQUEST: "GetMap", LAYERS: layers.join(","), STYLES: "", SRS: "EPSG:4326",
+    BBOX: [west, south, east, north].map(round).join(","), WIDTH: String(IMAGE_WIDTH), HEIGHT: String(Math.min(1024, height)),
+    FORMAT: "image/jpeg", TIME: day,
+  });
+  return { src: `${GIBS_WMS}?${params}`, date: day, layers, fires };
+}
+
 /**
  * The (up to) three most telling figures for an event, from its category table. News has
  * no structured figures; its keywords appear as chips instead.
