@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { getCatalogue, getProfile, saveInterests, type Catalogue } from "@/lib/profile";
 import { eventColor } from "@/lib/globe-config";
 import { CATEGORIES } from "@/lib/layers";
+import { Wordmark } from "@/components/brand";
+import StarrySky from "@/components/starry-sky";
 
 const MIN_PICKS = 3;
 // Each topic group borrows its category's colour from the globe; places use a neutral blue.
@@ -22,7 +24,9 @@ export default function PickInterests() {
     const controller = new AbortController();
     Promise.all([getCatalogue(controller.signal), getProfile(controller.signal).catch(() => null)]).then(([items, profile]) => {
       setCatalogue(items);
-      if (profile?.interests.length) setPicked(new Set(profile.interests)); // editing keeps earlier picks
+      // Editing keeps earlier picks that are still offered.
+      const offered = new Set(items.interests.map(item => item.id));
+      if (profile?.interests.length) setPicked(new Set(profile.interests.filter(id => offered.has(id))));
     }).catch((error: unknown) => {
       if (!controller.signal.aborted) setState({ error: error instanceof Error ? error.message : "Couldn't load interests." });
     });
@@ -50,7 +54,9 @@ export default function PickInterests() {
       {picked.has(item.id) && <span aria-hidden="true">✓ </span>}{item.label}
     </button>);
   return <main className="welcome welcome-interests" aria-labelledby="interests-title">
+    <StarrySky />
     <div className="interests-card">
+      <Wordmark size={24} className="interests-wordmark" />
       <p className="welcome-kicker">Step 1 of 1</p>
       <h1 id="interests-title">What do you want to follow?</h1>
       <p className="welcome-lede">Pick at least {MIN_PICKS} topics. We&apos;ll use them to start your feed, then learn from what you save and read.</p>

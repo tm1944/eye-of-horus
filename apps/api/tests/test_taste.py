@@ -107,7 +107,9 @@ class RankingTests(unittest.TestCase):
         out = taste.centered(raw, {"a", "b", "c"})
         self.assertLess(float(out["a"] @ out["b"]), 0.1)
         self.assertGreater(float(out["interest:x"] @ out["a"]), 0.9, "seeds are shifted by the same mean")
-        self.assertEqual([e["source"] for e in taste.feed_candidates([{"source": "firms"}, {"source": "gnews"}])], ["gnews"])
+        rows = [{"source": "firms", "layerId": "wildfire"}, {"source": "gnews", "layerId": "politics"},
+                {"source": "usgs", "layerId": "earthquake"}, {"source": "gnews", "layerId": "environment"}]
+        self.assertEqual(taste.feed_candidates(rows), [rows[1]], "no FIRMS, no natural-hazard layers")
 
     def test_reading_list_is_newest_first(self):
         state = {"readingList": [{"eventId": "q1", "addedAt": iso(timedelta(hours=2))}, {"eventId": "f1", "addedAt": iso()},

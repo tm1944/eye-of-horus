@@ -14,6 +14,7 @@ import { GLOBE } from "@/lib/globe-config";
 import GlobeBoundary from "@/components/globe-boundary";
 import SettingsRail from "@/components/settings-rail";
 import ViewTabs from "@/components/view-tabs";
+import { PRODUCT_NAME, Wordmark } from "@/components/brand";
 import DataAttribution from "@/components/data-attribution";
 
 const EventGlobe = dynamic(() => import("@/components/event-globe"), { ssr: false, loading: () => <div className="earth-loading" role="status">Loading Earth…</div> });
@@ -119,9 +120,9 @@ export default function Home() {
   // Headlines is deliberately limited: no filter rail, no settings rail, no country
   // selection. Country choices are kept for Explore, which has all the tools.
   const explore = tab === "explore";
-  return <main className="earth-page" data-tab={tab} aria-label="Hypothesis Globe">
+  return <main className="earth-page" data-tab={tab} aria-label={PRODUCT_NAME}>
     {explore && <LayerRail filters={filters} onChange={update} />}
-    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
+    <div className="globe-workspace"><Wordmark className="globe-wordmark" /><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
       feed={tab === "feed" ? { section: feedSection, onSection: section => { setFeed({}); setSelection(null); setFeedSection(section); }, saved: profile?.readingList.length ?? 0, loading: !feed.events && !feed.error, error: feed.error, onStartOver: startOver } : null} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={visuals.markers} heatmaps={visuals.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
     {explore && <SettingsRail reflowKey={[filters, selectedCountries]} actions={[]} panels={[
       { id: "countries", label: "Selected countries", badge: selectedCountries.length, active: selectedCountries.length > 0, content: <div className="selected-countries">
