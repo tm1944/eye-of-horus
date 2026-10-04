@@ -11,6 +11,10 @@ const GROUPS: { label: string; sources: { name: string; href: string; title: str
     { name: "GNews", href: "https://gnews.io/", title: "Headlines via the GNews API" },
     { name: "Wikipedia", href: "https://en.wikipedia.org/wiki/Portal:Current_events", title: "Wikipedia Current events, CC BY-SA 4.0" },
   ] },
+  { label: "Satellite", sources: [
+    { name: "NASA GIBS", href: "https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api", title: "VIIRS true color and active fire imagery via NASA Global Imagery Browse Services" },
+    { name: "JRC GHSL", href: "https://human-settlement.emergency.copernicus.eu/ghs_pop2023.php", title: "GHS-POP R2023A population grid, European Commission JRC (CC BY 4.0)" },
+  ] },
   { label: "Map", sources: [
     { name: "Natural Earth", href: "https://www.naturalearthdata.com/", title: "Natural Earth country shapes (public domain)" },
     { name: "three-globe", href: "https://github.com/vasturiano/three-globe", title: "Elevation heightmap from the three-globe examples (MIT)" },
