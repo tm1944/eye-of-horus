@@ -40,6 +40,55 @@ class ApiTests(unittest.TestCase):
         main.LINKS_FIXTURE.write_text(json.dumps(self.links))
         self.client = self.enterContext(TestClient(main.app, raise_server_exceptions=False))
 
+    def test_feed_uses_request_keywords_without_reading_or_saving_preferences(self):
+        from jobs.llm import personalize
+
+        before = personalize.CONFIG_PATH.read_bytes()
+        with patch.object(personalize, "load_config", side_effect=AssertionError("Must not load preferences")):
+            body = self.client.get("/feed?keywords=VIIRS&n=1").json()
+        self.assertEqual(body["events"][0]["id"], self.events[1]["id"])
+        self.assertEqual(body["sourceStatus"]["usgs"], "fixture")
+        self.assertIsNone(body["nextCursor"])
+        self.assertEqual(personalize.CONFIG_PATH.read_bytes(), before)
+
+    def test_feed_filters_and_empty_layer_selection(self):
+        response = self.client.get("/feed?types=earthquake&minSignificance=60")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["events"], [self.events[0]])
+        self.assertEqual(self.client.get("/feed?types=").json()["events"], [])
+        self.assertEqual(self.client.get("/feed", params={"end": self.events[1]["occurredAt"]}).json()["events"], [])
+
+    def test_feed_validates_selections_and_limits(self):
+        for query in ("n=0", "n=1001", "lat=91&lng=0", "lat=0", "lng=0", "lat=nan&lng=0",
+                      "keywords=", "types=unknown", "minSignificance=-1", "start=invalid",
+                      "start=2026-10-04T00:00:00Z&end=2026-10-03T00:00:00Z"):
+            with self.subTest(query=query):
+                self.assertEqual(self.client.get("/feed?" + query).status_code, 422)
+        for query in ("n=101", "spreadDegrees=-1", "spreadDegrees=181", "spreadDegrees=nan"):
+            self.assertEqual(self.client.get("/feed/pins?" + query).status_code, 422)
+
+    def test_pin_spacing_and_location_ranking(self):
+        base = {**self.events[0], "title": "Same title", "significance": 50, "lat": 0}
+        rows = [{**base, "id": str(i), "lng": lng} for i, lng in enumerate((0, 5, 90, 180))]
+        main.EVENTS_FIXTURE.write_text(json.dumps(rows))
+        result = self.client.get("/feed/pins?n=4&spreadDegrees=30&lat=0&lng=0").json()["events"]
+        self.assertEqual([row["id"] for row in result], ["0", "2", "3"])
+        self.assertEqual(len(self.client.get("/feed/pins?n=4&spreadDegrees=0").json()["events"]), 4)
+        self.assertEqual(self.client.get("/feed?n=1&lat=0&lng=180").json()["events"][0]["id"], "3")
+
+    def test_feed_uses_validated_live_rows_and_snapshot_fallback(self):
+        healthy = DatabasePing("ok", None)
+        dark = DatabasePing("dark", None, "simulated outage")
+        with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(self.events, healthy)):
+            live = self.client.get("/feed?types=wildfire").json()
+        self.assertEqual(live["sourceStatus"]["database"], "ok")
+        self.assertEqual(live["events"], [self.events[1]])
+        with patch.dict(os.environ, {"DATABASE_URL": "configured"}), patch.object(main, "fetch_mart_events", return_value=(None, dark)):
+            cached = self.client.get("/feed?types=wildfire").json()
+        self.assertEqual(cached["events"], live["events"])
+        self.assertEqual(cached["sourceStatus"]["database"], "dark")
+        self.assertIn("fallbackDetail", cached)
+
     def test_fixture_contract_detail_and_links(self):
         response = self.client.get("/events")
         self.assertEqual(response.status_code, 200)

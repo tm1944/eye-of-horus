@@ -9,7 +9,7 @@ This document is a precise record of the personalisation algorithm as implemente
 
 ## 1. Input
 
-User preferences are read from `data/user_config.json` at runtime. Shape:
+Standalone jobs read `data/user_config.json` when no config is supplied. The `/feed` and `/feed/pins` API routes instead pass request selections and validated candidate events directly; they never read or save preferences. The API applies explicit time bounds with no implicit seven-day cutoff, consistently across live and fallback data. The SQL cutoff below applies only to standalone loading. Config shape:
 
 ```json
 {

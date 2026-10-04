@@ -50,3 +50,31 @@ Live events and links are schema-validated before replacing atomic snapshots. Re
 The ingestion runner rejects concurrent runs within one API process, enforces a timeout, and discards child output. Responses are 401 for invalid authentication, 409 when busy, 502 for loader failure, 503 for missing configuration, and 504 for timeout. Run one API worker for this demo.
 
 Run tests with `python -m unittest discover -s tests -v` from `apps/api`.
+
+## Ranked feed and globe pins
+
+`GET /feed` returns up to `n=100` events ranked by Track D's location, keyword, significance, and recency weights. `GET /feed/pins` returns up to `n=10` ranked events separated by at least `spreadDegrees=30`. Both use the same validated database, snapshot, and fixture path as `/events`.
+
+Selections apply to the current request only. These endpoints neither read nor write `data/user_config.json`. No account or saved preference API is involved.
+
+| Query | Behavior |
+| --- | --- |
+| `types` | Comma-separated schema layer IDs; omitted means all, empty means none. Unknown IDs return 422. |
+| `keywords` | Repeat for multiple topics, up to 20 nonempty strings of at most 100 characters each. |
+| `lat`, `lng` | Optional location for proximity ranking; supply both. |
+| `minSignificance` | 0–100, default 0. |
+| `start`, `end` | Optional timezone-aware timestamps, inclusive start and exclusive end. No implicit seven-day cutoff. |
+| `n` | Feed: 1–1000; pins: 1–100. |
+| `spreadDegrees` | Pins only: 0–180. A clustered dataset may return fewer than n pins. |
+| `fixture=1` | Force sample data while still applying ranking and filters. |
+
+Responses use `{generatedAt, sourceStatus, events, nextCursor: null}`. The `events` array contains unchanged Event objects. These are bounded ranked results, not paginated full datasets. Fallback responses include `fallbackDetail`; an empty result is valid.
+
+Examples:
+
+```bash
+curl 'http://127.0.0.1:43124/feed?types=wildfire&keywords=fire&n=5'
+curl 'http://127.0.0.1:43124/feed/pins?lat=49.28&lng=-123.12&n=10&spreadDegrees=30'
+```
+
+The Next.js proxy exposes these as `/api/feed` and `/api/feed/pins` in `DATA_MODE=api`. Frontend-only fixture mode returns 503 for ranking routes; run FastAPI with `fixture=1` to test ranking on samples. The globe still uses `/events` for its complete layer/heatmap dataset. `/feed/smart` and `/feed/links` remain unimplemented.

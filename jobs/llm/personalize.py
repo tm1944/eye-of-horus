@@ -7,7 +7,8 @@ get_feed(n)         -- keyword-scored feed, top n events
 get_feed_smart(n)   -- same but with Gemini re-rank when keyword scores are weak
 get_globe_pins(n)   -- top n events spread across the globe for pin display
 
-All functions read user preferences from data/user_config.json.
+Functions read data/user_config.json only when no explicit config is supplied.
+The API supplies request selections and validated events without file preferences.
 Falls back to data/fixtures/events.json when DATABASE_URL is unset.
 
 See docs/personalization_algorithm.md for full algorithm spec.
@@ -205,11 +206,11 @@ def _load_events(config: dict) -> list[dict]:
 # Public feed functions
 # ---------------------------------------------------------------------------
 
-def get_feed(n: int = 100, config: dict | None = None) -> list[dict]:
+def get_feed(n: int = 100, config: dict | None = None, *, events: list[dict] | None = None) -> list[dict]:
     """Return top n events ranked by relevance score."""
     if config is None:
         config = load_config()
-    events = _load_events(config)
+    events = _load_events(config) if events is None else events
     scored = sorted(
         events,
         key=lambda e: score_event(e, config),
@@ -222,6 +223,7 @@ def get_globe_pins(
     n: int = 10,
     spread_degrees: float = PIN_SPREAD_DEGREES,
     config: dict | None = None,
+    *, events: list[dict] | None = None,
 ) -> list[dict]:
     """Return n events spread geographically for globe pin display.
 
@@ -231,7 +233,7 @@ def get_globe_pins(
     """
     if config is None:
         config = load_config()
-    events = _load_events(config)
+    events = _load_events(config) if events is None else events
     scored = sorted(
         events,
         key=lambda e: score_event(e, config),
