@@ -12,7 +12,6 @@ import { useLayerFilters, useViewTab } from "@/lib/use-layer-filters";
 import { deriveVisuals, headlineFeed, restrictVisuals, type LayerId, type ViewTab } from "@/lib/layers";
 import { GLOBE } from "@/lib/globe-config";
 import GlobeBoundary from "@/components/globe-boundary";
-import SettingsRail from "@/components/settings-rail";
 import CountryHeadlines from "@/components/country-headlines";
 import { indexLinks } from "@/lib/related-events";
 import ViewTabs from "@/components/view-tabs";
@@ -117,6 +116,14 @@ export default function Home() {
   }), [selectedCountryIds, result]);
   // Selecting a country opens the Selected countries panel with its headlines.
   const [countriesPanelRequest, setCountriesPanelRequest] = useState<{ id: "countries"; key: number } | null>(null);
+  const [settingsCloseRequest, setSettingsCloseRequest] = useState(0);
+  // Picking a story from the list closes it and clears the countries: the story then opens
+  // in Explore's story tree (briefing right, connected stories left).
+  function pickCountryHeadline(event: Event) {
+    setSelectedCountryIds([]);
+    setSettingsCloseRequest(value => value + 1);
+    setSelection({ kind: "event", event });
+  }
   function toggleCountry(id: string) {
     const adding = !selectedCountryIds.includes(id);
     setSelectedCountryIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
@@ -133,15 +140,14 @@ export default function Home() {
     ? restrictVisuals(visuals, new Set(selectedCountries.flatMap(country => country.events.map(event => event.id))))
     : visuals, [explore, selectedCountries, visuals]);
   return <main className="earth-page" data-tab={tab} aria-label="Hypothesis Globe">
-    {explore && <LayerRail filters={filters} onChange={update} />}
-    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
-      feed={tab === "feed" ? { section: feedSection, onSection: section => { setFeed({}); setSelection(null); setFeedSection(section); }, saved: profile?.readingList.length ?? 0, loading: !feed.events && !feed.error, error: feed.error, onStartOver: startOver } : null} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={shown.markers} heatmaps={shown.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
-    {explore && <SettingsRail reflowKey={[filters, selectedCountries]} openRequest={countriesPanelRequest} actions={[]} panels={[
+    {explore && <LayerRail filters={filters} onChange={update} reflowKey={[filters, selectedCountries]} openRequest={countriesPanelRequest} closeRequest={settingsCloseRequest} panels={[
       { id: "countries", label: "Selected countries", badge: selectedCountries.length, active: selectedCountries.length > 0, content: <CountryHeadlines countries={selectedCountries}
-        onRemove={toggleCountry} onClear={() => setSelectedCountryIds([])} onPick={event => setSelection({ kind: "event", event })}
+        onRemove={toggleCountry} onClear={() => setSelectedCountryIds([])} onPick={pickCountryHeadline}
         include={event => !!filters.layers[event.layerId as LayerId]?.enabled} linkCount={id => linkIndex.get(id)?.length ?? 0} /> },
       { id: "significance", label: "Significance", content: <DisplaySettings filters={filters} onChange={update} count={visuals.visible.length} markerCount={visuals.markers.length} markerCandidateCount={visuals.markerCandidateCount} /> },
     ]} />}
+    <div className="globe-workspace"><ViewTabs tab={tab} onChange={changeTab} /><GlobeBoundary><EventGlobe view={tab} headlines={tab === "feed" ? feedEvents : headlines} personal={personal}
+      feed={tab === "feed" ? { section: feedSection, onSection: section => { setFeed({}); setSelection(null); setFeedSection(section); }, saved: profile?.readingList.length ?? 0, loading: !feed.events && !feed.error, error: feed.error, onStartOver: startOver } : null} allEvents={result?.data.events ?? emptyEvents} links={links} selectedCountries={explore ? selectedCountries : noCountries} onToggleCountry={toggleCountry} events={shown.markers} linkable={visuals.markers} heatmaps={shown.heatmaps} selection={selection} fixture={result?.mode === "fixture"} onSelect={setSelection} /></GlobeBoundary><DataAttribution /></div>
     {error && <div className="data-error" role="alert">{error} The globe is still interactive. <button onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry</button></div>}
   </main>;
 }

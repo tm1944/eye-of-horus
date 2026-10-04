@@ -87,6 +87,7 @@ export const GLOBE = {
   maxCallouts: 4, // highest-significance events; selected event takes priority
   headlineCount: 12, // Headlines tab: the top N events overall (map filters do not apply), each with a floating card
   headlinePerCategory: 3, // …taking at most this many from any one sidebar category
+  briefingSlideMs: 130, // easing time constant as the globe slides beside the briefing or rail, or between tabs (~0.4 s; frame-rate independent)
   tourStepMs: 8000, // Headlines tour: each story is shown this long before flying to the next (north to south)
   pinSelectedScale: 1.5, // Explore: the selected pin grows and gains a white halo
   headlinePinScale: 1.5, // Headlines: every pin uses the large size (the selection keeps its halo)

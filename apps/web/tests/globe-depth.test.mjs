@@ -22,3 +22,16 @@ test('zoom-out depth precision resolves closely spaced surface layers even with 
   assert((globe-land)*65535 > 4);
  }
 });
+
+test('clip range also holds relationship arcs that float above the atmosphere', () => {
+ const arcPeak = 0.07 + 0.12; // relatedArcClearance + relatedArcRise in globe-config.ts
+ // Camera above the arc peak: the peak on the camera side must stay beyond the near plane.
+ for (const distance of [125, 150, 400, 800]) {
+  const { near } = globeClipPlanes(distance, 100, arcPeak + 0.02);
+  assert(near < distance - 100 * (1 + arcPeak), `arc peak in front of near plane at distance ${distance}`);
+ }
+ // Camera below the peak (close zoom): the near plane sits at its small floor.
+ for (const distance of [104, 112]) assert.equal(globeClipPlanes(distance, 100, arcPeak + 0.02).near, 100 * 0.001);
+ // The old atmosphere-only extent clipped it whenever the camera was beyond the arc peak.
+ assert(globeClipPlanes(150, 100, 0.12).near > 150 - 100 * (1 + arcPeak));
+});
