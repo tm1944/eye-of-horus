@@ -9,3 +9,7 @@ venv/
 *-credentials.sql
 .DS_Store
 data/snapshots/*.json
+
+# My Feed demo: the local user profile and regenerable embeddings cache (python -m jobs.llm.embed_events)
+data/users/
+data/cache/

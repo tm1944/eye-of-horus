@@ -106,6 +106,8 @@ test('six categories partition the layers; category toggles open and close all s
 test('the tab lives in the URL beside the filters; headlines is the default and leaves no parameter', () => {
  assert.equal(parseTab(''), 'headlines');
  assert.equal(parseTab('?tab=explore&layers=news'), 'explore');
+ assert.equal(parseTab('?tab=feed'), 'feed');
+ assert.equal(writeTab('', 'feed'), 'tab=feed');
  assert.equal(parseTab('?tab=nonsense'), 'headlines');
  assert.equal(writeTab('?layers=news', 'explore'), 'layers=news&tab=explore');
  assert.equal(writeTab('?layers=news&tab=explore', 'headlines'), 'layers=news');

@@ -13,7 +13,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import threading
+import time
+from typing import Literal
+
+import numpy as np
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from pydantic import BaseModel, Field
+
+import taste
+import user_state
 from fastapi.middleware.cors import CORSMiddleware
 from jsonschema import Draft202012Validator, FormatChecker
 from ingest_runner import run_ingest
@@ -37,6 +46,10 @@ LINKS_FIXTURE = FIXTURES_DIR / "api_links.json"
 EVENTS_SNAPSHOT = SNAPSHOTS_DIR / "events.json"
 LINKS_SNAPSHOT = SNAPSHOTS_DIR / "links.json"
 SNAPSHOT_META = SNAPSHOTS_DIR / "meta.json"
+# My Feed (demo): one local profile file, the interest catalogue, and cached embeddings.
+USER_STATE = REPO_ROOT / "data" / "users" / "demo.json"
+INTERESTS = REPO_ROOT / "data" / "interests.json"
+EMBEDDINGS = REPO_ROOT / "data" / "cache" / "embeddings.json"
 
 DEFAULT_VITE_ORIGIN = "http://127.0.0.1:43123"
 _SCHEMA_DIR = REPO_ROOT / "packages" / "schema"
@@ -574,3 +587,155 @@ def feed_pins(
 ):
     """Return up to n ranked events with the requested angular separation."""
     return _ranked_response(selection, n, spreadDegrees)
+
+
+# ---------------------------------------------------------------------------
+# MY FEED (demo) — a single local profile; see apps/api/taste.py and user_state.py.
+# ---------------------------------------------------------------------------
+
+_state_lock = threading.Lock()
+_cache: dict[str, tuple[float, Any]] = {}
+FEED_CACHE_SECONDS = 30  # events and links change on ingest, not between clicks
+
+
+def _cached(key: str, ttl: float, load):
+    hit = _cache.get(key)
+    if hit and time.monotonic() - hit[0] < ttl:
+        return hit[1]
+    value = load()
+    _cache[key] = (time.monotonic(), value)
+    return value
+
+
+def _catalogue() -> list[dict[str, Any]]:
+    return _cached("interests", 3600, lambda: json.loads(INTERESTS.read_text(encoding="utf-8"))["interests"])
+
+
+def _embeddings() -> dict[str, np.ndarray]:
+    """Unit vectors keyed by event id and `interest:<id>`; reloaded when the file changes."""
+    try:
+        stamp = EMBEDDINGS.stat().st_mtime
+    except OSError:
+        return {}
+    hit = _cache.get("embeddings")
+    if hit and hit[0] == stamp:
+        return hit[1]
+    raw = json.loads(EMBEDDINGS.read_text(encoding="utf-8")).get("vectors", {})
+    vectors = {}
+    for key, values in raw.items():
+        vector = np.asarray(values, dtype=np.float32)
+        norm = float(np.linalg.norm(vector))
+        if norm > 0:
+            vectors[key] = vector / norm
+    _cache["embeddings"] = (stamp, vectors)
+    return vectors
+
+
+def _feed_events() -> list[dict[str, Any]]:
+    return _cached("events", FEED_CACHE_SECONDS, lambda: _load_events_for_request(fixture_flag=False)[0])
+
+
+def _same_event_pairs() -> list[tuple[str, str]]:
+    def load():
+        try:
+            links = _load_links_for_request(fixture_flag=False, live=True)
+        except HTTPException:
+            return []
+        return [(link["sourceId"], link["targetId"]) for link in links if link.get("relation") in ("same-event", "same_event")]
+    return _cached("same-event", FEED_CACHE_SECONDS, load)
+
+
+def _update_state(change) -> dict[str, Any]:
+    with _state_lock:
+        state = change(user_state.load(USER_STATE))
+        user_state.save(USER_STATE, state)
+    return user_state.public(state)
+
+
+View = Literal["headlines", "explore", "feed"]
+
+
+class InterestsBody(BaseModel):
+    interests: list[str] = Field(min_length=1, max_length=40)
+
+
+class ViewBody(BaseModel):
+    view: View | None = None
+
+
+class FeedbackBody(BaseModel):
+    value: Literal["more", "less"] | None
+    view: View | None = None
+
+
+class InteractionBody(BaseModel):
+    eventId: str = Field(min_length=1, max_length=300)
+    kind: Literal["open", "source"]
+    view: View | None = None
+
+
+@app.get("/interests")
+def list_interests() -> dict[str, Any]:
+    """The onboarding catalogue (seed text omitted: it only matters to the ranking)."""
+    data = json.loads(INTERESTS.read_text(encoding="utf-8"))
+    return {"groups": data["groups"], "interests": [{key: value for key, value in item.items() if key != "seed"} for item in data["interests"]]}
+
+
+@app.get("/me")
+def get_me() -> dict[str, Any]:
+    return user_state.public(user_state.load(USER_STATE))
+
+
+@app.delete("/me")
+def reset_me() -> dict[str, Any]:
+    """Start the demo over: forget interests, saves, feedback and history."""
+    return _update_state(lambda _state: user_state.empty())
+
+
+@app.put("/me/interests")
+def put_interests(body: InterestsBody) -> dict[str, Any]:
+    known = {item["id"] for item in _catalogue()}
+    unknown = [interest for interest in body.interests if interest not in known]
+    if unknown:
+        raise HTTPException(422, detail=f"Unknown interests: {', '.join(unknown)}")
+    return _update_state(lambda state: user_state.set_interests(state, body.interests, user_state.now_iso()))
+
+
+# `:path` because some event ids contain URLs (conflict-csv:https://…/…); the server decodes
+# %2F back to "/" before routing, so a plain {event_id} would never match them.
+@app.post("/me/reading-list/{event_id:path}")
+def save_item(event_id: str, body: ViewBody | None = None) -> dict[str, Any]:
+    view = body.view if body else None
+    return _update_state(lambda state: user_state.set_saved(state, event_id, True, view, user_state.now_iso()))
+
+
+@app.delete("/me/reading-list/{event_id:path}")
+def unsave_item(event_id: str) -> dict[str, Any]:
+    return _update_state(lambda state: user_state.set_saved(state, event_id, False, None, user_state.now_iso()))
+
+
+@app.put("/me/feedback/{event_id:path}")
+def put_feedback(event_id: str, body: FeedbackBody) -> dict[str, Any]:
+    return _update_state(lambda state: user_state.set_feedback(state, event_id, body.value, body.view, user_state.now_iso()))
+
+
+@app.post("/me/interactions")
+def post_interaction(body: InteractionBody) -> dict[str, bool]:
+    _update_state(lambda state: user_state.add_interaction(state, body.eventId, body.kind, body.view, user_state.now_iso()))
+    return {"ok": True}
+
+
+@app.get("/me/feed")
+def my_feed(n: int = Query(default=20, ge=1, le=100), savedOnly: int = Query(default=0, ge=0, le=1)) -> dict[str, Any]:
+    """The demo user's feed (ranked by the taste vector), or their reading list."""
+    state = user_state.load(USER_STATE)
+    events = _feed_events()
+    if savedOnly:
+        ranked = taste.reading_list({event["id"]: event for event in events}, state)
+    else:
+        events = taste.feed_candidates(events)
+        # Centre on the candidates, then fill any interest seed that is not embedded yet.
+        vectors = _cached("seeded", FEED_CACHE_SECONDS, lambda: taste.with_seed_fallback(
+            taste.centered(_embeddings(), {event["id"] for event in events}), _catalogue(), events))
+        ranked = taste.rank_feed(events, state, _catalogue(), vectors, datetime.now(timezone.utc), n=n, same_event=_same_event_pairs())
+    return {"generatedAt": _now_iso(), "events": ranked, "embeddings": bool(_embeddings())}
