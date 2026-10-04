@@ -1,6 +1,6 @@
 import type { Event } from "./api";
 
-export const LAYER_IDS = ["technology", "politics", "finance", "humanitarian", "conflict", "news", "earthquake", "wildfire", "terror"] as const;
+export const LAYER_IDS = ["technology", "politics", "finance", "humanitarian", "conflict", "protest", "strategic_development", "news", "earthquake", "wildfire", "terror", "crime"] as const;
 export type LayerId = typeof LAYER_IDS[number];
 export const supportsHeatmap = (id: LayerId) => id === "earthquake" || id === "wildfire";
 export type LayerMode = "heatmap" | "markers" | "both";
@@ -12,7 +12,7 @@ export const DEFAULT_MIN_SIGNIFICANCE = 50;
 export type DensityLayerId = "earthquake" | "wildfire";
 export type Filters = { layers: LayerState; time: TimeWindow; minSignificance: number; heatmapLayer: DensityLayerId };
 export type HeatmapData = { id: LayerId; points: { lat: number; lng: number; weight: number }[] };
-export const LABELS: Record<LayerId, string> = { technology: "Technology", politics: "Government & Politics", finance: "Finance", humanitarian: "Society", conflict: "Conflict", news: "News", earthquake: "Earthquakes", wildfire: "Wildfires", terror: "Terror" };
+export const LABELS: Record<LayerId, string> = { technology: "Technology", politics: "Government & Politics", finance: "Finance", humanitarian: "Society", conflict: "Conflict", protest: "Protests", strategic_development: "Strategic developments", news: "News", earthquake: "Earthquakes", wildfire: "Wildfires", terror: "Terror", crime: "Crime" };
 export function defaultLayers(): LayerState {
   return Object.fromEntries(LAYER_IDS.map(id => [id, { enabled: ["technology", "politics", "finance", "humanitarian"].includes(id), mode: supportsHeatmap(id) ? "both" : "markers", weightField: "weight" }])) as LayerState;
 }

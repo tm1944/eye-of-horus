@@ -35,8 +35,8 @@ export const GLOBE = {
   colors: {
     technology: "#80e5ef",
     earthquake: "#ffc38b", wildfire: "#ff8d91", news: "#a0d9ff",
-    humanitarian: "#d3b9ff", conflict: "#fba6bf", politics: "#e6d09c",
-    terror: "#ffaeae", finance: "#94e5c9", selected: "#ceffe5",
+    humanitarian: "#d3b9ff", conflict: "#fba6bf", protest: "#f6c86b", strategic_development: "#9ec1ff", politics: "#e6d09c",
+    terror: "#ffaeae", crime: "#e7a6ff", finance: "#94e5c9", selected: "#ceffe5",
   } as Record<string, string>,
 };
 export const eventColor = (layer: string) => GLOBE.colors[layer] ?? "#d3b9ff";

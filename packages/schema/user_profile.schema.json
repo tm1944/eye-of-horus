@@ -25,7 +25,19 @@
           "volcano",
           "drought",
           "famine",
-          "protest"
+          "protest",
+          "strategic_development",
+          "crime",
+          "business",
+          "culture",
+          "education",
+          "entertainment",
+          "environment",
+          "food",
+          "health",
+          "science",
+          "sports",
+          "technology"
         ]
       },
       "description": "Layer IDs to include. Matches layerId enum in event.schema.json."

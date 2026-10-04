@@ -44,7 +44,19 @@
         "volcano",
         "drought",
         "famine",
-        "protest"
+        "protest",
+        "strategic_development",
+        "crime",
+        "business",
+        "culture",
+        "education",
+        "entertainment",
+        "environment",
+        "food",
+        "health",
+        "science",
+        "sports",
+        "technology"
       ]
     },
     "subtype": { "type": ["string", "null"] },
